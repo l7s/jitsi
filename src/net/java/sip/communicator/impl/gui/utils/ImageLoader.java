@@ -147,6 +147,12 @@ public class ImageLoader
      */
     public static final ImageID ADD_ACCOUNT_MENU_ICON
         = new ImageID("service.gui.icons.ADD_ACCOUNT_MENU_ICON");
+	
+	/**
+	* My account icon used in the file menu.
+	*/
+    public static final ImageID MY_ACCOUNT_MENU_ICON
+        = new ImageID("service.gui.icons.MY_ACCOUNT_MENU_ICON");
 
     /**
      * The background of the main window and chat window.

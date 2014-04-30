@@ -29,7 +29,7 @@ public class SIPCommunicator
      * currently active name (overridableDirName).
      */
     private static final String[] LEGACY_DIR_NAMES
-        = { ".sip-communicator", "SIP Communicator" };
+        = { ".sip-communicator", "%PRODUCT%" };
 
     /**
      * The name of the property that stores the home dir for cache data, such
@@ -51,15 +51,15 @@ public class SIPCommunicator
     private static final String[] LEGACY_CONFIGURATION_FILE_NAMES
         = {
             "sip-communicator.properties",
-            "jitsi.properties",
+            "%PRODUCT_SHORT%.properties",
             "sip-communicator.xml",
-            "jitsi.xml"
+            "%PRODUCT_SHORT%.xml"
         };
 
     /**
      * The currently active name.
      */
-    private static final String OVERRIDABLE_DIR_NAME = "Jitsi";
+    private static final String OVERRIDABLE_DIR_NAME = "%PRODUCT_SHORT%";
 
     /**
      * The name of the property that stores our home dir location.
@@ -150,14 +150,14 @@ public class SIPCommunicator
             switch (new SipCommunicatorLock().tryLock(args))
             {
             case SipCommunicatorLock.LOCK_ERROR:
-                System.err.println("Failed to lock SIP Communicator's "
+                System.err.println("Failed to lock %PRODUCT_SHORT%'s "
                                 +"configuration directory.\n"
                                 +"Try launching with the --multiple param.");
                 System.exit(SipCommunicatorLock.LOCK_ERROR);
                 break;
             case SipCommunicatorLock.ALREADY_STARTED:
                 System.out.println(
-                    "SIP Communicator is already running and will "
+                    "%PRODUCT_SHORT% is already running and will "
                     +"handle your parameters (if any).\n"
                     +"Launch with the --multiple param to override this "
                     +"behaviour.");
@@ -209,7 +209,7 @@ public class SIPCommunicator
             || name == null)
         {
             String defaultLocation = System.getProperty("user.home");
-            String defaultName = ".jitsi";
+            String defaultName = ".%PRODUCT_SHORT%";
 
             // Whether we should check legacy names
             // 1) when such name is not forced we check
@@ -238,7 +238,7 @@ public class SIPCommunicator
                         + "Logs";
 
                 if (name == null)
-                    name = "Jitsi";
+                    name = "%PRODUCT_SHORT%";
             }
             else if (osName.startsWith("Windows"))
             {
@@ -255,7 +255,7 @@ public class SIPCommunicator
                 if (logLocation == null)
                     logLocation = System.getenv("LOCALAPPDATA");
                 if (name == null)
-                    name = "Jitsi";
+                    name = "%PRODUCT_SHORT%";
             }
 
             /* If there're no OS specifics, use the defaults. */

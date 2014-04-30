@@ -46,7 +46,7 @@
     <property name="inst.resrc" value="${sc.basedir}/resources/install"/>
     <property name='j2se_api' value='http://java.sun.com/j2se/1.5/docs/api' />
     <property name='maxwarns' value='10000' />
-    <property name='java.net.preferIPv6Addresses' value='true' />
+    <property name='java.net.preferIPv6Addresses' value='false' />
 
     <!-- set the build label property and make it take the cc bild into account -->
     <condition property="build.label"
@@ -757,7 +757,7 @@
         <!-- Jitsi on Mac OS X uses a JVMTI agent to handle kAEGetURL
              AppleScript events. -->
         <condition property="jvmarg.line"
-                   value="-agentlib:AEGetURLEventHandlerAgent -Xdock:name='Jitsi' -Xdock:icon='resources/images/logo/sc_logo_128x128.icns'"
+                   value="-agentlib:AEGetURLEventHandlerAgent -Xdock:name='%PRODUCT%' -Xdock:icon='resources/images/logo/sc_logo_128x128.icns'"
                    else="">
             <isset property="is.running.macos"/>
         </condition>
@@ -1066,12 +1066,12 @@
         bundle-plugin-contactinfo,bundle-plugin-chatalerter, bundle-keybindings,
         bundle-plugin-keybindingChooser,bundle-plugin-globalproxyconfig,
         bundle-jfontchooserlib,bundle-update,bundle-plugin-update,
-        bundle-plugin-simpleaccreg,bundle-plugin-generalconfig,
+        bundle-plugin-generalconfig,
         bundle-plugin-googletalkaccregwizz,bundle-argdelegation-service,
         bundle-argdelegation,bundle-zrtp4j,bundle-sdes4j,bundle-json,
         bundle-filehistory,bundle-metahistory,bundle-metahistory-slick,
-        bundle-plugin-facebookaccregwizz,bundle-plugin-ippiaccregwizz,
-        bundle-bouncycastle,bundle-plugin-otr,bundle-plugin-iptelaccregwizz,
+        bundle-plugin-facebookaccregwizz,
+        bundle-bouncycastle,
         bundle-contactsource,bundle-plugin-reconnect,bundle-plugin-securityconfig,
         bundle-plugin-advancedconfig,
         bundle-credentialsstorage,bundle-credentialsstorage-slick,
@@ -1083,14 +1083,13 @@
         bundle-plugin-loggingutils,
         bundle-provdisc,bundle-provdisc-dhcp,bundle-provdisc-mdns,
         bundle-provisioning,bundle-addrbook,bundle-plugin-ldap,
-        bundle-thunderbird,
         bundle-plugin-contactsourceconfig,bundle-plugin-certconfig,
-        bundle-globalshortcut,bundle-plugin-msofficecomm,bundle-libjitsi,
+        bundle-globalshortcut,bundle-libjitsi,
         bundle-customcontactactions, bundle-phonenumbercontactsource,
         bundle-demuxcontactsource, bundle-muc,
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
-        bundle-plugin-propertieseditor,bundle-plugin-accountinfo,
+        bundle-plugin-propertieseditor,
         bundle-guava,bundle-hsql"/>
 
     <!--BUNDLE-SC-LAUNCHER-->
@@ -1838,36 +1837,6 @@ javax.swing.event, javax.swing.border"/>
         </jar>
     </target>
 
-    <!-- BUNDLE-PLUGIN-IPTELACCREGWIZZ -->
-    <target name="bundle-plugin-iptelaccregwizz">
-        <!-- Creates a bundle for the plugin IP Tel Account Registration Wizard.-->
-        <jar compress="false" destfile="${bundles.dest}/iptelaccregwizz.jar"
-            manifest="${src}/net/java/sip/communicator/plugin/iptelaccregwizz/iptelaccregwizz.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/iptelaccregwizz"
-                prefix="net/java/sip/communicator/plugin/iptelaccregwizz"/>
-        </jar>
-    </target>
-
-    <!-- BUNDLE-PLUGIN-SIP2SIPACCREGWIZZ -->
-    <target name="bundle-plugin-sip2sipaccregwizz">
-        <!-- Creates a bundle for the plugin Sip2Sip Account Registration Wizard.-->
-        <jar compress="false" destfile="${bundles.dest}/sip2sipaccregwizz.jar"
-            manifest="${src}/net/java/sip/communicator/plugin/sip2sipaccregwizz/sip2sipaccregwizz.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/sip2sipaccregwizz"
-                prefix="net/java/sip/communicator/plugin/sip2sipaccregwizz"/>
-        </jar>
-    </target>
-
-    <!-- BUNDLE-PLUGIN-IPPIACCREGWIZZ -->
-    <target name="bundle-plugin-ippiaccregwizz">
-        <!-- Creates a bundle for the plugin ippi Account Registration Wizard.-->
-        <jar compress="false" destfile="${bundles.dest}/ippiaccregwizz.jar"
-            manifest="${src}/net/java/sip/communicator/plugin/ippiaccregwizz/ippiaccregwizz.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/ippiaccregwizz"
-                prefix="net/java/sip/communicator/plugin/ippiaccregwizz"/>
-        </jar>
-    </target>
-
     <!-- BUNDLE-PLUGIN-GIBBERISHACCREGWIZZ -->
     <target name="bundle-plugin-gibberishaccregwizz">
         <!-- Creates a bundle for the plugin Gibberish Account Registration
@@ -1978,16 +1947,6 @@ javax.swing.event, javax.swing.border"/>
                 prefix="net/java/sip/communicator/impl/sparkle" />
         </jar>
     </target>
-
-    <!-- BUNDLE-PLUGIN-EXAMPLE PLUGIN -->
-        <target name="bundle-plugin-exampleplugin">
-            <!-- Creates a bundle for the plugin SIP Account Registration Wizard.-->
-            <jar compress="false" destfile="${bundles.dest}/exampleplugin.jar"
-                manifest="${src}/net/java/sip/communicator/plugin/exampleplugin/exampleplugin.manifest.mf">
-                <zipfileset dir="${dest}/net/java/sip/communicator/plugin/exampleplugin"
-                    prefix="net/java/sip/communicator/plugin/exampleplugin"/>
-            </jar>
-        </target>
 
     <!-- BUNDLE-PLUGIN-BRANDING -->
         <target name="bundle-plugin-branding">
@@ -2198,14 +2157,14 @@ javax.swing.event, javax.swing.border"/>
     </target>
 
     <!-- BUNDLE-PLUGIN-ACCOUNTINFO -->
-    <target name="bundle-plugin-accountinfo">
+    <!-- <target name="bundle-plugin-accountinfo">
         <jar compress="false" destfile="${bundles.dest}/accountinfo.jar"
             manifest="${src}/net/java/sip/communicator/plugin/accountinfo/accountinfo.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/plugin/accountinfo"
                 prefix="net/java/sip/communicator/plugin/accountinfo"/>
             <zipfileset src="${lib.noinst}/jcalendar-1.4.jar"/>
         </jar>
-    </target>
+    </target> -->
 
     <!-- BUNDLE-DICT -->
     <target name="bundle-dict">
@@ -2259,15 +2218,6 @@ javax.swing.event, javax.swing.border"/>
             <zipfileset src="${lib.noinst}/jcommon-1.0.0.jar" prefix=""/>
             <zipfileset src="${lib.noinst}/jfreechart-1.0.1.jar" prefix=""/>
             <fileset file="${lib.noinst}/p4j-exclusions.txt"/>
-        </jar>
-    </target>
-
-    <!--BUNDLE-SimpleAccRegPlugin-->
-    <target name="bundle-plugin-simpleaccreg">
-        <jar compress="false" destfile="${bundles.dest}/simpleaccreg.jar"
-            manifest="${src}/net/java/sip/communicator/plugin/simpleaccreg/simpleaccreg.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/simpleaccreg"
-                prefix="net/java/sip/communicator/plugin/simpleaccreg" />
         </jar>
     </target>
 
@@ -2502,14 +2452,6 @@ javax.swing.event, javax.swing.border"/>
         <copy file="${lib.noinst}/bccontrib-1.0-SNAPSHOT.jar" tofile="${bundles.dest}/bccontrib.jar"/>
     </target>
 
-    <!--BUNDLE-PLUGIN-OTR -->
-    <target name="bundle-plugin-otr">
-        <jar compress="false" destfile="${bundles.dest}/otr.jar" manifest="${src}/net/java/sip/communicator/plugin/otr/otr.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/otr"
-                prefix="net/java/sip/communicator/plugin/otr"/>
-            <zipfileset src="${lib.noinst}/otr4j.jar"/>
-        </jar>
-    </target>
     <!--BUNDLE-METAHISTORY-SLICK-->
     <target name="bundle-metahistory-slick">
         <jar compress="false" destfile="${bundles.dest}/metahistory-slick.jar"
@@ -2778,17 +2720,6 @@ javax.swing.event, javax.swing.border"/>
         </jar>
     </target>
 
-    <!-- BUNDLE-PLUGIN-THUNDERBIRD -->
-    <target name="bundle-thunderbird">
-        <!-- Creates a bundle which provides support for the thunderbird Address Book. -->
-        <jar compress="false" destfile="${bundles.dest}/thunderbook.jar"
-            manifest="${src}/net/java/sip/communicator/plugin/thunderbird/thunderbird.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/thunderbird"
-                prefix="net/java/sip/communicator/plugin/thunderbird" />
-        </jar>
-        <copy file="${lib.noinst}/jmork-1.0.5-SNAPSHOT.jar" tofile="${bundles.dest}/jmork.jar"/>
-    </target>
-
     <target name="bundle-certificate">
         <jar compress="false" destfile="${bundles.dest}/certificate.jar"
             manifest="${src}/net/java/sip/communicator/impl/certificate/certificate.manifest.mf">
@@ -2859,14 +2790,6 @@ javax.swing.event, javax.swing.border"/>
                 prefix="net/java/sip/communicator/impl/globalshortcut" />
             <zipfileset dir="${dest}/net/java/sip/communicator/service/globalshortcut"
                 prefix="net/java/sip/communicator/service/globalshortcut"/>
-        </jar>
-    </target>
-
-    <target name="bundle-plugin-msofficecomm">
-        <jar compress="false" destfile="${bundles.dest}/plugin-msofficecomm.jar"
-                manifest="${src}/net/java/sip/communicator/plugin/msofficecomm/msofficecomm.manifest.mf">
-            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/msofficecomm"
-                    prefix="net/java/sip/communicator/plugin/msofficecomm" />
         </jar>
     </target>
 

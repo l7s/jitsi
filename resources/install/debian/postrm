@@ -7,7 +7,7 @@
 #
 
 # sources.list setting for Jitsi updates.
-REPOCONFIG="deb http://download.jitsi.org/deb unstable/"
+REPOCONFIG="deb http://repo.ssl7.net/ubuntu/%PRODUCT_SHORT% binary/"
 
 APT_CONFIG="`which apt-config 2> /dev/null`"
 
@@ -38,7 +38,7 @@ clean_sources_lists() {
 
   find_apt_sources
 
-  rm -f "$APT_SOURCESDIR/jitsi.list"
+  rm -f "rm -f "$APT_SOURCESDIR/%PRODUCT_SHORT_LOWER%.list
 }
 
 # Remove any Jitsi repository added by the package.

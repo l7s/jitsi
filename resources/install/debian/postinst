@@ -7,7 +7,7 @@
 #
 
 # sources.list setting for Jitsi updates.
-REPOCONFIG="deb http://download.jitsi.org/deb unstable/"
+REPOCONFIG="deb http://repo.ssl7.net/ubuntu/%PRODUCT_SHORT% binary/"
 
 SOURCES_PREAMBLE="### THIS FILE IS AUTOMATICALLY CONFIGURED ###
 # You may comment out this entry, but any other modifications may be lost.\n"
@@ -80,7 +80,7 @@ create_sources_lists() {
 
   find_apt_sources
 
-  SOURCELIST="$APT_SOURCESDIR/jitsi.list"
+  SOURCELIST="$APT_SOURCESDIR/%PRODUCT_SHORT_LOWER%.list"
 
   # Check if the correct repository configuration is in there.
   REPOMATCH=$(grep "^[[:space:]#]*\b$REPOCONFIG\b" "$SOURCELIST" \

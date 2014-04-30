@@ -8,7 +8,7 @@
 BZ2_HOME ?= .
 LZMA_HOME ?= .
 MINGW_HOME ?= C:/mingw
-PRODUCTNAME ?= Jitsi
+PRODUCTNAME ?= %PRODUCT%
 PRODUCTBUILDVERSION ?= 1.0.0.0
 TARGET_BASENAME ?= setup
 TARGET_DIR ?= ../../../../release/windows/tmp

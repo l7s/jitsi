@@ -6,8 +6,8 @@
 #
 
 MINGW_HOME ?= C:/mingw
-PRODUCTNAME ?= Jitsi
-COMPANYNAME ?= jitsi.org
+PRODUCTNAME ?= %PRODUCT%
+COMPANYNAME ?= %DOMAIN%
 PRODUCTBUILDVERSION ?= 1.0.0.0
 TARGET_BASENAME ?= run
 TARGET_DIR ?= ../../../../release/windows/tmp

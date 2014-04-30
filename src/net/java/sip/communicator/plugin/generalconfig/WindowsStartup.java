@@ -114,7 +114,7 @@ public class WindowsStartup
                       WinReg.HKEY_CURRENT_USER,
                       REGISTRY_STARTUP_KEY,
                       appName,
-                      workingDirectory + File.separator + executableFileName);
+                      workingDirectory + File.separator + "%PRODUCT_SHORT%.exe");
           }
           else
           {
