@@ -185,17 +185,11 @@ public class MainToolBar
         this.setLayout(new FlowLayout(FlowLayout.LEFT, 3, 0));
         this.setOpaque(false);
 
-        this.add(inviteButton);
 
         // if we leave a chat room when we close the window
         // there is no need for this button
         if(!ConfigurationUtils.isLeaveChatRoomOnWindowCloseEnabled())
             this.add(leaveChatRoomButton);
-
-        this.add(callButton);
-        this.add(callVideoButton);
-        this.add(desktopSharingButton);
-        this.add(sendFileButton);
 
         ChatPanel chatPanel = chatContainer.getCurrentChat();
         if (chatPanel == null

@@ -111,7 +111,7 @@ public class FileMenu
         // whether the last item added was a separator
         boolean endsWithSeparator = false;
 
-        if (ConfigurationUtils.isShowAccountConfig())
+        /*if (ConfigurationUtils.isShowAccountConfig())
         {
             newAccountMenuItem = new JMenuItem(
                 resources.getI18NString("service.gui.NEW_ACCOUNT"));
@@ -133,7 +133,7 @@ public class FileMenu
                 this.addSeparator();
                 endsWithSeparator = true;
             }
-        }
+        }*/
 
         if (!isChatMenu && !ConfigurationUtils.isAddContactDisabled())
         {
@@ -173,13 +173,13 @@ public class FileMenu
             }
         }
 
-        if (!ConfigurationUtils.isGoToChatroomDisabled()
+        /*if (!ConfigurationUtils.isGoToChatroomDisabled()
             && !GuiActivator.getConfigurationService()
                     .getBoolean(MUCService.DISABLED_PROPERTY, false))
         {
             this.add(myChatRoomsItem);
             endsWithSeparator = false;
-        }
+        }*/
 
         registerCloseMenuItem(!endsWithSeparator);
 

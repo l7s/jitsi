@@ -337,10 +337,6 @@ public class MainFrame
         TransparentPanel searchPanel
             = new TransparentPanel(new BorderLayout(5, 0));
 
-        searchPanel.add(searchField);
-        searchPanel.add(new DialPadButton(), BorderLayout.WEST);
-        searchPanel.add(createButtonPanel(), BorderLayout.EAST);
-
         northPanel.add(accountStatusPanel, BorderLayout.CENTER);
         northPanel.add(searchPanel, BorderLayout.SOUTH);
 

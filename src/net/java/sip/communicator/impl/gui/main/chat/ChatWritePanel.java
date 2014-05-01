@@ -137,8 +137,8 @@ public class ChatWritePanel
 
         int chatAreaSize = ConfigurationUtils.getChatWriteAreaSize();
         Dimension writeMessagePanelDefaultSize
-            = new Dimension(500, (chatAreaSize > 0) ? chatAreaSize : 28);
-        Dimension writeMessagePanelMinSize = new Dimension(500, 28);
+            = new Dimension(500, (chatAreaSize > 0) ? chatAreaSize : 56);
+        Dimension writeMessagePanelMinSize = new Dimension(500, 56);
         Dimension writeMessagePanelMaxSize = new Dimension(500, 100);
 
         setMinimumSize(writeMessagePanelMinSize);

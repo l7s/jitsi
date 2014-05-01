@@ -152,21 +152,6 @@ public final class TrayMenuFactory
                 + "SHOW_OPTIONS_WINDOW",
                 true);
 
-        if (showOptions.booleanValue())
-        {
-            add(trayMenu, createTrayMenuItem(
-                "settings",
-                (OSUtils.IS_MAC)
-                    ? "service.gui.PREFERENCES"
-                    : "service.gui.SETTINGS",
-                "service.systray.CONFIGURE_ICON", listener, swing));
-        }
-
-        add(trayMenu, createTrayMenuItem("addContact",
-            "service.gui.ADD_CONTACT",
-            "service.gui.icons.ADD_CONTACT_16x16_ICON", listener, swing));
-        addSeparator(trayMenu);
-
         Boolean chatPresenceDisabled
             = OsDependentActivator.getConfigurationService().getBoolean(
                 "net.java.sip.communicator.impl.gui.main.presence."

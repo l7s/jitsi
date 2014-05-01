@@ -64,8 +64,6 @@ public class StatusSubMenu
 
             menu.setIcon(
                     Resources.getImage("service.systray.STATUS_MENU_ICON"));
-            /* makes the menu look better */
-            menu.setPreferredSize(new java.awt.Dimension(28, 24));
 
             this.menu = menu;
         }

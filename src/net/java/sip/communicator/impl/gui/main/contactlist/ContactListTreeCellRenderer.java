@@ -988,50 +988,6 @@ public class ContactListTreeCellRenderer
                 null,
                 null);
 
-        if ((telephonyContact != null && telephonyContact.getAddress() != null)
-            || (contactPhoneUtil != null
-                && contactPhoneUtil.isCallEnabled(detailsListener)
-                && providers.size() > 0))
-        {
-            x += addButton(callButton, ++gridX, x, false);
-        }
-
-        UIContactDetail videoContact
-            = uiContact.getDefaultContactDetail(
-                OperationSetVideoTelephony.class);
-
-        if (videoContact != null
-            || (contactPhoneUtil != null
-                && contactPhoneUtil.isVideoCallEnabled(detailsListener)))
-        {
-            x += addButton(callVideoButton, ++gridX, x, false);
-        }
-
-        UIContactDetail desktopContact
-            = uiContact.getDefaultContactDetail(
-                OperationSetDesktopStreaming.class);
-
-        if (desktopContact != null
-            || (contactPhoneUtil != null
-                && contactPhoneUtil.isDesktopSharingEnabled(detailsListener)))
-        {
-            x += addButton(desktopSharingButton, ++gridX, x, false);
-        }
-
-        // enable add contact button if contact source has indicated
-        // that this is possible
-        if (uiContact.getDescriptor() instanceof SourceContact
-            && uiContact.getDefaultContactDetail(
-                    OperationSetPersistentPresence.class) != null
-            && AccountUtils.getOpSetRegisteredProviders(
-                    OperationSetPersistentPresence.class,
-                    null,
-                    null).size() > 0
-            && !ConfigurationUtils.isAddContactDisabled())
-        {
-            x += addButton(addContactButton, ++gridX, x, false);
-        }
-
         //webButton
         if (uiContact.getDescriptor() instanceof MetaContact)
         {
