@@ -381,37 +381,9 @@ public class ToolsMenu
             = cfg.getBoolean(CONFERENCE_CALL_DISABLED_PROP,
                             false);
 
-        if(!showConferenceMenuItemProp.booleanValue())
-        {
-            conferenceMenuItem
-                = new JMenuItem(
-                    r.getI18NString("service.gui.CREATE_CONFERENCE_CALL"));
-            conferenceMenuItem.setMnemonic(
-                r.getI18nMnemonic("service.gui.CREATE_CONFERENCE_CALL"));
-            conferenceMenuItem.setName("conference");
-            conferenceMenuItem.addActionListener(this);
-            add(conferenceMenuItem);
-        }
-
         // Add a service listener in order to be notified when a new protocol
         // provider is added or removed and the list should be refreshed.
         GuiActivator.bundleContext.addServiceListener(this);
-
-        initVideoBridgeMenu();
-
-        if(!cfg.getBoolean(AUTO_ANSWER_MENU_DISABLED_PROP, false))
-        {
-            if(ConfigurationUtils.isAutoAnswerDisableSubmenu())
-            {
-                this.addSeparator();
-                AutoAnswerMenu.registerMenuItems(this);
-            }
-            else
-            {
-                AutoAnswerMenu autoAnswerMenu = new AutoAnswerMenu();
-                this.add(autoAnswerMenu);
-            }
-        }
 
         this.addSeparator();
 

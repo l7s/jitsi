@@ -69,7 +69,7 @@ public class TreeContactList
     /**
      * Indicates if the right mouse button menu is enabled.
      */
-    private boolean isRightButtonMenuEnabled = true;
+    private boolean isRightButtonMenuEnabled = false;
 
     /**
      * A list of all contacts that are currently "active". An "active" contact

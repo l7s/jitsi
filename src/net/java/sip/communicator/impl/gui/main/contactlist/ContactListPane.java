@@ -112,25 +112,6 @@ public class ContactListPane
         this.contactList.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
         this.contactList.addContactListListener(this);
-        this.addMouseListener(new MouseAdapter()
-        {
-            @Override
-            public void mousePressed(MouseEvent e)
-            {
-                if ((e.getModifiers() & InputEvent.BUTTON3_MASK) != 0)
-                {
-                    commonRightButtonMenu = new CommonRightButtonMenu(mainFrame);
-
-                    commonRightButtonMenu.setInvoker(ContactListPane.this);
-
-                    commonRightButtonMenu.setLocation(e.getX()
-                            + mainFrame.getX() + 5, e.getY() + mainFrame.getY()
-                            + 105);
-
-                    commonRightButtonMenu.setVisible(true);
-                }
-            }
-        });
     }
 
     /**

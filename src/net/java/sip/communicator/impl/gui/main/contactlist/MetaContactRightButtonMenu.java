@@ -589,53 +589,6 @@ public class MetaContactRightButtonMenu
             this.add(callItem);
         }
 
-        if (videoCallMenu.getItemCount() > 1)
-        {
-            this.add(videoCallMenu);
-        }
-        else
-        {
-            if(videoCallMenu.getItemCount() > 0)
-            {
-                JMenuItem item = videoCallMenu.getItem(0);
-                this.videoCallItem.setName(item.getName());
-            }
-            else
-            {
-                this.videoCallItem.setName("videoCall");
-            }
-
-            this.videoCallItem.addActionListener(this);
-            this.add(videoCallItem);
-        }
-
-        if (multiContactFullShareMenu.getItemCount() > 1)
-        {
-            add(multiContactFullShareMenu);
-            add(multiContactRegionShareMenu);
-        }
-        else
-        {
-            if(multiContactFullShareMenu.getItemCount() > 0)
-            {
-                JMenuItem item = multiContactFullShareMenu.getItem(0);
-                this.fullShareMenuItem.setName(item.getName());
-
-                JMenuItem ritem = multiContactRegionShareMenu.getItem(0);
-                this.regionShareMenuItem.setName(ritem.getName());
-            }
-            else
-            {
-                this.fullShareMenuItem.setName("shareFullScreen");
-                this.regionShareMenuItem.setName("shareRegion");
-            }
-
-            this.fullShareMenuItem.addActionListener(this);
-            this.regionShareMenuItem.addActionListener(this);
-            this.add(fullShareMenuItem);
-            this.add(regionShareMenuItem);
-        }
-
         add(sendFileItem);
 
         addSeparator();
@@ -1025,18 +978,6 @@ public class MetaContactRightButtonMenu
         else
         {
             this.callItem.setMnemonic(callMnemonic);
-        }
-
-        char videoCallMnemonic = GuiActivator.getResources()
-            .getI18nMnemonic("service.gui.VIDEO_CALL");
-
-        if (videoCallMenu.getItemCount() > 1)
-        {
-            this.videoCallMenu.setMnemonic(videoCallMnemonic);
-        }
-        else
-        {
-            this.videoCallItem.setMnemonic(videoCallMnemonic);
         }
 
         this.sendSmsItem.setMnemonic(GuiActivator.getResources()
