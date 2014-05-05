@@ -606,7 +606,7 @@ public class MetaContactRightButtonMenu
             }
 
             this.videoCallItem.addActionListener(this);
-            this.add(videoCallItem);
+            //this.add(videoCallItem);
         }
 
         if (multiContactFullShareMenu.getItemCount() > 1)
@@ -632,11 +632,11 @@ public class MetaContactRightButtonMenu
 
             this.fullShareMenuItem.addActionListener(this);
             this.regionShareMenuItem.addActionListener(this);
-            this.add(fullShareMenuItem);
-            this.add(regionShareMenuItem);
+            //this.add(fullShareMenuItem);
+            //this.add(regionShareMenuItem);
         }
 
-        add(sendFileItem);
+        //add(sendFileItem);
 
         addSeparator();
 

@@ -473,8 +473,6 @@ public class OneToOneCallPeerPanel
 
         constraints.gridx = 0;
         constraints.gridy = 0;
-        statusPanel.add(securityStatusLabel, constraints);
-        initSecurityStatusLabel();
 
         constraints.gridx++;
         statusPanel.add(holdStatusLabel, constraints);

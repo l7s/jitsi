@@ -111,30 +111,6 @@ public class FileMenu
         // whether the last item added was a separator
         boolean endsWithSeparator = false;
 
-        if (ConfigurationUtils.isShowAccountConfig())
-        {
-            newAccountMenuItem = new JMenuItem(
-                resources.getI18NString("service.gui.NEW_ACCOUNT"));
-
-            this.add(newAccountMenuItem);
-
-            newAccountMenuItem.setName("newAccount");
-
-            newAccountMenuItem.addActionListener(this);
-
-            newAccountMenuItem.setMnemonic(resources
-                .getI18nMnemonic("service.gui.NEW_ACCOUNT"));
-
-            // add separator only if there are other items enabled
-            if(!ConfigurationUtils.isAddContactDisabled()
-               || !ConfigurationUtils.isCreateGroupDisabled()
-               || !ConfigurationUtils.isGoToChatroomDisabled())
-            {
-                this.addSeparator();
-                endsWithSeparator = true;
-            }
-        }
-
         if (!isChatMenu && !ConfigurationUtils.isAddContactDisabled())
         {
             addContactItem = new JMenuItem(

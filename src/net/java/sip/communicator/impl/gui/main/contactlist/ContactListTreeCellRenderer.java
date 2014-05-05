@@ -1004,7 +1004,7 @@ public class ContactListTreeCellRenderer
             || (contactPhoneUtil != null
                 && contactPhoneUtil.isVideoCallEnabled(detailsListener)))
         {
-            x += addButton(callVideoButton, ++gridX, x, false);
+            //x += addButton(callVideoButton, ++gridX, x, false);
         }
 
         UIContactDetail desktopContact

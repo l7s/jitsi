@@ -397,7 +397,7 @@ public class ToolsMenu
         // provider is added or removed and the list should be refreshed.
         GuiActivator.bundleContext.addServiceListener(this);
 
-        initVideoBridgeMenu();
+        //initVideoBridgeMenu();
 
         if(!cfg.getBoolean(AUTO_ANSWER_MENU_DISABLED_PROP, false))
         {

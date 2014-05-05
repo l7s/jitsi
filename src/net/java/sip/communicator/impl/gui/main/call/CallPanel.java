@@ -1653,12 +1653,8 @@ public class CallPanel
         settingsPanel.add(chatButton);
         if (conferenceButton != null)
             settingsPanel.add(conferenceButton);
-        if (desktopSharingButton != null)
-            settingsPanel.add(desktopSharingButton);
         if (dialButton != null)
             settingsPanel.add(dialButton);
-        if (fullScreenButton != null)
-            settingsPanel.add(fullScreenButton);
 
         settingsPanel.add(hangupButton);
 
@@ -1672,12 +1668,8 @@ public class CallPanel
             settingsPanel.add(mergeButton);
         if (recordButton != null)
             settingsPanel.add(recordButton);
-        if (showHideVideoButton != null)
-            settingsPanel.add(showHideVideoButton);
         if (mergeButton != null)
             settingsPanel.add(transferCallButton);
-        if (videoButton != null)
-            settingsPanel.add(videoButton);
         if (showHidePeersButton != null)
             settingsPanel.add(showHidePeersButton);
 
