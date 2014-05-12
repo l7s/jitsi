@@ -46,12 +46,12 @@ public class BalancePluginActivator
             = new Hashtable<String, String>();
         containerFilter.put(
                 Container.CONTAINER_ID,
-                Container.CONTAINER_CONTACT_RIGHT_BUTTON_MENU.getID());
+                Container.CONTAINER_ACCOUNT_BALANCE.getID());
 
         bundleContext.registerService(
             PluginComponentFactory.class.getName(),
             new PluginComponentFactory(
-                    Container.CONTAINER_CONTACT_RIGHT_BUTTON_MENU)
+                    Container.CONTAINER_ACCOUNT_BALANCE)
             {
                 @Override
                 protected PluginComponent getPluginInstance()

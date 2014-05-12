@@ -30,7 +30,7 @@ public class BalancePluginMenuItem
      */
     public  BalancePluginMenuItem(PluginComponentFactory parentFactory)
     {
-        super(Container.CONTAINER_CHAT_HELP_MENU, parentFactory);
+        super(Container.CONTAINER_ACCOUNT_BALANCE, parentFactory);
     }
 
     /*
@@ -56,7 +56,7 @@ public class BalancePluginMenuItem
     @Override
     public int getPositionIndex()
     {
-        return 0;
+        return -1;
     }
 
 }

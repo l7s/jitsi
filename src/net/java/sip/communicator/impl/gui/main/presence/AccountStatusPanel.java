@@ -109,6 +109,9 @@ public class AccountStatusPanel
      * The south plug-in container.
      */
     private final TransparentPanel southPluginPanel;
+    
+    private final TransparentPanel upperPanel;
+    //private final PluginContainer upperContainer;
 
     /**
      * Keep reference to plugin container or it will loose its
@@ -165,7 +168,15 @@ public class AccountStatusPanel
 
         TransparentPanel rightPanel = new TransparentPanel();
         rightPanel.setLayout(new BorderLayout(0, 0));
-        rightPanel.add(accountNameLabel, BorderLayout.NORTH);
+        
+        upperPanel = new TransparentPanel();
+        upperPanel.setLayout(new BorderLayout(0, 0));
+        
+        upperPanel.add(accountNameLabel, BorderLayout.WEST);
+       /* upperContainer = new PluginContainer(upperPanel,
+                            Container.CONTAINER_ACCOUNT_BALANCE);*/
+        
+        rightPanel.add(upperPanel, BorderLayout.NORTH);
         rightPanel.add(statusToolsPanel, BorderLayout.SOUTH);
 
         this.add(accountImageLabel, BorderLayout.WEST);
@@ -416,6 +427,15 @@ public class AccountStatusPanel
             this.revalidate();
             this.repaint();
         }
+        
+        if (containerID.equals(Container.CONTAINER_ACCOUNT_BALANCE) )
+         {
+            System.out.println("Adding balance container");
+             this.upperPanel.add((Component)pluginComponent.getPluginComponentInstance(AccountStatusPanel.this)
+                 .getComponent(), BorderLayout.EAST);
+             this.revalidate();
+             this.repaint();
+         }
     }
 
     /**
