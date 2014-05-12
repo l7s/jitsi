@@ -8,7 +8,6 @@ package net.java.sip.communicator.plugin.balance;
 
 import java.awt.event.*;
 
-import net.java.sip.communicator.service.contactlist.*;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.service.gui.Container;
 
@@ -23,7 +22,6 @@ import net.java.sip.communicator.service.gui.Container;
  */
 public class BalancePluginMenuItem
     extends AbstractPluginComponent
-    implements ActionListener
 {
     private AccountBalancePanel panelItem;
 
@@ -32,15 +30,7 @@ public class BalancePluginMenuItem
      */
     public  BalancePluginMenuItem(PluginComponentFactory parentFactory)
     {
-        super(Container.CONTAINER_CONTACT_RIGHT_BUTTON_MENU, parentFactory);
-    }
-
-    /**
-     * Listens for events triggered by user clicks on this menu item. Opens
-     * the <tt>PluginDialog</tt>.
-     */
-    public void actionPerformed(ActionEvent e)
-    {
+        super(Container.CONTAINER_CHAT_HELP_MENU, parentFactory);
     }
 
     /*
@@ -51,7 +41,6 @@ public class BalancePluginMenuItem
         if (panelItem == null)
         {
             panelItem = new AccountBalancePanel();
-            panelItem.addActionListener(this);
         }
         return panelItem ;
     }
@@ -63,18 +52,11 @@ public class BalancePluginMenuItem
     {
         return "Example plugin";
     }
-
-    /**
-     * Sets the current <tt>MetaContact</tt>. This in the case of the contact
-     * right button menu container would be the underlying contact in the
-     * contact list.
-     *
-     * @param metaContact the <tt>MetaContact</tt> to set.
-     *
-     * @see PluginComponent#setCurrentContact(MetaContact)
-     */
+    
     @Override
-    public void setCurrentContact(MetaContact metaContact)
+    public int getPositionIndex()
     {
+        return 0;
     }
+
 }

@@ -8,10 +8,12 @@ package net.java.sip.communicator.plugin.balance;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.io.IOException;
 
 import javax.swing.*;
 
 import net.java.sip.communicator.plugin.desktoputil.*;
+import net.java.sip.communicator.service.httputil.*;
 import net.java.sip.communicator.util.skin.*;
 
 @SuppressWarnings("serial")
@@ -43,12 +45,13 @@ public class AccountBalancePanel
         this.setBackground(new Color(255, 255, 255, 100));
         this.setRolloverEnabled(false);
 
+        setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
         this.addActionListener(new ActionListener()
         {
             public void actionPerformed(ActionEvent e)
             {
                 setBalanceView();
-                setText(BalancePluginActivator.getProvisioningService().getProvisioningPassword() );
+                setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
                 repaint();
             }
         });
@@ -60,7 +63,7 @@ public class AccountBalancePanel
     private void setBalanceView()
     {
         setToolTipText("tooltip");
-        setText("test");
+        setText("0.00");
     }
 
 
@@ -75,9 +78,45 @@ public class AccountBalancePanel
         setBalanceView();
     }
     
-    private String getBalance()
+    private String getBalance(String url)
     {
-        String balance;
-        return balance;
+        HttpUtils.HTTPResponseResult res = null;
+        
+        String provUsername=BalancePluginActivator.getProvisioningService().getProvisioningUsername();
+        String provPassword=BalancePluginActivator.getProvisioningService().getProvisioningPassword();
+        
+        url = url.replace("${username}", provUsername);
+        url = url.replace("${password}", provPassword);
+        
+        try
+        {
+            res =
+                HttpUtils.openURLConnection(url);
+        }
+        catch(Throwable t)
+        {
+            t.printStackTrace();
+        }
+        String[] responseSplit;
+        String response;
+        String amount;
+        try
+        {
+            response = res.getContentString();
+        }
+        catch (IOException e)
+        {
+            response="ERROR\n";
+            e.printStackTrace();
+        }
+        
+        responseSplit = response.split("\n");
+        amount=responseSplit[0].split("=")[1];
+        if(responseSplit[1].split("=")[1].contains("GBP") )
+        {
+         amount += " GBP ";
+        }
+        
+        return amount;
     }
 }
