@@ -10,6 +10,7 @@ import java.text.*;
 import java.util.*;
 import java.util.regex.*;
 
+
 import net.java.sip.communicator.plugin.addrbook.*;
 import net.java.sip.communicator.plugin.addrbook.msoutlook.*;
 import net.java.sip.communicator.service.calendar.*;
@@ -34,6 +35,82 @@ public class CalendarServiceImpl implements CalendarService
         PT_LONG,
         PT_BOOL,
         PT_BINARY
+    };
+    
+    /**
+     * Response statuses of the calendar events (meeting objects).
+     */
+    public static enum ResponseStatus
+    {
+        /**
+         * No response is required for this object.
+         */
+        respNone(0x00000000),
+        
+        /**
+         * This meeting belongs to the organizer.
+         */
+        respOrganized(0x00000001),
+        
+        /**
+         * This value on the attendee's meeting indicates that the attendee has 
+         * tentatively accepted the meeting request.
+         */
+        respTentative(0x00000002),
+        
+        /**
+         * This value on the attendee's meeting t indicates that the attendee 
+         * has accepted the meeting request.
+         */
+        respAccepted(0x00000003),
+        
+        /**
+         * This value on the attendee's meeting indicates that the attendee has 
+         * declined the meeting request.
+         */
+        respDeclined(0x00000004),
+        
+        /**
+         * This value on the attendee's meeting indicates the attendee has not 
+         * yet responded.
+         */
+        respNotResponded(0x00000005);
+        
+        /**
+         * The ID of the property
+         */
+        private final long id;
+        
+        private ResponseStatus(int id)
+        {
+            this.id = id;
+        }
+        
+        /**
+         * Finds <tt>ResponseStatuse</tt> instance by given value of the status.
+         * @param value the value of the status we are searching for.
+         * @return the status or <tt>FREE</tt> if no status is found.
+         */
+        public static ResponseStatus getFromLong(long value)
+        {
+            for(ResponseStatus state : values())
+            {
+                if(state.getID() == value)
+                {
+                    return state;
+                }
+            }
+            return respNone;
+        }
+
+        /**
+         * Returns the ID of the status.
+         * @return the ID of the status.
+         */
+        private long getID()
+        {
+            return id;
+        }
     };
 
     /**
@@ -64,7 +141,12 @@ public class CalendarServiceImpl implements CalendarService
         /**
          * A property with information about the recurrent pattern of the event.
          */
-        PidLidAppointmentRecur(0x00008216, MAPIType.PT_BINARY);
+        PidLidAppointmentRecur(0x00008216, MAPIType.PT_BINARY),
+        
+        /**
+         * A property with information about the accepted state of the event.
+         */
+        PidLidResponseStatus(0x00008218, MAPIType.PT_LONG);
 
         /**
          * The id of the property
@@ -102,11 +184,19 @@ public class CalendarServiceImpl implements CalendarService
             return result;
         }
 
+        /**
+         * Returns the ID of the property.
+         * @return the ID of the property.
+         */
         public long getID()
         {
             return id;
         }
 
+        /**
+         * Returns the type of the property
+         * @return the type of the property
+         */
         public MAPIType getType()
         {
             return type;
@@ -271,6 +361,7 @@ public class CalendarServiceImpl implements CalendarService
     {
         Date startTime = null, endTime = null;
         BusyStatusEnum status = BusyStatusEnum.FREE;
+        ResponseStatus responseStatus = ResponseStatus.respNone;
         boolean isRecurring = false;
         byte[] recurringData = null;
         for(int i = 0; i < props.length; i++)
@@ -318,8 +409,17 @@ public class CalendarServiceImpl implements CalendarService
                 case PidLidAppointmentRecur:
                     recurringData = ((byte[])props[i]);
                     break;
+                case PidLidResponseStatus:
+                    responseStatus 
+                        = ResponseStatus.getFromLong((Long) props[i]);
+                    break;
             }
         }
+        
+        if(responseStatus != ResponseStatus.respNone
+            && responseStatus != ResponseStatus.respAccepted
+            && responseStatus != ResponseStatus.respOrganized)
+        return;
 
         if(status == BusyStatusEnum.FREE || startTime == null || endTime == null)
             return;
@@ -336,9 +436,19 @@ public class CalendarServiceImpl implements CalendarService
         {
             task = new CalendarItemTimerTask(status, startTime, endTime, id, 
                 executeNow, null);
-            RecurringPattern pattern 
-                = new RecurringPattern(recurringData, task);
-            task.setPattern(pattern);
+            try
+            {
+                RecurringPattern pattern 
+                    = new RecurringPattern(recurringData, task);
+                task.setPattern(pattern);
+            }
+            catch(IndexOutOfBoundsException e)
+            {
+                logger.error(
+                    "Error parsing reccuring pattern." + e.getMessage(),e);
+                logger.error("Reccuring data:\n" + bytesToHex(recurringData));
+                return;
+            }
         }
 
         if(endTime.before(currentTime) || endTime.equals(currentTime))
@@ -358,6 +468,13 @@ public class CalendarServiceImpl implements CalendarService
         task.scheduleTasks();
     }
 
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for(byte b: bytes)
+           sb.append(String.format("%02x", b & 0xff));
+        return sb.toString();
+    }
+    
     /**
      * Changes the value of the current status
      * @param state the new value.
@@ -374,6 +491,23 @@ public class CalendarServiceImpl implements CalendarService
             inMeetingStatusPolicy.freeBusyStateChanged();
         }
 
+    }
+    
+    /**
+     * Handles presence status changed from "On the Phone"
+     * 
+     * @param presenceStatuses the remembered presence statuses
+     * @return <tt>true</tt> if the status is changed.
+     */
+    public boolean onThePhoneStatusChanged(
+        Map<ProtocolProviderService,PresenceStatus> presenceStatuses)
+    {
+        if(currentState != BusyStatusEnum.FREE)
+        {
+            inMeetingStatusPolicy.onThePhoneStatusChanged(presenceStatuses);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -434,7 +568,7 @@ public class CalendarServiceImpl implements CalendarService
          * instances in order to recognize the <tt>PresenceStatus</tt> which
          * represents &quot;In meeting&quot;.
          */
-        private final Pattern inMeetingPresenceStatusNameWhitespace
+        private final Pattern presenceStatusNameWhitespace
             = Pattern.compile("\\p{Space}");
 
         /**
@@ -452,9 +586,30 @@ public class CalendarServiceImpl implements CalendarService
          */
         public void freeBusyStateChanged()
         {
-            run();
+            run(false);
         }
 
+        /**
+         * Handles presence status changed from "On the Phone"
+         * @param presenceStatuses the remembered presence statuses
+         */
+        public void onThePhoneStatusChanged(
+            Map<ProtocolProviderService,PresenceStatus> presenceStatuses)
+        {
+            run(true);
+            for(ProtocolProviderService pps : presenceStatuses.keySet())
+                rememberPresenceStatus(pps, presenceStatuses.get(pps));
+        }
+        
+        /**
+         * Returns the remembered presence statuses
+         * @return the remembered presence statuses
+         */
+        public Map<ProtocolProviderService,PresenceStatus> getRememberedStatuses()
+        {
+            return presenceStatuses;
+        }
+        
         /**
          * Finds the first <tt>PresenceStatus</tt> among the set of
          * <tt>PresenceStatus</tt>es supported by a specific
@@ -476,10 +631,42 @@ public class CalendarServiceImpl implements CalendarService
             {
                 PresenceStatus presenceStatus = i.next();
 
-                if (inMeetingPresenceStatusNameWhitespace
+                if (presenceStatusNameWhitespace
                         .matcher(presenceStatus.getStatusName())
                             .replaceAll("")
                                 .equalsIgnoreCase("InAMeeting"))
+                {
+                    return presenceStatus;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Finds the first <tt>PresenceStatus</tt> among the set of
+         * <tt>PresenceStatus</tt>es supported by a specific
+         * <tt>OperationSetPresence</tt> which represents
+         * &quot;On the phone&quot;.
+         *
+         * @param presence the <tt>OperationSetPresence</tt> which represents
+         * the set of supported <tt>PresenceStatus</tt>es
+         * @return the first <tt>PresenceStatus</tt> among the set of
+         * <tt>PresenceStatus</tt>es supported by <tt>presence</tt> which
+         * represents &quot;On the phone&quot; if such a <tt>PresenceStatus</tt>
+         * was found; otherwise, <tt>null</tt>
+         */
+        private PresenceStatus findOnThePhonePresenceStatus(
+                OperationSetPresence presence)
+        {
+            for (Iterator<PresenceStatus> i = presence.getSupportedStatusSet();
+                    i.hasNext();)
+            {
+                PresenceStatus presenceStatus = i.next();
+
+                if (presenceStatusNameWhitespace
+                        .matcher(presenceStatus.getStatusName())
+                            .replaceAll("")
+                                .equalsIgnoreCase("OnThePhone"))
                 {
                     return presenceStatus;
                 }
@@ -554,7 +741,7 @@ public class CalendarServiceImpl implements CalendarService
         /**
          * Applies this policy to the current state of the application.
          */
-        private void run()
+        private void run(boolean onThePhoneStatusChanged)
         {
             List<ProtocolProviderService> providers
                 = AddrBookActivator.getProtocolProviders();
@@ -572,13 +759,13 @@ public class CalendarServiceImpl implements CalendarService
                     if (pps == null)
                         continue;
 
-                    handleProtocolProvider(pps, isInMeeting);
+                    handleProtocolProvider(pps, isInMeeting, onThePhoneStatusChanged);
                 }
             }
         }
 
         public void handleProtocolProvider(ProtocolProviderService pps, 
-            Boolean isInMeeting)
+            Boolean isInMeeting, boolean onThePhoneStatusChanged)
         {
             if(isInMeeting == null)
                 isInMeeting = isInMeeting();
@@ -599,6 +786,9 @@ public class CalendarServiceImpl implements CalendarService
             {
                 PresenceStatus inMeetingPresenceStatus
                     = findInMeetingPresenceStatus(presence);
+                
+                PresenceStatus onThePhone 
+                    = findOnThePhonePresenceStatus(presence);
 
                 if (inMeetingPresenceStatus == null)
                 {
@@ -624,7 +814,9 @@ public class CalendarServiceImpl implements CalendarService
                         forgetPresenceStatus(pps);
                     }
                     else if (!inMeetingPresenceStatus.equals(
-                            presenceStatus))
+                            presenceStatus) 
+                            && (!presenceStatus.equals(onThePhone) 
+                                || onThePhoneStatusChanged))
                     {
                         publishPresenceStatus(
                                 presence,
@@ -690,14 +882,20 @@ public class CalendarServiceImpl implements CalendarService
          */
         public void updated(String id)
         {
-            synchronized(taskMap)
-            {
-                CalendarItemTimerTask task = taskMap.get(id);
-                if(task != null)
-                    task.remove();
-            }
             try
             {
+                synchronized(taskMap)
+                {
+                    CalendarItemTimerTask task = taskMap.get(id);
+                    if(task != null)
+                    {
+                        task.remove();
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
                 insert(id);
             }
             catch (MsOutlookMAPIHResultException e)
@@ -715,7 +913,9 @@ public class CalendarServiceImpl implements CalendarService
             {
                 CalendarItemTimerTask task = taskMap.get(id);
                 if(task != null)
+                {
                     task.remove();
+                }
             }
         }
 
@@ -738,6 +938,15 @@ public class CalendarServiceImpl implements CalendarService
 
     public void handleProviderAdded(ProtocolProviderService pps)
     {
-        inMeetingStatusPolicy.handleProtocolProvider(pps, null);
+        inMeetingStatusPolicy.handleProtocolProvider(pps, null, false);
+    }
+    
+    /**
+     * Returns the remembered presence statuses
+     * @return the remembered presence statuses
+     */
+    public Map<ProtocolProviderService,PresenceStatus> getRememberedStatuses()
+    {
+        return inMeetingStatusPolicy.getRememberedStatuses();
     }
 }
