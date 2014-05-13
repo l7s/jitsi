@@ -431,7 +431,6 @@ public class AccountStatusPanel
         
         if (containerID.equals(Container.CONTAINER_ACCOUNT_BALANCE) )
          {
-            System.out.println("Adding balance container");
              this.upperPanel.add((Component)pluginComponent.getPluginComponentInstance(AccountStatusPanel.this)
                  .getComponent(), BorderLayout.EAST);
              this.revalidate();

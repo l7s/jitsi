@@ -80,6 +80,7 @@ public class AccountBalancePanel
     
     private String getBalance(String url)
     {
+        System.out.println("\tGetting balance from server");
         HttpUtils.HTTPResponseResult res = null;
         
         String provUsername=BalancePluginActivator.getProvisioningService().getProvisioningUsername();
@@ -116,7 +117,7 @@ public class AccountBalancePanel
         {
          amount += " GBP ";
         }
-        
+        System.out.println("\tDone.");
         return amount;
     }
 }

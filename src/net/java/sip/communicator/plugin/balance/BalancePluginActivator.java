@@ -56,6 +56,7 @@ public class BalancePluginActivator
                 @Override
                 protected PluginComponent getPluginInstance()
                 {
+                    System.out.println("\tAdding balance container");
                     return new BalancePluginMenuItem(this);
                 }
             },
