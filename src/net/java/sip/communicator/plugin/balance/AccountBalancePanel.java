@@ -73,7 +73,7 @@ public class AccountBalancePanel
     public void loadSkin()
     {
 
-        this.setPreferredSize(new Dimension(90,
+        this.setPreferredSize(new Dimension(50,
                                            30));
         setBalanceView();
     }
