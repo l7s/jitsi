@@ -117,6 +117,10 @@ public class AccountBalancePanel
         {
          amount += " GBP ";
         }
+        if(responseSplit[1].split("=")[1].contains("USD") )
+        {
+         amount += " USD ";
+        }
         System.out.println("\tDone.");
         return amount;
     }
