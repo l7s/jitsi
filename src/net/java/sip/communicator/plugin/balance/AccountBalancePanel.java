@@ -27,7 +27,7 @@ public class AccountBalancePanel
     /*private final static String accountBalanceToolTip
         = GuiActivator.getResources().getI18NString(
             "service.gui.ACCOUNT_BALANCE_TOOL_TIP");*/
-
+    private String amount="";
     /**
      * Creates a <tt>CallHistoryButton</tt>.
      */
@@ -45,12 +45,11 @@ public class AccountBalancePanel
         this.setBackground(new Color(255, 255, 255, 100));
         this.setRolloverEnabled(false);
 
-        setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
+        setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}"));
         this.addActionListener(new ActionListener()
         {
             public void actionPerformed(ActionEvent e)
             {
-                setBalanceView();
                 setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
                 repaint();
             }
@@ -63,7 +62,7 @@ public class AccountBalancePanel
     private void setBalanceView()
     {
         setToolTipText("tooltip");
-        setText("0.00");
+        setText("");
     }
 
 
@@ -85,6 +84,12 @@ public class AccountBalancePanel
         
         String provUsername=BalancePluginActivator.getProvisioningService().getProvisioningUsername();
         String provPassword=BalancePluginActivator.getProvisioningService().getProvisioningPassword();
+        if(provUsername==null || provPassword==null)
+        {
+            System.out.println("\tERROR: provisioning password: "+ provPassword +
+                                            "\n\tprovisioning username: " + provUsername);
+            return amount;
+        }
         
         url = url.replace("${username}", provUsername);
         url = url.replace("${password}", provPassword);
@@ -96,32 +101,42 @@ public class AccountBalancePanel
         }
         catch(Throwable t)
         {
+            System.out.println("\tOpen connection error!");
             t.printStackTrace();
         }
         String[] responseSplit;
-        String response;
-        String amount;
-        try
+        String response;   
+
+        if(res!=null)
         {
-            response = res.getContentString();
+            try
+            {
+                response = res.getContentString();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+                return amount;
+            }
+            
+            responseSplit = response.split("\n");
+            amount=responseSplit[0].split("=")[1];
+            
+            if(responseSplit[1].split("=")[1].contains("GBP") )
+            {
+             amount += " GBP ";
+            }
+            if(responseSplit[1].split("=")[1].contains("USD") )
+            {
+             amount += " USD ";
+            }
+            System.out.println("\tDone.");
+            return amount;
         }
-        catch (IOException e)
+        else
         {
-            response="ERROR\n";
-            e.printStackTrace();
+            System.out.println("\tResponse is null, connection error.");
+            return amount;
         }
-        
-        responseSplit = response.split("\n");
-        amount=responseSplit[0].split("=")[1];
-        if(responseSplit[1].split("=")[1].contains("GBP") )
-        {
-         amount += " GBP ";
-        }
-        if(responseSplit[1].split("=")[1].contains("USD") )
-        {
-         amount += " USD ";
-        }
-        System.out.println("\tDone.");
-        return amount;
     }
 }
