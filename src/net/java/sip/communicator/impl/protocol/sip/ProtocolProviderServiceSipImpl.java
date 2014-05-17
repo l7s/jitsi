@@ -1999,10 +1999,13 @@ public class ProtocolProviderServiceSipImpl
                         SipActivator.getVersionService().getCurrentVersion();
 
                 userAgentTokens.add(ver.getApplicationName());
+                userAgentTokens.add("/");
                 userAgentTokens.add(ver.toString());
-
+                userAgentTokens.add("/");
                 String osName = System.getProperty("os.name");
                 userAgentTokens.add(osName);
+                userAgentTokens.add("-");
+                userAgentTokens.add( System.getProperty("os.arch") );
 
                 userAgentHeader
                     = this.headerFactory.createUserAgentHeader(userAgentTokens);

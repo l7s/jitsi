@@ -592,7 +592,11 @@ public class HttpUtils
         HttpProtocolParams.setUserAgent(httpClient.getParams(),
             System.getProperty("sip-communicator.application.name")
                 + "/"
-                + System.getProperty("sip-communicator.version"));
+                + System.getProperty("sip-communicator.version")
+                + "/"
+                + System.getProperty("os.name")
+                + "-"
+                + System.getProperty("os.arch"));
 
         SSLContext sslCtx;
         try
