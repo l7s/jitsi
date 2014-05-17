@@ -548,7 +548,8 @@ public class ChatRoomJabberImpl
     public void join(byte[] password)
         throws OperationFailedException
     {
-        joinAs(getOurDisplayName(), password);
+        joinAs(JabberActivator.getGlobalDisplayDetailsService()
+            .getDisplayName(getParentProvider()), password);
     }
 
     /**
@@ -561,7 +562,8 @@ public class ChatRoomJabberImpl
     public void join()
         throws OperationFailedException
     {
-        joinAs(getOurDisplayName());
+        joinAs(JabberActivator.getGlobalDisplayDetailsService()
+            .getDisplayName(getParentProvider()));
     }
 
     /**
@@ -714,38 +716,6 @@ public class ChatRoomJabberImpl
         throws OperationFailedException
     {
         this.joinAs(nickname, null);
-    }
-
-    /**
-     * Returns the display name of our account
-     *
-     * @return the display name of our account.
-     */
-    private String getOurDisplayName()
-    {
-        OperationSetServerStoredAccountInfo accountInfoOpSet
-            = provider.getOperationSet(
-                OperationSetServerStoredAccountInfo.class);
-
-        if(accountInfoOpSet == null)
-            return provider.getAccountID().getUserID();
-
-        ServerStoredDetails.DisplayNameDetail displayName = null;
-        Iterator<ServerStoredDetails.GenericDetail> displayNameDetails
-            =  accountInfoOpSet.getDetails(ServerStoredDetails.DisplayNameDetail.class);
-
-        if (displayNameDetails.hasNext())
-            displayName = (ServerStoredDetails.DisplayNameDetail) displayNameDetails.next();
-
-        if(displayName == null)
-            return provider.getAccountID().getUserID();
-
-        String result = displayName.getString();
-
-        if(result == null || result.length() == 0)
-            return provider.getAccountID().getUserID();
-        else
-            return result;
     }
 
     /**
@@ -902,17 +872,21 @@ public class ChatRoomJabberImpl
         }
 
         // FIXME Do we have to do the following when we leave the room?
+        Hashtable<String, ChatRoomMemberJabberImpl> membersCopy;
         synchronized (members)
         {
-            for (ChatRoomMember member : members.values())
-                fireMemberPresenceEvent(
-                    member,
-                    ChatRoomMemberPresenceChangeEvent.MEMBER_LEFT,
-                    "Local user has left the chat room.");
+            membersCopy
+                = new Hashtable<String, ChatRoomMemberJabberImpl>(members);
 
-         // Delete the list of members
+            // Delete the list of members
             members.clear();
         }
+
+        for (ChatRoomMember member : membersCopy.values())
+            fireMemberPresenceEvent(
+                member,
+                ChatRoomMemberPresenceChangeEvent.MEMBER_LEFT,
+                "Local user has left the chat room.");
 
         // connection can be null if we are leaving cause connection failed
         if(connection != null)
@@ -3046,7 +3020,8 @@ public class ChatRoomJabberImpl
 
         PresenceStatus offlineStatus =
             provider.getJabberStatusEnum().getStatus(
-                isOffline? JabberStatusEnum.OFFLINE : JabberStatusEnum.AVAILABLE);
+                isOffline
+                    ? JabberStatusEnum.OFFLINE : JabberStatusEnum.AVAILABLE);
 
         // When status changes this may be related to a change in the
         // available resources.
