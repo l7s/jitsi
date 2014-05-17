@@ -1020,6 +1020,13 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
         {
         case AUDIO:
             return audioStream;
+        case DATA:
+            /*
+             * DATA is a valid MediaType value and CallPeerMediaHandler does not
+             * utilize it at this time so no IllegalArgumentException is thrown
+             * and null is returned (as documented).
+             */
+            return null;
         case VIDEO:
             return videoStream;
         default:
@@ -1612,9 +1619,12 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
         {
             MediaStream audioStream = getStream(MediaType.AUDIO);
             MediaDirection direction
-                    = getPeer().getCall().isConferenceFocus()
+                    = (getPeer().getCall().isConferenceFocus()
+                        || audioStream == null)
                     ? MediaDirection.INACTIVE
                     : audioStream.getDirection().and(MediaDirection.SENDONLY);
+            // the direction in situation where audioStream is
+            // null is ignored (just avoiding NPE)
 
             if(audioStream != null)
             {
