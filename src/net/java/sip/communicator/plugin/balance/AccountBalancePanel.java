@@ -11,6 +11,7 @@ import java.awt.event.*;
 import java.io.IOException;
 
 import javax.swing.*;
+import javax.swing.Timer;
 
 import net.java.sip.communicator.plugin.desktoputil.*;
 import net.java.sip.communicator.service.httputil.*;
@@ -23,6 +24,8 @@ public class AccountBalancePanel
 {
 
     private String amount="";
+    private Timer timer;
+    private UpdateBalance listener;
     /**
      * Creates a Balance panel Button.
      */
@@ -39,29 +42,38 @@ public class AccountBalancePanel
         this.setBackground(new Color(255, 255, 255, 100));
         this.setRolloverEnabled(false);
 
-        setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}"));
-        this.addActionListener(new ActionListener()
+        listener= new UpdateBalance();
+        this.addActionListener(listener);
+        
+        timer = new Timer(300000, listener);
+        timer.setRepeats(true);
+        timer.start();
+    }
+
+    public class UpdateBalance implements ActionListener
+    {
+        public void actionPerformed(ActionEvent e)
         {
-            public void actionPerformed(ActionEvent e)
-            {
+            setBalanceView();
+            repaint();
+        }
+    }
+    
+    /**
+     * Sets the balance view.
+     */
+    private void setBalanceView()
+    {
+        SwingUtilities.invokeLater(new Runnable (){
+            public void run(){
                 setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
                 if(amount.length()>7)
                     // If balance is too long show it in tooltip message, else there should be no tooltip.
                     setToolTipText(amount);
                 else
                     setToolTipText(null);
-                repaint();
             }
         });
-    }
-
-    /**
-     * Sets the balance view.
-     */
-    private void setBalanceView()
-    {
-        setToolTipText("tooltip");
-        setText("");
     }
 
 
