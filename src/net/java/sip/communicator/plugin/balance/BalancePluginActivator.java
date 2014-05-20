@@ -3,6 +3,7 @@ package net.java.sip.communicator.plugin.balance;
 import java.util.*;
 
 import net.java.sip.communicator.service.provisioning.*;
+import net.java.sip.communicator.service.callhistory.*;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.util.*;
 
@@ -16,6 +17,7 @@ public class BalancePluginActivator
     
     
     private static ProvisioningService provisoningService = null;
+    private static CallHistoryService callHistoryService = null;
     
     static BundleContext bundleContext = null;
 
@@ -69,5 +71,18 @@ public class BalancePluginActivator
                 = (ProvisioningService)bundleContext.getService(confReference);
         }
         return provisoningService;
+    }
+    
+    public static CallHistoryService getCallHistoryService()
+    {
+        if (callHistoryService == null)
+        {
+            ServiceReference confReference
+                = bundleContext.getServiceReference(
+                    CallHistoryService.class.getName());
+            callHistoryService
+                = (CallHistoryService)bundleContext.getService(confReference);
+        }
+        return callHistoryService;
     }
 }
