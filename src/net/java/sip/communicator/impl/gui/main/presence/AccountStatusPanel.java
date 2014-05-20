@@ -411,7 +411,7 @@ public class AccountStatusPanel
      */
     public void pluginComponentAdded(PluginComponentEvent event)
     {
-        PluginComponentFactory pluginComponent =
+        final PluginComponentFactory pluginComponent =
             event.getPluginComponentFactory();
         Container containerID = pluginComponent.getContainer();
         /*
@@ -431,8 +431,13 @@ public class AccountStatusPanel
         
         if (containerID.equals(Container.CONTAINER_ACCOUNT_BALANCE) )
          {
-             this.upperPanel.add((Component)pluginComponent.getPluginComponentInstance(AccountStatusPanel.this)
-                 .getComponent(), BorderLayout.EAST);
+            System.out.println("Adding element to \"CONTAINER_ACCOUNT_BALANCE\"");
+             SwingUtilities.invokeLater(new Runnable (){
+                 public void run(){
+                     upperPanel.add((Component)pluginComponent.getPluginComponentInstance(AccountStatusPanel.this)
+                         .getComponent(), BorderLayout.EAST);
+                 }
+             });
              this.revalidate();
              this.repaint();
          }

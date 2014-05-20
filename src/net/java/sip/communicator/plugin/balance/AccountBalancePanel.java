@@ -21,15 +21,10 @@ public class AccountBalancePanel
     extends SIPCommTextButton
     implements Skinnable
 {
-    /**
-     * The tool tip shown by default over the balance button.
-     */
-    /*private final static String accountBalanceToolTip
-        = GuiActivator.getResources().getI18NString(
-            "service.gui.ACCOUNT_BALANCE_TOOL_TIP");*/
+
     private String amount="";
     /**
-     * Creates a <tt>CallHistoryButton</tt>.
+     * Creates a Balance panel Button.
      */
     public AccountBalancePanel()
     {
@@ -41,7 +36,6 @@ public class AccountBalancePanel
         this.setForeground(Color.BLACK);
         this.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         this.setFont(getFont().deriveFont(Font.BOLD, 10f));
-        this.setToolTipText("tooltip");
         this.setBackground(new Color(255, 255, 255, 100));
         this.setRolloverEnabled(false);
 
@@ -51,6 +45,11 @@ public class AccountBalancePanel
             public void actionPerformed(ActionEvent e)
             {
                 setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
+                if(amount.length()>7)
+                    // If balance is too long show it in tooltip message, else there should be no tooltip.
+                    setToolTipText(amount);
+                else
+                    setToolTipText(null);
                 repaint();
             }
         });
@@ -87,7 +86,7 @@ public class AccountBalancePanel
         if(provUsername==null || provPassword==null)
         {
             System.out.println("\tERROR: provisioning password: "+ provPassword +
-                                            "\n\tprovisioning username: " + provUsername);
+                                            "\n\t\tprovisioning username: " + provUsername);
             return amount;
         }
         
