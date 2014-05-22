@@ -11,16 +11,17 @@ import java.awt.event.*;
 import java.io.IOException;
 
 import javax.swing.*;
-import javax.swing.Timer;
 
 import net.java.sip.communicator.plugin.desktoputil.*;
 import net.java.sip.communicator.service.httputil.*;
 import net.java.sip.communicator.util.skin.*;
+import net.java.sip.communicator.service.protocol.event.CallEvent;
+import net.java.sip.communicator.service.protocol.event.CallListener;
 
 @SuppressWarnings("serial")
 public class AccountBalancePanel
     extends SIPCommTextButton
-    implements Skinnable
+    implements Skinnable, CallListener
 {
 
     private String amount="";
@@ -62,12 +63,12 @@ public class AccountBalancePanel
     /**
      * Sets the balance view.
      */
-    private void setBalanceView()
+    public void setBalanceView()
     {
         SwingUtilities.invokeLater(new Runnable (){
             public void run(){
                 setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
-                if(amount.length()>7)
+                if(amount.length()>11)
                     // If balance is too long show it in tooltip message, else there should be no tooltip.
                     setToolTipText(amount);
                 else
@@ -83,7 +84,7 @@ public class AccountBalancePanel
     public void loadSkin()
     {
 
-        this.setPreferredSize(new Dimension(50,
+        this.setPreferredSize(new Dimension(60,
                                            30));
         setBalanceView();
     }
@@ -149,5 +150,26 @@ public class AccountBalancePanel
             System.out.println("\tResponse is null, connection error.");
             return amount;
         }
+    }
+
+    public void incomingCallReceived(CallEvent event)
+    {
+        System.out.println("test");
+        
+    }
+
+
+   
+    public void outgoingCallCreated(CallEvent event)
+    {
+        // TODO Auto-generated method stub
+        
+    }
+
+
+    
+    public void callEnded(CallEvent event)
+    {
+        setBalanceView();
     }
 }

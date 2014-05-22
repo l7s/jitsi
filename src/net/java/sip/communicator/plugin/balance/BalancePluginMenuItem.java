@@ -44,5 +44,10 @@ public class BalancePluginMenuItem
     {
         return -1;
     }
+    
+    public void updateBalance()
+    {
+        panelItem.setBalanceView();
+    }
 
 }
