@@ -2,18 +2,14 @@ package net.java.sip.communicator.plugin.balance;
 
 import java.util.*;
 
-import net.java.sip.communicator.service.protocol.Call;
-import net.java.sip.communicator.service.protocol.CallPeer;
-import net.java.sip.communicator.service.protocol.CallPeerState;
 import net.java.sip.communicator.service.protocol.OperationSetBasicTelephony;
 import net.java.sip.communicator.service.protocol.ProtocolProviderService;
 import net.java.sip.communicator.service.provisioning.*;
 import net.java.sip.communicator.service.protocol.event.*;
-import net.java.sip.communicator.service.callhistory.*;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.util.*;
 
-import org.jitsi.service.configuration.ConfigurationService;
+import org.jitsi.service.configuration.*;
 import org.osgi.framework.*;
 
 public class BalancePluginActivator
@@ -23,9 +19,13 @@ public class BalancePluginActivator
 {
     Logger logger = Logger.getLogger(BalancePluginActivator.class);
     
+    private static final String DISABLED_PROP
+    = "net.java.sip.communicator.plugin.balance.DISABLED";
     
     private static ProvisioningService provisoningService = null;
-    private static CallHistoryService callHistoryService = null;
+    
+    private static ConfigurationService configurationService = null;
+    
     private static BalancePluginMenuItem BalanceMenuItem= null;
     
     static BundleContext bundleContext = null;
@@ -39,6 +39,12 @@ public class BalancePluginActivator
     {
         Thread.sleep(4000);
         BalancePluginActivator.bundleContext = bundleContext;
+        
+        if(getConfigurationService().getBoolean(DISABLED_PROP, true) )
+        {
+            System.out.println("\nBalance Plugin Disabled, exiting.\n");
+            return;
+        }
         
         Hashtable<String, String> containerFilter
             = new Hashtable<String, String>();
@@ -250,16 +256,16 @@ public class BalancePluginActivator
         return provisoningService;
     }
     
-    public static CallHistoryService getCallHistoryService()
+    public static ConfigurationService getConfigurationService()
     {
-        if (callHistoryService == null)
+        if (configurationService == null)
         {
             ServiceReference confReference
                 = bundleContext.getServiceReference(
-                    CallHistoryService.class.getName());
-            callHistoryService
-                = (CallHistoryService)bundleContext.getService(confReference);
+                    ConfigurationService.class.getName());
+            configurationService
+                = (ConfigurationService)bundleContext.getService(confReference);
         }
-        return callHistoryService;
+        return configurationService;
     }
 }
