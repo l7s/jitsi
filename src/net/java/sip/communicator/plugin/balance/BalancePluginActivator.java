@@ -70,6 +70,7 @@ public class BalancePluginActivator
     public void stop(BundleContext bc)
         throws Exception
     {
+        stopInternal(bc);
     }
     
     private void startInternal(BundleContext bc)
@@ -169,6 +170,46 @@ public class BalancePluginActivator
         }
     }
     
+    
+    /**
+     * Stops the impl and removes necessary listeners.
+     * @param bc the current bundle context.
+     */
+    private void stopInternal(BundleContext bc)
+    {
+        // start listening for newly register or removed protocol providers
+        bc.removeServiceListener(this);
+
+        ServiceReference[] protocolProviderRefs;
+        try
+        {
+            protocolProviderRefs = bc.getServiceReferences(
+                ProtocolProviderService.class.getName(),
+                null);
+        }
+        catch (InvalidSyntaxException ex)
+        {
+            // this shouldn't happen since we're providing no parameter string
+            // but let's log just in case.
+            logger.error(
+                "Error while retrieving service refs", ex);
+            return;
+        }
+
+        // in case we found any
+        if (protocolProviderRefs != null)
+        {
+            for (ServiceReference protocolProviderRef : protocolProviderRefs)
+            {
+                ProtocolProviderService provider
+                    = (ProtocolProviderService)
+                        bc.getService(protocolProviderRef);
+
+                this.handleProviderRemoved(provider);
+            }
+        }
+    }
+    
     /**
      * Not used.
      * @param event a CalldEvent instance describing the new outgoing call.
@@ -189,7 +230,7 @@ public class BalancePluginActivator
      */
     public void callEnded(CallEvent event)
     {
-        System.out.println("/tCallEnded, update balance.");
+        logger.info("Call ended, update Balance.");
         BalanceMenuItem.updateBalance();
     }
     
