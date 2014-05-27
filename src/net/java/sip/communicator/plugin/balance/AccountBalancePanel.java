@@ -26,6 +26,7 @@ public class AccountBalancePanel
     private String amount="";
     private Timer timer;
     private UpdateBalance listener;
+    private int balanceLength = 9;
     
     /**
      * Creates a Balance panel Button.
@@ -41,7 +42,6 @@ public class AccountBalancePanel
         this.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         this.setFont(getFont().deriveFont(Font.BOLD, 10f));
         this.setBackground(new Color(255, 255, 255, 65));
-
         listener= new UpdateBalance();
         this.addActionListener(listener);
         
@@ -77,7 +77,7 @@ public class AccountBalancePanel
             protected void done()
             {
              // If balance is too long show it in tooltip message, else there should be no tooltip.
-                if(amount.length()>9)
+                if(amount.length() > balanceLength)
                 {
                    String temp = amount.substring(0,4) + "...";
                    setText(temp);
@@ -162,14 +162,22 @@ public class AccountBalancePanel
             if(responseSplit[1].split("=")[1].contains("GBP") )
             {
              amount = "\u00a3 " + amount;
+             balanceLength = 9;
             }
             else if(responseSplit[1].split("=")[1].contains("USD") )
             {
              amount = "\u0024" + amount;
+             balanceLength = 9;
             }
             else if(responseSplit[1].split("=")[1].contains("EUR") )
             {
              amount = "\u20ac" + amount;
+             balanceLength = 9;
+            }
+            else
+            {
+                amount = amount + responseSplit[1].split("=")[1];
+                balanceLength = 8 + responseSplit[1].split("=")[1].length();
             }
             
             System.out.println("\tDone.\n");
