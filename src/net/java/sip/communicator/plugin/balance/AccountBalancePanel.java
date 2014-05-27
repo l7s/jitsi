@@ -11,6 +11,7 @@ import java.awt.event.*;
 import java.io.IOException;
 
 import javax.swing.*;
+import javax.swing.SwingWorker;
 
 import net.java.sip.communicator.plugin.desktoputil.*;
 import net.java.sip.communicator.service.httputil.*;
@@ -39,8 +40,7 @@ public class AccountBalancePanel
         this.setForeground(Color.BLACK);
         this.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         this.setFont(getFont().deriveFont(Font.BOLD, 10f));
-        this.setBackground(new Color(255, 255, 255, 100));
-        this.setRolloverEnabled(false);
+        this.setBackground(new Color(255, 255, 255, 65));
 
         listener= new UpdateBalance();
         this.addActionListener(listener);
@@ -49,6 +49,7 @@ public class AccountBalancePanel
         timer.setRepeats(true);
         timer.start();
     }
+    
     /**
      * Updates Balance amount and Sets it.
      */
@@ -66,9 +67,15 @@ public class AccountBalancePanel
      */
     public void setBalanceView()
     {
-        SwingUtilities.invokeLater(new Runnable (){
-            public void run(){
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            protected Void doInBackground()
+            {
                 getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}");
+                return null;
+            }
+            
+            protected void done()
+            {
              // If balance is too long show it in tooltip message, else there should be no tooltip.
                 if(amount.length()>9)
                 {
@@ -92,7 +99,9 @@ public class AccountBalancePanel
                 setBounds(new Rectangle(
                                getLocation(), getPreferredSize()));
             }
-        });
+        };
+        
+        worker.execute();
     }
 
 
@@ -152,15 +161,15 @@ public class AccountBalancePanel
             
             if(responseSplit[1].split("=")[1].contains("GBP") )
             {
-             amount += " \u00a3";
+             amount = "\u00a3 " + amount;
             }
             else if(responseSplit[1].split("=")[1].contains("USD") )
             {
-             amount += " \u0024";
+             amount = "\u0024" + amount;
             }
             else if(responseSplit[1].split("=")[1].contains("EUR") )
             {
-             amount += " \u20ac";
+             amount = "\u20ac" + amount;
             }
             
             System.out.println("\tDone.\n");
