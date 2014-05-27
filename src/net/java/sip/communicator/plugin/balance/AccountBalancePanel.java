@@ -15,18 +15,17 @@ import javax.swing.*;
 import net.java.sip.communicator.plugin.desktoputil.*;
 import net.java.sip.communicator.service.httputil.*;
 import net.java.sip.communicator.util.skin.*;
-import net.java.sip.communicator.service.protocol.event.CallEvent;
-import net.java.sip.communicator.service.protocol.event.CallListener;
 
 @SuppressWarnings("serial")
 public class AccountBalancePanel
     extends SIPCommTextButton
-    implements Skinnable, CallListener
+    implements Skinnable
 {
 
     private String amount="";
     private Timer timer;
     private UpdateBalance listener;
+    
     /**
      * Creates a Balance panel Button.
      */
@@ -50,8 +49,10 @@ public class AccountBalancePanel
         timer.setRepeats(true);
         timer.start();
     }
-
-    public class UpdateBalance implements ActionListener
+    /**
+     * Updates Balance amount and Sets it.
+     */
+    private class UpdateBalance implements ActionListener
     {
         public void actionPerformed(ActionEvent e)
         {
@@ -67,12 +68,29 @@ public class AccountBalancePanel
     {
         SwingUtilities.invokeLater(new Runnable (){
             public void run(){
-                setText(getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}") );
-                if(amount.length()>11)
-                    // If balance is too long show it in tooltip message, else there should be no tooltip.
-                    setToolTipText(amount);
+                getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}");
+             // If balance is too long show it in tooltip message, else there should be no tooltip.
+                if(amount.length()>9)
+                {
+                   String temp = amount.substring(0,4) + "...";
+                   setText(temp);
+                   setToolTipText(amount);
+                }
                 else
-                    setToolTipText(null);
+                {
+                    setText(amount);
+                    setToolTipText(null);   
+                }
+                /*
+                 *  Get font metric and change button size according to text inside
+                 */
+                FontMetrics metrics = getFontMetrics( getFont() ); 
+                int width = metrics.stringWidth( getText() );
+                int height = metrics.getHeight();
+                Dimension newDimension =  new Dimension(width+10 ,height+10);
+                setPreferredSize(newDimension);
+                setBounds(new Rectangle(
+                               getLocation(), getPreferredSize()));
             }
         });
     }
@@ -83,9 +101,6 @@ public class AccountBalancePanel
      */
     public void loadSkin()
     {
-
-        this.setPreferredSize(new Dimension(60,
-                                           30));
         setBalanceView();
     }
     
@@ -96,10 +111,11 @@ public class AccountBalancePanel
         
         String provUsername=BalancePluginActivator.getProvisioningService().getProvisioningUsername();
         String provPassword=BalancePluginActivator.getProvisioningService().getProvisioningPassword();
+        
         if(provUsername==null || provPassword==null)
         {
             System.out.println("\tERROR: provisioning password: "+ provPassword +
-                                            "\n\t\tprovisioning username: " + provUsername);
+                                            "\t\tprovisioning username: " + provUsername);
             return amount;
         }
         
@@ -136,13 +152,18 @@ public class AccountBalancePanel
             
             if(responseSplit[1].split("=")[1].contains("GBP") )
             {
-             amount += " GBP ";
+             amount += " \u00a3";
             }
-            if(responseSplit[1].split("=")[1].contains("USD") )
+            else if(responseSplit[1].split("=")[1].contains("USD") )
             {
-             amount += " USD ";
+             amount += " \u0024";
             }
-            System.out.println("\tDone.");
+            else if(responseSplit[1].split("=")[1].contains("EUR") )
+            {
+             amount += " \u20ac";
+            }
+            
+            System.out.println("\tDone.\n");
             return amount;
         }
         else
@@ -152,24 +173,4 @@ public class AccountBalancePanel
         }
     }
 
-    public void incomingCallReceived(CallEvent event)
-    {
-        System.out.println("test");
-        
-    }
-
-
-   
-    public void outgoingCallCreated(CallEvent event)
-    {
-        // TODO Auto-generated method stub
-        
-    }
-
-
-    
-    public void callEnded(CallEvent event)
-    {
-        setBalanceView();
-    }
 }
