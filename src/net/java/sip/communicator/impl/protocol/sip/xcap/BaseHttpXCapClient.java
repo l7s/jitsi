@@ -252,12 +252,8 @@ public abstract class BaseHttpXCapClient implements HttpXCapClient
                     ex.getLocalizedMessage();
 
 
-            if(SipActivator.getUIService() != null)
-                SipActivator.getUIService().getPopupDialog()
-                    .showMessagePopupDialog(
-                        message,
-                        title,
-                        PopupDialog.ERROR_MESSAGE);
+            logger.error("XCAP Error:\n"
+                                + message + "\n\n" );
         }
         catch(Throwable t)
         {
