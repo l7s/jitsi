@@ -27,6 +27,7 @@ public class AccountBalancePanel
     private Timer timer;
     private UpdateBalance listener;
     private int balanceLength = 9;
+    private boolean isWorkerRunning=false;
     
     /**
      * Creates a Balance panel Button.
@@ -67,9 +68,15 @@ public class AccountBalancePanel
      */
     public void setBalanceView()
     {
+        if(isWorkerRunning==true)
+        {
+            System.out.println("Balance getter is already running. Aborting.");
+            return;
+        }
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             protected Void doInBackground()
             {
+                isWorkerRunning=true;
                 getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}");
                 return null;
             }
@@ -98,9 +105,9 @@ public class AccountBalancePanel
                 setPreferredSize(newDimension);
                 setBounds(new Rectangle(
                                getLocation(), getPreferredSize()));
+                isWorkerRunning=false;
             }
         };
-        
         worker.execute();
     }
 
@@ -166,13 +173,18 @@ public class AccountBalancePanel
             }
             else if(responseSplit[1].split("=")[1].contains("USD") )
             {
-             amount = "\u0024" + amount;
+             amount = "\u0024 " + amount;
              balanceLength = 9;
             }
             else if(responseSplit[1].split("=")[1].contains("EUR") )
             {
-             amount = "\u20ac" + amount;
+             amount = "\u20ac " + amount;
              balanceLength = 9;
+            }
+            else if(responseSplit[1].split("=")[1].contains("PLN") )
+            {
+             amount = amount + " z\u0142";
+             balanceLength = 10;
             }
             else
             {
