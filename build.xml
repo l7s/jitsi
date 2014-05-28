@@ -1090,7 +1090,7 @@
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
         bundle-plugin-propertieseditor,
-        bundle-guava,bundle-hsql"/>
+        bundle-guava,bundle-hsql,bundle-plugin-balance"/>
 
     <!--BUNDLE-SC-LAUNCHER-->
     <target name="bundle-sc-launcher">
@@ -2876,6 +2876,16 @@ javax.swing.event, javax.swing.border"/>
             manifest="${src}/net/java/sip/communicator/plugin/propertieseditor/propertieseditor.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/plugin/propertieseditor"
                 prefix="net/java/sip/communicator/plugin/propertieseditor"/>
+        </jar>
+    </target>
+    
+    <!--BUNDLE-PLUGIN-balance-->
+    <target name="bundle-plugin-balance">
+        <!-- Creates a bundle for the plugin Configuration Properties Editor.-->
+        <jar compress="false" destfile="${bundles.dest}/balance.jar"
+            manifest="${src}/net/java/sip/communicator/plugin/balance/balance.manifest.mf">
+            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/balance"
+                prefix="net/java/sip/communicator/plugin/balance"/>
         </jar>
     </target>
 </project>

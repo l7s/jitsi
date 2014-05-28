@@ -109,6 +109,9 @@ public class AccountStatusPanel
      * The south plug-in container.
      */
     private final TransparentPanel southPluginPanel;
+    
+    private final TransparentPanel upperPanel;
+    //private final PluginContainer upperContainer;
 
     /**
      * Keep reference to plugin container or it will loose its
@@ -142,7 +145,8 @@ public class AccountStatusPanel
 
         accountNameLabel.setFont(
             accountNameLabel.getFont().deriveFont(12f));
-        accountNameLabel.setOpaque(false);
+        accountNameLabel.setOpaque(true);
+        accountNameLabel.setBackground(new Color(222,236,245) );
 
         statusComboBox = new GlobalStatusSelectorBox();
         // Align status combo box with account name field.
@@ -165,7 +169,15 @@ public class AccountStatusPanel
 
         TransparentPanel rightPanel = new TransparentPanel();
         rightPanel.setLayout(new BorderLayout(0, 0));
-        rightPanel.add(accountNameLabel, BorderLayout.NORTH);
+        
+        upperPanel = new TransparentPanel();
+        upperPanel.setLayout(new BorderLayout(0, 0));
+        
+        upperPanel.add(accountNameLabel, BorderLayout.WEST);
+       /* upperContainer = new PluginContainer(upperPanel,
+                            Container.CONTAINER_ACCOUNT_BALANCE);*/
+        
+        rightPanel.add(upperPanel, BorderLayout.NORTH);
         rightPanel.add(statusToolsPanel, BorderLayout.SOUTH);
 
         this.add(accountImageLabel, BorderLayout.WEST);
@@ -399,7 +411,7 @@ public class AccountStatusPanel
      */
     public void pluginComponentAdded(PluginComponentEvent event)
     {
-        PluginComponentFactory pluginComponent =
+        final PluginComponentFactory pluginComponent =
             event.getPluginComponentFactory();
         Container containerID = pluginComponent.getContainer();
         /*
@@ -416,6 +428,19 @@ public class AccountStatusPanel
             this.revalidate();
             this.repaint();
         }
+        
+        if (containerID.equals(Container.CONTAINER_ACCOUNT_BALANCE) )
+         {
+            System.out.println("Adding element to \"CONTAINER_ACCOUNT_BALANCE\"");
+             SwingUtilities.invokeLater(new Runnable (){
+                 public void run(){
+                     upperPanel.add((Component)pluginComponent.getPluginComponentInstance(AccountStatusPanel.this)
+                         .getComponent(), BorderLayout.EAST);
+                 }
+             });
+             this.revalidate();
+             this.repaint();
+         }
     }
 
     /**

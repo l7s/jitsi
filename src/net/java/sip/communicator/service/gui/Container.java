@@ -161,6 +161,9 @@ public class Container
      */
     public static final Container CONTAINER_CHAT_STATUS_BAR
             = new Container("CONTAINER_CHAT_STATUS_BAR");
+    
+    public static final Container CONTAINER_ACCOUNT_BALANCE
+    = new Container("CONTAINER_ACCOUNT_BALANCE");
 
     /*
      * Constraints
