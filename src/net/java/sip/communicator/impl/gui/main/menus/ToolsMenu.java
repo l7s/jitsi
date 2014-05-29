@@ -148,9 +148,9 @@ public class ToolsMenu
         setText(r.getI18NString("service.gui.TOOLS"));
         setMnemonic(r.getI18nMnemonic("service.gui.TOOLS"));
 
-        registerMenuItems();
-
         initPluginComponents();
+        
+        registerMenuItems();
     }
 
     /**
@@ -199,6 +199,7 @@ public class ToolsMenu
         }
 
         GuiActivator.getUIService().addPluginComponentListener(this);
+        this.addSeparator();
     }
 
     /**

@@ -1090,7 +1090,7 @@
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
         bundle-plugin-propertieseditor,
-        bundle-guava,bundle-hsql,bundle-plugin-balance"/>
+        bundle-guava,bundle-hsql,bundle-plugin-balance,bundle-plugin-sms"/>
 
     <!--BUNDLE-SC-LAUNCHER-->
     <target name="bundle-sc-launcher">
@@ -2886,6 +2886,16 @@ javax.swing.event, javax.swing.border"/>
             manifest="${src}/net/java/sip/communicator/plugin/balance/balance.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/plugin/balance"
                 prefix="net/java/sip/communicator/plugin/balance"/>
+        </jar>
+    </target>
+    
+    <!--BUNDLE-PLUGIN-sms-->
+    <target name="bundle-plugin-sms">
+        <!-- Creates a bundle for the plugin Configuration Properties Editor.-->
+        <jar compress="false" destfile="${bundles.dest}/sms.jar"
+            manifest="${src}/net/java/sip/communicator/plugin/sms/sms.manifest.mf">
+            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/sms"
+                prefix="net/java/sip/communicator/plugin/sms"/>
         </jar>
     </target>
 </project>
