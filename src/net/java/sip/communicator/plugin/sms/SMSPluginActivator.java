@@ -4,6 +4,7 @@ import java.util.*;
 
 import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.service.gui.*;
+import net.java.sip.communicator.service.provisioning.ProvisioningService;
 
 import org.osgi.framework.*;
 
@@ -15,6 +16,8 @@ public class SMSPluginActivator
     static BundleContext bundleContext = null;
     
     private ServiceRegistration menuRegistration = null;
+    
+    private static ProvisioningService provisoningService = null;
 
     public void start(BundleContext bc) throws Exception
     {     
@@ -44,4 +47,21 @@ public class SMSPluginActivator
     public void stop(BundleContext bc) throws Exception
     {
     }
+    
+    /*
+     * Service getters
+     */
+    public static ProvisioningService getProvisioningService()
+    {
+        if (provisoningService == null)
+        {
+            ServiceReference confReference
+                = bundleContext.getServiceReference(
+                    ProvisioningService.class.getName());
+            provisoningService
+                = (ProvisioningService)bundleContext.getService(confReference);
+        }
+        return provisoningService;
+    }
+    
 }
