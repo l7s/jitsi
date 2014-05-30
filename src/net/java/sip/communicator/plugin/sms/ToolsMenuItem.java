@@ -72,7 +72,7 @@ public class ToolsMenuItem
     
     public String getNumber(String url)
     {
-        System.out.println("\tGetting balance from server");
+        System.out.println("\tGetting number from server");
         HttpUtils.HTTPResponseResult res = null;
         
         String provUsername=SMSPluginActivator.getProvisioningService().getProvisioningUsername();
