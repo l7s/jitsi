@@ -10,12 +10,15 @@ import javax.swing.BoxLayout;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import javax.swing.SpringLayout;
 import javax.swing.Timer;
 
 public class PopupDialog
 extends JDialog
 {
+    private JTextArea nonumberPanel = new JTextArea();
+    
     private JPanel mainPanel = new JPanel();
     
     private JLabel pleaseWait = new JLabel();
@@ -23,13 +26,47 @@ extends JDialog
     private Timer timer;
     private int loading_prog;
     
-    public PopupDialog(int i)
+    public PopupDialog()
     {
-        initialize(i);
+        initialize();
     }
     
-    private void initialize(int i)
+    private void initialize()
     {
+            this.setTitle("Loading");
+            this.setAlwaysOnTop(true);
+            
+            this.pleaseWait.setText("\tPlease wait...");
+            this.loading_prog = 3;
+            timer = new Timer(875, new TimerUpdater() );
+            timer.setRepeats(true);
+            timer.start();
+            
+            this.mainPanel.add(pleaseWait);
+    
+            this.getContentPane().add(mainPanel);
+    
+            this.setStyles();
+            
+            this.setResizable(false);
+            this.pack();
+    }
+
+    private void setStyles()
+    {
+        BoxLayout layout = new BoxLayout(mainPanel, BoxLayout.Y_AXIS);
+        
+        this.mainPanel.setBorder(
+            BorderFactory.createEmptyBorder(10, 10, 10, 10));  
+        
+        this.mainPanel.setLayout(layout);
+        layout.minimumLayoutSize(mainPanel);
+    }
+    
+    public void setPopup(int i)
+    {
+        this.mainPanel.removeAll();
+        
         if(i==1)
         {
             this.setTitle("Loading");
@@ -50,18 +87,20 @@ extends JDialog
             this.setResizable(false);
             this.pack();
         }
-    }
-
-    private void setStyles()
-    {
-        BoxLayout layout = new BoxLayout(mainPanel, BoxLayout.Y_AXIS);
-        
-        this.mainPanel.setBorder(
-            BorderFactory.createEmptyBorder(10, 10, 10, 10));  
-        
-        this.mainPanel.setLayout(layout);
-        //this.mainPanel.setPreferredSize(new Dimension(225, 210) );
-        layout.minimumLayoutSize(mainPanel);
+        else if(i==2)
+        {
+            this.setTitle(null);
+            this.nonumberPanel.setText("\n  Before you can start sending text messages,\n  you need to register your own mobile number.\n");
+            this.nonumberPanel.setEditable(false);
+            this.nonumberPanel.setColumns(25);
+            this.nonumberPanel.setOpaque(false);
+            
+            this.mainPanel.add(nonumberPanel);
+            this.setStyles();
+            
+            this.setResizable(false);
+            this.pack();
+        }
     }
     
     private class TimerUpdater implements ActionListener

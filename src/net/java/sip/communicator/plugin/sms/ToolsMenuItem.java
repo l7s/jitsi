@@ -37,7 +37,7 @@ public class ToolsMenuItem
 
     public void actionPerformed(ActionEvent e)
     {
-        this.popupDialog = new PopupDialog(1);
+        this.popupDialog = new PopupDialog();
 
         this.popupDialog.setLocation(
             Toolkit.getDefaultToolkit().getScreenSize().width/2
@@ -111,10 +111,12 @@ public class ToolsMenuItem
             {
                 e.printStackTrace();
                 System.out.println("\tOpen connection error!");
-                return "\nERROR";
+                return "\nERROR: Connection error.";
             }
+            
             responseSplit = response.split("\n");
-            if(responseSplit[2].split("=")[1] == null )
+            
+            if(responseSplit[2].length()< 13 )
             {
                 System.out.println("\tNo number.\n");
                 return "\nNO_NUM";
@@ -166,6 +168,18 @@ public class ToolsMenuItem
                     
                     popupDialog.setVisible(false);
                     pluginDialog.setVisible(true);
+                }
+                else if(error=="\nNO_NUM")
+                {   
+                    popupDialog.setPopup(2);;
+                    
+                    popupDialog.setLocation(
+                        Toolkit.getDefaultToolkit().getScreenSize().width/2
+                            - popupDialog.getWidth()/2,
+                            Toolkit.getDefaultToolkit().getScreenSize().height/2
+                            - popupDialog.getHeight()/2);
+                    
+                    popupDialog.setVisible(true);
                 }
                 else
                 {
