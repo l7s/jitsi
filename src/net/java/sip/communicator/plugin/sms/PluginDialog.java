@@ -5,14 +5,31 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.*;
+import java.util.*;
+import java.util.List;
 
 import javax.swing.*;
+import javax.swing.text.*;
+
+import org.apache.http.*;
+import org.apache.http.client.*;
+import org.apache.http.client.entity.*;
+import org.apache.http.client.methods.*;
+import org.apache.http.impl.client.*;
+import org.apache.http.message.*;
+import org.apache.http.util.EntityUtils;
 
 @SuppressWarnings("serial")
 public class PluginDialog
     extends JDialog
 {
+    
     SwingWorker<Void, Void> worker;
+    
+    private DefaultStyledDocument doc;
+    
+    private String number;
     
     private JButton sendButton = new JButton(); 
     
@@ -28,7 +45,8 @@ public class PluginDialog
 
     public PluginDialog(String number)
     {
-        initialize(number);
+        this.number = number;
+        initialize(this.number);
         
         this.sendButton.addActionListener(new ActionListener() {
             @Override
@@ -49,6 +67,7 @@ public class PluginDialog
         this.toLabel.setText("To: ");
         
         this.sendButton.setText("Send");
+        this.sendButton.setEnabled(false);
 
         this.charactersLabel.setText("0/160 characters.");
         
@@ -65,8 +84,8 @@ public class PluginDialog
 
         this.getContentPane().add(mainPanel);
 
-        this.setStyles();
         this.setCharacterCount();
+        this.setStyles();
         
         this.setResizable(false);
         this.pack();       
@@ -112,6 +131,7 @@ public class PluginDialog
         this.textField.setLineWrap(true);
         this.textField.setRows(5);
         this.textField.setWrapStyleWord(true);
+        this.textField.setDocument(doc);
         this.textField.setBorder( toField.getBorder() );     
         
         this.mainPanel.setLayout(layout);
@@ -121,33 +141,130 @@ public class PluginDialog
     
     private void setCharacterCount()
     {
+        /*
+         * Document filter used to limit max character count of textField to 160
+         */
+        doc = new DefaultStyledDocument();
+        doc.setDocumentFilter(new DocumentSizeFilter(160));
+        
+        /*
+         * Update label when typing
+         */
         textField.addKeyListener(new KeyListener() {
             @Override
             public void keyReleased(KeyEvent e)
             {
+                
                 int lenght = textField.getText().length();
                 charactersLabel.setText( lenght + "/160 characters.");
-                if(lenght>160)
-                {
+                if(lenght==0)
                     sendButton.setEnabled(false);
-                }
                 else
                     sendButton.setEnabled(true);
             }
             /* Unused classes */
             @Override
             public void keyPressed(KeyEvent e)
-            {   
+            {  
             }
             @Override
             public void keyTyped(KeyEvent e)
-            {
+            { 
             }
         });
     }
     
     private void sendSMS()
     {
-        System.out.println("\tS*it ain't workin yet ;)");
+        int lenght = textField.getText().length();
+        charactersLabel.setText( lenght + "/160 characters.");
+        if(lenght>160)
+        {
+            return;
+        }
+        
+        HttpClient httpClient = new DefaultHttpClient();
+        HttpPost httppost = new HttpPost("https://ssl7.net/%WEB_DOMAIN%/u/api");
+        //HttpPost httppost = new HttpPost("https://ssl7.net/voipdito.com/u/api");
+
+        // Get provisioning username and password
+        String username = SMSPluginActivator.getProvisioningService().getProvisioningUsername();
+        String password = SMSPluginActivator.getProvisioningService().getProvisioningPassword();
+        
+        if(username == null || password == null)
+        {
+            //displayError("There was a problem with your username and/or password."
+                    //+"\nAre you logged in with your %WEB_PRODUCT% account?)
+        }
+        
+        // Request parameters and other properties.
+        List<NameValuePair> params = new ArrayList<NameValuePair>(2);
+        
+        params.add(new BasicNameValuePair("api_email", username));
+        params.add(new BasicNameValuePair("api_password", password));
+        params.add(new BasicNameValuePair("o", "sms"));
+        params.add(new BasicNameValuePair("a", "send"));
+        params.add(new BasicNameValuePair("text", textField.getText() ));
+        params.add(new BasicNameValuePair("to_no", toField.getText() ));
+        
+        try {
+            httppost.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            // writing error to Log
+            e.printStackTrace();
+        }
+
+        //Execute and get the response.
+        try {
+            HttpResponse response = httpClient.execute(httppost);
+            HttpEntity respEntity = response.getEntity();
+
+            if (respEntity != null) {
+                // EntityUtils to get the response content
+                String content =  EntityUtils.toString(respEntity);
+                System.out.println("\tSMS API response: " + content);
+            }
+        } catch (ClientProtocolException e) {
+            // writing exception to log
+            e.printStackTrace();
+        } catch (IOException e) {
+            // writing exception to log
+            e.printStackTrace();
+            
+            toField.setText(null);
+            textField.setText(null);
+        }
+    }
+    
+    private class DocumentSizeFilter extends DocumentFilter
+    {
+        int maxCharacters;
+
+        public DocumentSizeFilter(int maxChars) {
+            maxCharacters = maxChars;
+        }
+
+        public void insertString(FilterBypass fb, int offs,
+                                 String str, AttributeSet a)
+            throws BadLocationException
+            {
+
+            if ((fb.getDocument().getLength() + str.length()) <= maxCharacters)
+                super.insertString(fb, offs, str, a);
+            else
+                Toolkit.getDefaultToolkit().beep();
+            }
+        
+        public void replace(FilterBypass fb, int offs,
+                            int length, 
+                            String str, AttributeSet a)
+            throws BadLocationException 
+            {
+            if ((fb.getDocument().getLength() + str.length()
+                 - length) <= maxCharacters)
+                super.replace(fb, offs, length, str, a);
+            else
+                Toolkit.getDefaultToolkit().beep();
+            }
     }
 }
