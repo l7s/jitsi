@@ -1,23 +1,23 @@
 package net.java.sip.communicator.plugin.sms;
 
-import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
-import javax.swing.SpringLayout;
 import javax.swing.Timer;
 
 public class PopupDialog
 extends JDialog
 {
     private JTextArea nonumberPanel = new JTextArea();
+    
+    private JButton registerButton = new JButton();
     
     private JPanel mainPanel = new JPanel();
     
@@ -66,6 +66,7 @@ extends JDialog
     public void setPopup(int i)
     {
         this.mainPanel.removeAll();
+        timer.stop();
         
         if(i==1)
         {
@@ -90,12 +91,24 @@ extends JDialog
         else if(i==2)
         {
             this.setTitle(null);
-            this.nonumberPanel.setText("\n  Before you can start sending text messages,\n  you need to register your own mobile number.\n");
+            this.nonumberPanel.setText("Before sending SMS message you need to register your own mobile number.\n"
+                        +"Please click button below to login into your Customer Portal to complete registration.");
             this.nonumberPanel.setEditable(false);
             this.nonumberPanel.setColumns(25);
             this.nonumberPanel.setOpaque(false);
             
+            this.registerButton.setText("Register");
+            this.registerButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e)
+                {
+                    SMSPluginActivator.getBrowserService().openURL("http://%web_domain%/en/login");
+                    //SMSPluginActivator.getBrowserService().openURL("http://voipdito.com/en/login");
+                }            
+            });
+            
             this.mainPanel.add(nonumberPanel);
+            this.mainPanel.add(registerButton);
             this.setStyles();
             
             this.setResizable(false);
