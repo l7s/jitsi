@@ -82,7 +82,7 @@ public class ToolsMenuItem
         {
             System.out.println("\tERROR: provisioning password: "+ provPassword +
                                             "\t\tprovisioning username: " + provUsername);
-            return "\nERROR";
+            return "ERROR";
         }
         
         url = url.replace("${username}", provUsername);
@@ -96,7 +96,7 @@ public class ToolsMenuItem
         {
             System.out.println("\tOpen connection error!");
             t.printStackTrace();
-            return "\nERROR";
+            return "ERROR";
         }
         String[] responseSplit;
         String response;   
@@ -111,7 +111,7 @@ public class ToolsMenuItem
             {
                 e.printStackTrace();
                 System.out.println("\tOpen connection error!");
-                return "\nERROR: Connection error.";
+                return "ERROR: Connection error.";
             }
             
             responseSplit = response.split("\n");
@@ -119,19 +119,19 @@ public class ToolsMenuItem
             if(responseSplit[2].length()< 13 )
             {
                 System.out.println("\tNo number.\n");
-                return "\nNO_NUM";
+                return "NO_NUM";
             }
             else
             {
                 System.out.println("\tThere is a number.\n");
                 number = responseSplit[2].split("=")[1];
-                return "\nOK";
+                return "OK";
             }
         }
         else
         {
             System.out.println("\tResponse is null, connection error.");
-            return "\nERROR";
+            return "ERROR";
         }
     }
     
@@ -155,8 +155,10 @@ public class ToolsMenuItem
             
             protected void done()
             {
+                isWorkerRunning=false;
+                
                 PluginDialog pluginDialog;
-                if(error=="\nOK")
+                if(error=="OK")
                 {
                     pluginDialog = new PluginDialog(number);
 
@@ -169,7 +171,7 @@ public class ToolsMenuItem
                     popupDialog.setVisible(false);
                     pluginDialog.setVisible(true);
                 }
-                else if(error=="\nNO_NUM")
+                else if(error=="NO_NUM")
                 {   
                     popupDialog.setPopup(2);;
                     
@@ -183,10 +185,9 @@ public class ToolsMenuItem
                 }
                 else
                 {
-                    System.out.println("\tTEST "+ error );
+                    System.out.println("\tSMS Plugin Response: "+ error );
                     popupDialog.setVisible(false);
                 }
-                isWorkerRunning=false;
             }
         };
         worker.execute();
