@@ -4,6 +4,7 @@ import java.util.*;
 
 import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.service.gui.*;
+import net.java.sip.communicator.service.browserlauncher.*;
 import net.java.sip.communicator.service.provisioning.ProvisioningService;
 
 import org.osgi.framework.*;
@@ -18,6 +19,8 @@ public class SMSPluginActivator
     private ServiceRegistration menuRegistration = null;
     
     private static ProvisioningService provisoningService = null;
+    
+    private static BrowserLauncherService browserService = null;
 
     public void start(BundleContext bc) throws Exception
     {     
@@ -64,4 +67,16 @@ public class SMSPluginActivator
         return provisoningService;
     }
     
+    public static BrowserLauncherService getBrowserService()
+    {
+        if (browserService == null)
+        {
+            ServiceReference confReference
+                = bundleContext.getServiceReference(
+                    BrowserLauncherService.class.getName());
+            browserService
+                = (BrowserLauncherService)bundleContext.getService(confReference);
+        }
+        return browserService;
+    }    
 }
