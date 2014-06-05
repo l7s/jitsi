@@ -1,13 +1,16 @@
 package net.java.sip.communicator.plugin.sms;
 
+import java.awt.Frame;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 
 import javax.swing.JMenuItem;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
+import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 import net.java.sip.communicator.service.contactlist.MetaContact;
 import net.java.sip.communicator.service.contactlist.MetaContactGroup;
 import net.java.sip.communicator.service.gui.*;
@@ -82,7 +85,11 @@ public class ToolsMenuItem
         {
             System.out.println("\tERROR: provisioning password: "+ provPassword +
                                             "\t\tprovisioning username: " + provUsername);
-            return "ERROR";
+            ErrorDialog errorDialog = new ErrorDialog( null, 
+                "No connection","Could not resolve your username and password.\n"+
+                        "Please verify that your internet connection is working.", ErrorDialog.WARNING);
+            errorDialog.showDialog();      
+            return "ERROR_HANDLED";
         }
         
         url = url.replace("${username}", provUsername);
@@ -96,7 +103,7 @@ public class ToolsMenuItem
         {
             System.out.println("\tOpen connection error!");
             t.printStackTrace();
-            return "ERROR";
+            return "Open connection error!";
         }
         String[] responseSplit;
         String response;   
@@ -111,7 +118,7 @@ public class ToolsMenuItem
             {
                 e.printStackTrace();
                 System.out.println("\tOpen connection error!");
-                return "ERROR: Connection error.";
+                return "Open connection error!";
             }
             
             responseSplit = response.split("\n");
@@ -131,7 +138,7 @@ public class ToolsMenuItem
         else
         {
             System.out.println("\tResponse is null, connection error.");
-            return "ERROR";
+            return "Response is null, connection error.";
         }
     }
     
@@ -183,9 +190,15 @@ public class ToolsMenuItem
                     
                     popupDialog.setVisible(true);
                 }
+                else if(error=="ERROR_HANDLED"){}
                 else
                 {
                     System.out.println("\tSMS Plugin Response: "+ error );
+                    ErrorDialog errorDialog = new ErrorDialog( null, 
+                        "ERROR","There was an unknown error:\n"+
+                                error);
+                    
+                    errorDialog.showDialog();      
                     popupDialog.setVisible(false);
                 }
             }
