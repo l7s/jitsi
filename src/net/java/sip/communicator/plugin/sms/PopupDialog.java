@@ -1,5 +1,6 @@
 package net.java.sip.communicator.plugin.sms;
 
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -12,10 +13,15 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.Timer;
 
+import net.java.sip.communicator.plugin.desktoputil.TransparentPanel;
+
 public class PopupDialog
 extends JDialog
 {
     private JTextArea nonumberPanel = new JTextArea();
+    
+    private TransparentPanel buttonsPanel
+    = new TransparentPanel(new FlowLayout(FlowLayout.CENTER));
     
     private JButton registerButton = new JButton();
     
@@ -102,13 +108,14 @@ extends JDialog
                 @Override
                 public void actionPerformed(ActionEvent e)
                 {
-                    SMSPluginActivator.getBrowserService().openURL("http://%web_domain%/en/login");
-                    //SMSPluginActivator.getBrowserService().openURL("http://voipdito.com/en/login");
+                    SMSPluginActivator.getBrowserService().openURL("http://%WEB_DOMAIN%/en/login");
                 }            
             });
             
+            this.buttonsPanel.add(registerButton);
+            
             this.mainPanel.add(nonumberPanel);
-            this.mainPanel.add(registerButton);
+            this.mainPanel.add(buttonsPanel);
             this.setStyles();
             
             this.setResizable(false);
