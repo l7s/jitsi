@@ -6,7 +6,9 @@ import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.service.browserlauncher.*;
 import net.java.sip.communicator.service.provisioning.ProvisioningService;
+import net.java.sip.communicator.service.resources.ResourceManagementServiceUtils;
 
+import org.jitsi.service.resources.ResourceManagementService;
 import org.osgi.framework.*;
 
 public class SMSPluginActivator
@@ -21,6 +23,8 @@ public class SMSPluginActivator
     private static ProvisioningService provisoningService = null;
     
     private static BrowserLauncherService browserService = null;
+    
+    private static ResourceManagementService resourcesService = null;
 
     public void start(BundleContext bc) throws Exception
     {     
@@ -79,4 +83,13 @@ public class SMSPluginActivator
         }
         return browserService;
     }    
+    
+    public static ResourceManagementService getResources()
+    {
+        if (resourcesService == null)
+            resourcesService =
+                ResourceManagementServiceUtils
+                    .getService(SMSPluginActivator.bundleContext);
+        return resourcesService;
+    }
 }
