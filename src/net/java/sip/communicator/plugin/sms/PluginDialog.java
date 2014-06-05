@@ -20,9 +20,11 @@ import org.apache.http.impl.client.*;
 import org.apache.http.message.*;
 import org.apache.http.util.EntityUtils;
 
+import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
+
 @SuppressWarnings("serial")
 public class PluginDialog
-    extends JDialog
+    extends JFrame
 {
     
     SwingWorker<Void, Void> worker;
@@ -42,10 +44,12 @@ public class PluginDialog
     private JLabel fromLabel = new JLabel();
     private JLabel toLabel = new JLabel();
     private JLabel charactersLabel = new JLabel();
+    
 
     public PluginDialog(String number)
     {
         this.number = number;
+        this.setIconImage( SMSPluginActivator.getResources().getImage("service.gui.SIP_COMMUNICATOR_LOGO_64x64").getImage());
         initialize(this.number);
         
         this.sendButton.addActionListener(new ActionListener() {
@@ -60,7 +64,7 @@ public class PluginDialog
     private void initialize(String number)
     {
         this.setTitle("Send SMS");
-        this.setAlwaysOnTop(true);
+        this.setAlwaysOnTop(false);
         
         this.fromLabel.setText("From: ");
         this.fromField.setText(number);
@@ -185,7 +189,6 @@ public class PluginDialog
         
         HttpClient httpClient = new DefaultHttpClient();
         HttpPost httppost = new HttpPost("https://ssl7.net/%WEB_DOMAIN%/u/api");
-        //HttpPost httppost = new HttpPost("https://ssl7.net/voipdito.com/u/api");
 
         // Get provisioning username and password
         String username = SMSPluginActivator.getProvisioningService().getProvisioningUsername();
@@ -193,8 +196,11 @@ public class PluginDialog
         
         if(username == null || password == null)
         {
-            //displayError("There was a problem with your username and/or password."
-                    //+"\nAre you logged in with your %WEB_PRODUCT% account?)
+            ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this), 
+                            "No connection","Could not resolve your username and password.\n"+
+                                    "Please verify that your internet connection is working.", ErrorDialog.WARNING);
+            errorDialog.showDialog();      
+            return;
         }
         
         // Request parameters and other properties.
@@ -220,9 +226,32 @@ public class PluginDialog
             HttpEntity respEntity = response.getEntity();
 
             if (respEntity != null) {
-                // EntityUtils to get the response content
+                // Check if there was an error
                 String content =  EntityUtils.toString(respEntity);
                 System.out.println("\tSMS API response: " + content);
+                
+                if(content.split(",")[0].contains("false") )
+                {
+                  String error_msg = null;
+                  if(content.contains("Failed to parse To number.") )
+                  {
+                      error_msg="Please input proper number";
+                  }
+                  else if(content.contains("Invalid format of To field.") )
+                  {
+                      error_msg="Invalid format of \"To\" field.";
+                  }
+                  else
+                  {
+                      error_msg= "\nUnknown error:\n" + content;
+                  }
+                  
+                  ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
+                      , "No connection","There was an error:\n" + error_msg
+                      , ErrorDialog.WARNING);
+                  errorDialog.showDialog();
+                  return;
+                }
             }
         } catch (ClientProtocolException e) {
             // writing exception to log
@@ -236,6 +265,9 @@ public class PluginDialog
         }
     }
     
+    /*
+     * 
+     */
     private class DocumentSizeFilter extends DocumentFilter
     {
         int maxCharacters;
