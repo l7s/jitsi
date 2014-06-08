@@ -3,50 +3,51 @@ package net.java.sip.communicator.plugin.fax;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.io.*;
-import java.util.*;
-import java.util.List;
+import java.nio.charset.Charset;
 
 import javax.swing.*;
-import javax.swing.text.*;
 
 import org.apache.http.*;
 import org.apache.http.client.*;
-import org.apache.http.client.entity.*;
 import org.apache.http.client.methods.*;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.*;
-import org.apache.http.message.*;
 import org.apache.http.util.EntityUtils;
 
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
+import net.java.sip.communicator.plugin.desktoputil.GenericFileDialog;
+import net.java.sip.communicator.plugin.desktoputil.SipCommFileChooser;
 
 @SuppressWarnings("serial")
 public class PluginDialog
     extends JFrame
 {
+    private SipCommFileChooser fc = null;
     
     SwingWorker<Void, Void> worker;
     
-    private DefaultStyledDocument doc;
-    
-    private String number;
+    private String number[];
     
     private JButton sendButton = new JButton(); 
+    private JButton fileChooserButton = new JButton(); 
+
     
     private JPanel mainPanel = new JPanel();
     /* Text Fields */
     private JTextField toField = new JFormattedTextField();
-    private JTextField fromField = new JTextField();
-    private JTextArea textField = new JTextArea();
+    private JComboBox<String> fromField = new JComboBox<String>();
     /* Labels */
     private JLabel fromLabel = new JLabel();
+    private JLabel fileLabel = new JLabel();
     private JLabel toLabel = new JLabel();
-    private JLabel charactersLabel = new JLabel();
+    private JTextField textField = new JTextField("", 20);
     
 
-    public PluginDialog(String number)
+    public PluginDialog(String number[])
     {
         this.number = number;
         this.setIconImage( FAXPluginActivator.getResources().getImage("service.gui.SIP_COMMUNICATOR_LOGO_64x64").getImage());
@@ -56,139 +57,157 @@ public class PluginDialog
             @Override
             public void actionPerformed(ActionEvent e)
             {
-                sendFAX();
+                try
+                {
+                    sendFAX();
+                }
+                catch (UnsupportedEncodingException e1)
+                {
+                    System.out.println("\tHttp Post encoding error");
+                    e1.printStackTrace();
+                }
+            }            
+        });
+        
+        this.fileChooserButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                
+                File file = fc.getFileFromDialog(); 
+                
+                if ( file.exists() )
+                { 
+                    textField.setText(file.getAbsolutePath() );
+                    sendButton.setEnabled(true);
+                } 
+                else
+                { 
+                    sendButton.setEnabled(false);
+                    System.out.println("\tOpen command cancelled by user or file doesnt exist."); 
+                }
             }            
         });
     }
     
-    private void initialize(String number)
+    private void initialize(String number[])
     {
-        this.setTitle("Send SMS");
+        this.setTitle("Send FAX");
         this.setAlwaysOnTop(false);
         
         this.fromLabel.setText("From: ");
-        this.fromField.setText(number);
+        this.fromField.setModel(new DefaultComboBoxModel<String>(number) );
         this.toLabel.setText("To: ");
         
         this.sendButton.setText("Send");
+
+        this.fileLabel.setText("Path:");
+        
+        this.fileChooserButton.setText("Browse...");
+        this.textField.setEnabled(false);
+        
         this.sendButton.setEnabled(false);
-
-        this.charactersLabel.setText("0/160 characters.");
         
-        this.mainPanel.add(fromLabel);
-        this.mainPanel.add(fromField);
-        
-        this.mainPanel.add(toLabel);
-        this.mainPanel.add(toField);
-    
-        this.mainPanel.add(textField);
-        
-        this.mainPanel.add(charactersLabel);
-        this.mainPanel.add(sendButton);
-
         this.getContentPane().add(mainPanel);
 
-        this.setCharacterCount();
+
         this.setStyles();
         
         this.setResizable(false);
-        this.pack();       
+        this.pack();
+        
+        new GenericFileDialog();
+        fc = GenericFileDialog.create( (Frame)SwingUtilities.getWindowAncestor(mainPanel), "Choose file"
+                                                                        ,SipCommFileChooser.LOAD_FILE_OPERATION );
     }
 
     private void setStyles()
     {
-        SpringLayout layout = new SpringLayout();
-        /* From Label */
-        layout.putConstraint(SpringLayout.NORTH, fromLabel, 0, SpringLayout.NORTH, fromField);
-        layout.putConstraint(SpringLayout.WEST, fromLabel, 5, SpringLayout.WEST, mainPanel);
-        /* From Field */
-        layout.putConstraint(SpringLayout.NORTH, fromField, 5, SpringLayout.NORTH, mainPanel);
-        layout.putConstraint(SpringLayout.WEST, fromField, 5, SpringLayout.EAST, fromLabel);
-        layout.putConstraint(SpringLayout.EAST, fromField, 5, SpringLayout.EAST, mainPanel);
-        /* To Label */
-        layout.putConstraint(SpringLayout.NORTH, toLabel, 0, SpringLayout.NORTH, toField);
-        layout.putConstraint(SpringLayout.WEST, toLabel, 5, SpringLayout.WEST, mainPanel);
-        /* To Field */
-        layout.putConstraint(SpringLayout.NORTH, toField, 5, SpringLayout.SOUTH, fromField);
-        layout.putConstraint(SpringLayout.WEST, toField, 0, SpringLayout.WEST, fromField);
-        layout.putConstraint(SpringLayout.EAST, toField, 5, SpringLayout.EAST, mainPanel);
-        /* Text Field */
-        layout.putConstraint(SpringLayout.NORTH, textField, 5, SpringLayout.SOUTH, toField);
-        layout.putConstraint(SpringLayout.SOUTH, textField, -5, SpringLayout.NORTH, sendButton);
-        layout.putConstraint(SpringLayout.WEST, textField, 5, SpringLayout.WEST, mainPanel);
-        layout.putConstraint(SpringLayout.EAST, textField, 5, SpringLayout.EAST, mainPanel);
-        /* Send Button */
-        layout.putConstraint(SpringLayout.EAST, sendButton, 0, SpringLayout.EAST, textField);
-        layout.putConstraint(SpringLayout.SOUTH, sendButton, 5, SpringLayout.SOUTH, mainPanel);
-        /* Character label */
-        layout.putConstraint(SpringLayout.WEST, charactersLabel, 5, SpringLayout.WEST, textField);
-        layout.putConstraint(SpringLayout.NORTH, charactersLabel, 5, SpringLayout.SOUTH, textField);
-        
+        GridBagLayout layout = new GridBagLayout();
+        this.mainPanel.setLayout(layout);
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 5, 5, 0);
+        //row 0
+        c.weightx = 0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 0;
+        c.gridwidth = 1;
+        c.gridy = 0;
+        this.mainPanel.add(fromLabel, c);
+        c.weightx = 0.5;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 1;
+        c.gridwidth = 2;
+        c.gridy = 0;
+        this.mainPanel.add(fromField, c);
+        //row 1
+        c.weightx = 0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 0;
+        c.gridwidth = 1;
+        c.gridy = 1;
+        this.mainPanel.add(toLabel, c);   
+        c.weightx = 0.5;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 1;
+        c.gridwidth = 2;
+        c.gridy = 1;
+        this.mainPanel.add(toField, c);
+        //row 2
+        c.weightx = 0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 0;
+        c.gridwidth = 1;
+        c.gridy = 2;
+        this.mainPanel.add(fileLabel, c);
+        c.weightx = 0.5;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 1;
+        c.gridwidth = 2;
+        c.gridy = 2;
+        this.mainPanel.add(textField, c);   
+        //row 3
+        c.weightx = 0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 1;
+        c.gridwidth = 1;
+        c.gridy = 3;
+        this.mainPanel.add(fileChooserButton, c);
+        c.weightx = 0;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 2;
+        c.gridwidth = 1;
+        c.gridy = 3;
+        this.mainPanel.add(sendButton, c);
+
+
         this.mainPanel.setBorder(
-            BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            BorderFactory.createEmptyBorder(10, 5, 5, 10));
         
         this.fromField.setEditable(false);
         this.toLabel.setFont(toLabel.getFont().deriveFont(Font.BOLD));
         this.fromLabel.setFont(toLabel.getFont().deriveFont(Font.BOLD));
-        
-        this.textField.setColumns(45);
-        this.textField.setLineWrap(true);
-        this.textField.setRows(5);
-        this.textField.setWrapStyleWord(true);
-        this.textField.setDocument(doc);
-        this.textField.setBorder( toField.getBorder() );     
-        
-        this.mainPanel.setLayout(layout);
-        this.mainPanel.setPreferredSize(new Dimension(225, 210) );
-        layout.minimumLayoutSize(mainPanel);
+        this.fileLabel.setFont(fileLabel.getFont().deriveFont(Font.BOLD));    
     }
     
-    private void setCharacterCount()
+    private void sendFAX() throws UnsupportedEncodingException
     {
-        /*
-         * Document filter used to limit max character count of textField to 160
-         */
-        doc = new DefaultStyledDocument();
-        doc.setDocumentFilter(new DocumentSizeFilter(160));
+        File file = fc.getApprovedFile();
         
-        /*
-         * Update label when typing
-         */
-        textField.addKeyListener(new KeyListener() {
-            @Override
-            public void keyReleased(KeyEvent e)
-            {
-                
-                int lenght = textField.getText().length();
-                charactersLabel.setText( lenght + "/160 characters.");
-                if(lenght==0)
-                    sendButton.setEnabled(false);
-                else
-                    sendButton.setEnabled(true);
-            }
-            /* Unused classes */
-            @Override
-            public void keyPressed(KeyEvent e)
-            {  
-            }
-            @Override
-            public void keyTyped(KeyEvent e)
-            { 
-            }
-        });
-    }
-    
-    private void sendFAX()
-    {
-        int lenght = textField.getText().length();
-        charactersLabel.setText( lenght + "/160 characters.");
-        if(lenght>160)
+        if( !fc.getApprovedFile().exists() )
         {
+            ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this), 
+                "File error","Could not open file.\n"+
+                        "Please verify that file exists and you have read rights.", ErrorDialog.ERROR);
+            errorDialog.showDialog();
+            sendButton.setEnabled(false);
             return;
         }
         
         HttpClient httpClient = new DefaultHttpClient();
         HttpPost httppost = new HttpPost("https://ssl7.net/%WEB_DOMAIN%/u/api");
+        //HttpPost httppost = new HttpPost("https://ssl7.net/voipdito.com/u/api");
 
         // Get provisioning username and password
         String username = FAXPluginActivator.getProvisioningService().getProvisioningUsername();
@@ -204,27 +223,25 @@ public class PluginDialog
         }
         
         // Request parameters and other properties.
-        List<NameValuePair> params = new ArrayList<NameValuePair>(2);
+        Charset chars = Charset.forName("UTF-8");
+        MultipartEntity params = new MultipartEntity();
         
-        params.add(new BasicNameValuePair("api_email", username));
-        params.add(new BasicNameValuePair("api_password", password));
-        params.add(new BasicNameValuePair("o", "sms"));
-        params.add(new BasicNameValuePair("a", "send"));
-        params.add(new BasicNameValuePair("text", textField.getText() ));
-        params.add(new BasicNameValuePair("to_no", toField.getText() ));
+        params.addPart("api_email", new StringBody(username, chars));
+        params.addPart("api_password", new StringBody(password, chars));
+        params.addPart("o", new StringBody("fax", chars));
+        params.addPart("a", new StringBody("send", chars));
+        params.addPart("from_no", new StringBody( (String) fromField.getSelectedItem(), chars));
+        params.addPart("to_no", new StringBody( toField.getText(), chars));
+        params.addPart("fax_file", new FileBody(file));
         
-        try {
-            httppost.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
-        } catch (UnsupportedEncodingException e) {
-            // writing error to Log
-            e.printStackTrace();
-        }
+        httppost.setEntity(params);
+
 
         //Execute and get the response.
         try {
             HttpResponse response = httpClient.execute(httppost);
             HttpEntity respEntity = response.getEntity();
-
+            
             if (respEntity != null) {
                 // Check if there was an error
                 String content =  EntityUtils.toString(respEntity);
@@ -233,13 +250,13 @@ public class PluginDialog
                 if(content.split(",")[0].contains("false") )
                 {
                   String error_msg = null;
-                  if(content.contains("Failed to parse To number.") )
+                  if(content.contains("To number field is required") )
                   {
-                      error_msg="Please input proper number";
+                      error_msg="You need to ";
                   }
-                  else if(content.contains("Invalid format of To field.") )
+                  else if(content.contains("Enter Fax number in format:") )
                   {
-                      error_msg="Invalid format of \"To\" field.";
+                      error_msg="Enter Fax number in format:<br/>+&lt;Country Code&gt; &lt;Area Code&gt; &lt;Number&gt;";
                   }
                   else
                   {
@@ -247,7 +264,7 @@ public class PluginDialog
                   }
                   
                   ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
-                      , "No connection","There was an error:\n" + error_msg
+                      , "Error", error_msg
                       , ErrorDialog.WARNING);
                   errorDialog.showDialog();
                   return;
@@ -262,41 +279,7 @@ public class PluginDialog
             
             toField.setText(null);
             textField.setText(null);
+            sendButton.setEnabled(false);
         }
-    }
-    
-    /*
-     * 
-     */
-    private class DocumentSizeFilter extends DocumentFilter
-    {
-        int maxCharacters;
-
-        public DocumentSizeFilter(int maxChars) {
-            maxCharacters = maxChars;
-        }
-
-        public void insertString(FilterBypass fb, int offs,
-                                 String str, AttributeSet a)
-            throws BadLocationException
-            {
-
-            if ((fb.getDocument().getLength() + str.length()) <= maxCharacters)
-                super.insertString(fb, offs, str, a);
-            else
-                Toolkit.getDefaultToolkit().beep();
-            }
-        
-        public void replace(FilterBypass fb, int offs,
-                            int length, 
-                            String str, AttributeSet a)
-            throws BadLocationException 
-            {
-            if ((fb.getDocument().getLength() + str.length()
-                 - length) <= maxCharacters)
-                super.replace(fb, offs, length, str, a);
-            else
-                Toolkit.getDefaultToolkit().beep();
-            }
     }
 }

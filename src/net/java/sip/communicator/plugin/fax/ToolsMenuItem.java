@@ -5,6 +5,8 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -23,7 +25,7 @@ public class ToolsMenuItem
     implements  PluginComponent,
                 ActionListener
 { 
-    private String number = null;
+    private String number[];
     
     private boolean isWorkerRunning = false;
     
@@ -65,7 +67,7 @@ public class ToolsMenuItem
 
     public int getPositionIndex()
     {
-        return 1;
+        return 0;
     }
 
     public boolean isNativeComponent()
@@ -75,7 +77,7 @@ public class ToolsMenuItem
     
     public String getNumber(String url)
     {
-        System.out.println("\tGetting number from server");
+        System.out.println("\tGetting fax numbers array from server");
         HttpUtils.HTTPResponseResult res = null;
         
         String provUsername=FAXPluginActivator.getProvisioningService().getProvisioningUsername();
@@ -120,19 +122,50 @@ public class ToolsMenuItem
                 System.out.println("\tOpen connection error!");
                 return "Open connection error!";
             }
-            
             responseSplit = response.split("\n");
             
-            if(responseSplit[2].length()< 13 )
+            Map<String,String> responseMap = new HashMap<String,String>();
+            if(responseSplit.length==0)
             {
-                System.out.println("\tNo number.\n");
+                System.out.println("\tResponse is null, connection error.");
+                return "Response is null, connection error.";
+            }
+            
+            for(int i=0 ; i<responseSplit.length; i++)
+            {
+                String response1[] = responseSplit[i].split("=");
+                if(response1.length==0)
+                {
+                    System.out.println("\tError while parsing response.");
+                    return "Error while parsing response.";
+                }
+                
+                if(response1.length==1)
+                {
+                    responseMap.put(response1[0],"EMPTY_STRING");
+                    System.out.println("\t"+response1[0]+" = "+"EMPTY_STRING");
+                }
+                else
+                {
+                    responseMap.put(response1[0],response1[1]);
+                    System.out.println("\t"+response1[0]+" = "+response1[1]);
+                }
+                
+            }
+            System.out.println("\tMAP: \n."+ responseMap + "\n");
+            if(responseMap.containsKey("user.FAX") )
+            {
+                
+                number = responseMap.get("user.FAX").split(",");
+                return "OK";
+            }
+            if(responseMap.get("user.FAX")=="EMPTY_STRING" )
+            {
                 return "NO_NUM";
             }
             else
             {
-                System.out.println("\tThere is a number.\n");
-                number = responseSplit[2].split("=")[1];
-                return "OK";
+                return "Could not retrive fax numbers. Sorry.";
             }
         }
         else
@@ -193,7 +226,7 @@ public class ToolsMenuItem
                 else if(error=="ERROR_HANDLED"){}
                 else
                 {
-                    System.out.println("\tSMS Plugin Response: "+ error );
+                    System.out.println("\tFAX Plugin Response: "+ error );
                     ErrorDialog errorDialog = new ErrorDialog( null, 
                         "ERROR","There was an unknown error:\n"+
                                 error);

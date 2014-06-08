@@ -97,13 +97,13 @@ extends JDialog
         else if(i==2)
         {
             this.setTitle(null);
-            this.nonumberPanel.setText("Before sending SMS message you need to register your own mobile number.\n"
-                        +"Please click button below to login into your Customer Portal to complete registration.");
+            this.nonumberPanel.setText("Before sending FAX you need to buy FAX numbers.\n"
+                        +"Please click button below to login into your Customer Portal to continue.");
             this.nonumberPanel.setEditable(false);
             this.nonumberPanel.setColumns(25);
             this.nonumberPanel.setOpaque(false);
             
-            this.registerButton.setText("Register");
+            this.registerButton.setText("Login");
             this.registerButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e)

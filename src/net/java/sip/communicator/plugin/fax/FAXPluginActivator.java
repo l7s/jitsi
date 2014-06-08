@@ -48,7 +48,7 @@ public class FAXPluginActivator
             toolsMenuFilter);
 
         if (logger.isInfoEnabled())
-            logger.info("SMS [REGISTERED]");
+            logger.info("FAX [REGISTERED]");
     }
 
     public void stop(BundleContext bc) throws Exception

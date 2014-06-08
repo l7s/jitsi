@@ -35,6 +35,8 @@ Import-Package: org.osgi.framework,
  org.apache.http.client.methods,
  org.apache.http.client.entity,
  org.apache.http.impl.client,
+ org.apache.http.entity.mime.content,
+ org.apache.http.entity.mime,
  org.apache.http.message,
  org.apache.http.util,
  org.jitsi.service.resources
