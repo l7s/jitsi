@@ -1090,7 +1090,7 @@
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
         bundle-plugin-propertieseditor,
-        bundle-guava,bundle-hsql,bundle-plugin-balance,bundle-plugin-sms"/>
+        bundle-guava,bundle-hsql,bundle-plugin-balance,bundle-plugin-sms,bundle-plugin-fax"/>
 
     <!--BUNDLE-SC-LAUNCHER-->
     <target name="bundle-sc-launcher">
@@ -2896,6 +2896,16 @@ javax.swing.event, javax.swing.border"/>
             manifest="${src}/net/java/sip/communicator/plugin/sms/sms.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/plugin/sms"
                 prefix="net/java/sip/communicator/plugin/sms"/>
+        </jar>
+    </target>
+    
+    <!--BUNDLE-PLUGIN-fax-->
+    <target name="bundle-plugin-fax">
+        <!-- Creates a bundle for the plugin Configuration Properties Editor.-->
+        <jar compress="false" destfile="${bundles.dest}/fax.jar"
+            manifest="${src}/net/java/sip/communicator/plugin/fax/fax.manifest.mf">
+            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/fax"
+                prefix="net/java/sip/communicator/plugin/fax"/>
         </jar>
     </target>
 </project>
