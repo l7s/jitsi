@@ -3,7 +3,6 @@ package net.java.sip.communicator.plugin.fax;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
 import java.io.*;
 import java.nio.charset.Charset;
 
@@ -21,6 +20,7 @@ import org.apache.http.util.EntityUtils;
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 import net.java.sip.communicator.plugin.desktoputil.GenericFileDialog;
 import net.java.sip.communicator.plugin.desktoputil.SipCommFileChooser;
+import net.java.sip.communicator.plugin.desktoputil.SipCommFileFilter;
 
 @SuppressWarnings("serial")
 public class PluginDialog
@@ -119,6 +119,7 @@ public class PluginDialog
         new GenericFileDialog();
         fc = GenericFileDialog.create( (Frame)SwingUtilities.getWindowAncestor(mainPanel), "Choose file"
                                                                         ,SipCommFileChooser.LOAD_FILE_OPERATION );
+        fc.setFileFilter(new DocumentFileFilter() );
     }
 
     private void setStyles()
@@ -282,4 +283,28 @@ public class PluginDialog
             sendButton.setEnabled(false);
         }
     }
+    
+    class DocumentFileFilter extends SipCommFileFilter
+    {
+        @Override
+        public boolean accept(File f)
+        {
+            String path = f.getAbsolutePath().toLowerCase();
+            if (path.matches("(.*)\\.(txt|doc|docx|pdf)$") ||
+                    f.isDirectory())
+                return true;
+
+            else
+                return false;
+        }
+
+        @Override
+        public String getDescription()
+        {
+            /*return DesktopUtilActivator.getResources()
+                .getI18NString("plugin.FAX.Documentpicker");*/
+            return "Documents";
+        }
+    }
+           
 }
