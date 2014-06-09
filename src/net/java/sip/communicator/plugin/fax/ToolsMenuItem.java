@@ -33,7 +33,7 @@ public class ToolsMenuItem
     /* Default Constructor */
     public ToolsMenuItem()
     {
-        super("FAX");
+        super("Send FAX");
         this.addActionListener(this);
     }
 
