@@ -112,7 +112,7 @@ public class PluginDialog
         c.weightx = 0.5;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.gridx = 1;
-        c.gridwidth = 2;
+        c.gridwidth = 3;
         c.gridy = 0;
         this.mainPanel.add(fromField, c);
         //row 1
@@ -125,26 +125,27 @@ public class PluginDialog
         c.weightx = 0.5;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.gridx = 1;
-        c.gridwidth = 2;
+        c.gridwidth = 3;
         c.gridy = 1;
         this.mainPanel.add(toField, c);
         //row 2
         c.weightx = 1;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.gridx = 0;
-        c.gridwidth = 3;
+        c.gridwidth = 4;
         c.gridy = 2;
         this.mainPanel.add(textField, c);   
         //row 3
         c.weightx = 0;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.gridx = 0;
-        c.gridwidth = 1;
+        c.gridwidth = 2;
         c.gridy = 3;
         this.mainPanel.add(charactersLabel, c);
         c.weightx = 0;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.gridx = 2;
+        c.fill = GridBagConstraints.NONE;
+        c.anchor = GridBagConstraints.EAST;
+        c.gridx = 3;
         c.gridwidth = 1;
         c.gridy = 3;
         this.mainPanel.add(sendButton, c);
@@ -156,9 +157,9 @@ public class PluginDialog
         this.toLabel.setFont(toLabel.getFont().deriveFont(Font.BOLD));
         this.fromLabel.setFont(toLabel.getFont().deriveFont(Font.BOLD));
         
-        this.textField.setColumns(20);
+        this.textField.setColumns(18);
         this.textField.setLineWrap(true);
-        this.textField.setRows(9);
+        this.textField.setRows(8);
         this.textField.setWrapStyleWord(true);
         this.textField.setDocument(doc);
         this.textField.setBorder( toField.getBorder() );     
