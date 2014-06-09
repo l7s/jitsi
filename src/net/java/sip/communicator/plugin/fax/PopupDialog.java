@@ -108,7 +108,7 @@ extends JDialog
                 @Override
                 public void actionPerformed(ActionEvent e)
                 {
-                    FAXPluginActivator.getBrowserService().openURL("http://%WEB_DOMAIN%/en/login");
+                    FAXPluginActivator.getBrowserService().openURL("http://%DOMAIN%/en/login");
                 }            
             });
             

@@ -108,7 +108,7 @@ extends JDialog
                 @Override
                 public void actionPerformed(ActionEvent e)
                 {
-                    SMSPluginActivator.getBrowserService().openURL("http://%WEB_DOMAIN%/en/login");
+                    SMSPluginActivator.getBrowserService().openURL("http://%DOMAIN%/en/login");
                 }            
             });
             

@@ -207,7 +207,7 @@ public class PluginDialog
         }
         
         HttpClient httpClient = new DefaultHttpClient();
-        HttpPost httppost = new HttpPost("https://ssl7.net/%WEB_DOMAIN%/u/api");
+        HttpPost httppost = new HttpPost("https://ssl7.net/%DOMAIN%/u/api");
         //HttpPost httppost = new HttpPost("https://ssl7.net/voipdito.com/u/api");
 
         // Get provisioning username and password
