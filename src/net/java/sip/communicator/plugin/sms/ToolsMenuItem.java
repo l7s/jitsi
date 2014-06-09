@@ -31,7 +31,7 @@ public class ToolsMenuItem
     /* Default Constructor */
     public ToolsMenuItem()
     {
-        super("SMS");
+        super("Send SMS");
         this.addActionListener(this);
     }
 
