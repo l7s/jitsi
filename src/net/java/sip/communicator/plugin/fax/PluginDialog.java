@@ -271,17 +271,28 @@ public class PluginDialog
                   return;
                 }
             }
-        } catch (ClientProtocolException e) {
+        } catch (ClientProtocolException e)
+        {
             // writing exception to log
             e.printStackTrace();
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             // writing exception to log
             e.printStackTrace();
-            
-            toField.setText(null);
-            textField.setText(null);
-            sendButton.setEnabled(false);
         }
+        
+        toField.setText(null);
+        textField.setText(null);
+        sendButton.setEnabled(false);
+        
+        FaxDialog faxDialog = new FaxDialog(username, password);
+        faxDialog.setLocation(
+            Toolkit.getDefaultToolkit().getScreenSize().width/2
+                - faxDialog.getWidth()/2,
+                Toolkit.getDefaultToolkit().getScreenSize().height/2
+                - faxDialog.getHeight()/2);
+        
+        faxDialog.setVisible(true);
     }
     
     class DocumentFileFilter extends SipCommFileFilter
