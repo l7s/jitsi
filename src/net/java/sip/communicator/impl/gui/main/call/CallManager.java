@@ -2490,19 +2490,14 @@ public class CallManager
 
                 if(errorMsg != null)
                 {
-                    if(GuiActivator.getUIService()
-                        .getPopupDialog().showConfirmPopupDialog(
+                    GuiActivator.getUIService()
+                        .getPopupDialog().showMessagePopupDialog(
                             errorMsg + " " +
-                                GuiActivator.getResources().getI18NString(
-                                    "service.gui.CALL_NO_DEVICE_CODECS_Q"),
+                                "Unable to detect audio device.\nPlease open Tools -> Audio to adjust your settings",
                             GuiActivator.getResources().getI18NString(
                                     "service.gui.CALL"),
-                                PopupDialog.YES_NO_OPTION,
-                                PopupDialog.QUESTION_MESSAGE)
-                        == PopupDialog.NO_OPTION)
-                    {
+                                PopupDialog.WARNING_MESSAGE);
                         return;
-                    }
                 }
             }
 
