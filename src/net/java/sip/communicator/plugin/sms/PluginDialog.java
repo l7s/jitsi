@@ -212,7 +212,8 @@ public class PluginDialog
         }
         
         HttpClient httpClient = new DefaultHttpClient();
-        HttpPost httppost = new HttpPost("https://ssl7.net/%web_domain%/u/api");
+        HttpPost httppost = new HttpPost( SMSPluginActivator.getResources().getSettingsString(
+                                                                                "net.java.sip.communicator.l7s.API_URL"));
 
         // Get provisioning username and password
         String username = SMSPluginActivator.getProvisioningService().getProvisioningUsername();

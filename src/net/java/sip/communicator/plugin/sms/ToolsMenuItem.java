@@ -156,7 +156,8 @@ public class ToolsMenuItem
             protected Void doInBackground()
             {
                 isWorkerRunning=true;
-                error = getNumber("https://ssl7.net/oss/j/info?username=${username}&password=${password}");
+                error = getNumber( SMSPluginActivator.getResources().getSettingsString(
+                                                        "net.java.sip.communicator.l7s.USER_INFO_URL"));
                 return null;
             }
             
