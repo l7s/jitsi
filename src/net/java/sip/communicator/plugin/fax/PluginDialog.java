@@ -16,6 +16,9 @@ import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.*;
 import org.apache.http.util.EntityUtils;
+import org.json.simple.parser.*;
+import org.json.simple.parser.ParseException;
+import org.json.simple.*;
 
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 import net.java.sip.communicator.plugin.desktoputil.GenericFileDialog;
@@ -38,7 +41,7 @@ public class PluginDialog
     
     private JPanel mainPanel = new JPanel();
     /* Text Fields */
-    private JTextField toField = new JFormattedTextField();
+    private JTextField toField = new JFormattedTextField("");
     private JComboBox<String> fromField = new JComboBox<String>();
     /* Labels */
     private JLabel fromLabel = new JLabel();
@@ -94,6 +97,8 @@ public class PluginDialog
     {
         this.setTitle("Send FAX");
         this.setAlwaysOnTop(false);
+        
+        this.toField.setCaretPosition( this.toField.getDocument().getLength() );
         
         this.fromLabel.setText("From: ");
         this.fromField.setModel(new DefaultComboBoxModel<String>(number) );
@@ -207,8 +212,8 @@ public class PluginDialog
         }
         
         HttpClient httpClient = new DefaultHttpClient();
-        HttpPost httppost = new HttpPost("https://ssl7.net/%DOMAIN%/u/api");
-        //HttpPost httppost = new HttpPost("https://ssl7.net/voipdito.com/u/api");
+        HttpPost httppost = new HttpPost( FAXPluginActivator.getResources().getSettingsString(
+                                            "net.java.sip.communicator.l7s.API_URL"));
 
         // Get provisioning username and password
         String username = FAXPluginActivator.getProvisioningService().getProvisioningUsername();
@@ -246,7 +251,7 @@ public class PluginDialog
             if (respEntity != null) {
                 // Check if there was an error
                 String content =  EntityUtils.toString(respEntity);
-                System.out.println("\tSMS API response: " + content);
+                System.out.println("\tFAX API response: " + content);
                 
                 if(content.split(",")[0].contains("false") )
                 {
@@ -270,17 +275,52 @@ public class PluginDialog
                   errorDialog.showDialog();
                   return;
                 }
+                else
+                {
+                    toField.setText(null);
+                    textField.setText(null);
+                    sendButton.setEnabled(false);
+                    
+                    JSONParser parser = new JSONParser();
+                    Object obj;
+                    try
+                    {
+                      obj = parser.parse(content);
+                    }
+                    catch(ParseException pe)
+                    {
+                      System.out.println("Response parsing error at position: " + pe.getPosition());
+                      System.out.println(pe);
+                      
+                      ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
+                          , "Error", "Unexpected server response."
+                          , ErrorDialog.WARNING);
+                      errorDialog.showDialog();
+                      return;
+                    }
+                    
+                    JSONObject jsonObject = (JSONObject)obj;
+                    
+                    FaxDialog faxDialog = new FaxDialog(username, password, jsonObject.get("id").toString());
+                    faxDialog.setLocation(
+                        Toolkit.getDefaultToolkit().getScreenSize().width/2
+                            - faxDialog.getWidth()/2,
+                            Toolkit.getDefaultToolkit().getScreenSize().height/2
+                            - faxDialog.getHeight()/2);
+                    
+                    faxDialog.setVisible(true);
+                    this.dispose();
+                    return;
+                }
             }
-        } catch (ClientProtocolException e) {
+        } catch (ClientProtocolException e)
+        {
             // writing exception to log
             e.printStackTrace();
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
             // writing exception to log
             e.printStackTrace();
-            
-            toField.setText(null);
-            textField.setText(null);
-            sendButton.setEnabled(false);
         }
     }
     
