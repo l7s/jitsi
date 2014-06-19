@@ -33,6 +33,8 @@ public class SMSPluginActivator
     
     private static ConfigurationService configurationService = null;
 
+    private static UIService uiService = null;
+
     public void start(BundleContext bc) throws Exception
     {
         SMSPluginActivator.bundleContext = bc;
@@ -117,5 +119,18 @@ public class SMSPluginActivator
                 = (ConfigurationService)bundleContext.getService(confReference);
         }
         return configurationService;
+    }
+    
+    public static UIService getUIService()
+    {
+        if (uiService == null)
+        {
+            ServiceReference confReference
+                = bundleContext.getServiceReference(
+                    UIService.class.getName());
+            uiService
+                = (UIService)bundleContext.getService(confReference);
+        }
+        return uiService;
     }
 }

@@ -20,6 +20,8 @@ import org.apache.http.impl.client.*;
 import org.apache.http.message.*;
 import org.apache.http.util.EntityUtils;
 
+import net.java.sip.communicator.impl.gui.GuiActivator;
+import net.java.sip.communicator.service.gui.PopupDialog;
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 
 @SuppressWarnings("serial")
@@ -284,10 +286,12 @@ public class PluginDialog
         } catch (IOException e) {
             // writing exception to log
             e.printStackTrace();
-            
-            toField.setText(null);
-            textField.setText(null);
         }
+        SMSPluginActivator.getUIService().getPopupDialog().showMessagePopupDialog("Message sent successfully.",
+                                                                        "SMS", PopupDialog.INFORMATION_MESSAGE);
+            
+        toField.setText(null);
+        textField.setText(null);
     }
     
     /*
