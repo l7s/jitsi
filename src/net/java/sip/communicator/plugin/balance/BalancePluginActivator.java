@@ -10,6 +10,7 @@ import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.util.*;
 
 import org.jitsi.service.configuration.*;
+import org.jitsi.service.resources.*;
 import org.osgi.framework.*;
 
 public class BalancePluginActivator
@@ -26,7 +27,11 @@ public class BalancePluginActivator
     
     private static ConfigurationService configurationService = null;
     
+    private static ResourceManagementService resourcesService = null;
+    
     private static BalancePluginMenuItem BalanceMenuItem= null;
+    
+    public static String userInfoUrl = null;
     
     static BundleContext bundleContext = null;
 
@@ -71,6 +76,8 @@ public class BalancePluginActivator
             logger.info("BALANCE... [REGISTERED]");
         
         startInternal(bundleContext);
+        
+        userInfoUrl = getResources().getSettingsString("net.java.sip.communicator.l7s.USER_INFO_URL");
     }
 
     public void stop(BundleContext bc)
@@ -268,4 +275,18 @@ public class BalancePluginActivator
         }
         return configurationService;
     }
+    
+    public static ResourceManagementService getResources()
+    {
+        if (resourcesService == null)
+        {
+            ServiceReference confReference
+                = bundleContext.getServiceReference(
+                    ResourceManagementService.class.getName());
+            resourcesService
+                = (ResourceManagementService)bundleContext.getService(confReference);
+        }
+        return resourcesService;
+    }
+    
 }

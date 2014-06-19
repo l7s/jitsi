@@ -77,7 +77,7 @@ public class AccountBalancePanel
             protected Void doInBackground()
             {
                 isWorkerRunning=true;
-                getBalance("https://ssl7.net/oss/j/info?username=${username}&password=${password}");
+                getBalance(BalancePluginActivator.userInfoUrl );
                 return null;
             }
             
@@ -123,6 +123,7 @@ public class AccountBalancePanel
     private String getBalance(String url)
     {
         System.out.println("\tGetting balance from server");
+        
         HttpUtils.HTTPResponseResult res = null;
         
         String provUsername=BalancePluginActivator.getProvisioningService().getProvisioningUsername();
