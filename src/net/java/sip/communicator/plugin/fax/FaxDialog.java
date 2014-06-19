@@ -206,6 +206,16 @@ extends JFrame
                 timerLabel.setText(timeStr);
                 this.pack();
                 
+                if(min==5)
+                {                  
+                    timer.stop();
+                    timer = null;
+                    timerLabel.setText(null);
+                    timerLabel.setText("Somenting went wrong\nwhile sending fax");
+                    this.pack();
+                    this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+                    this.closeButton.setEnabled(true);
+                }        
                 return;
             }
             else if( !completionTime.contains("0001-01-01T00:00:00") )
