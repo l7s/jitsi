@@ -20,6 +20,8 @@ import org.apache.http.impl.client.*;
 import org.apache.http.message.*;
 import org.apache.http.util.EntityUtils;
 
+import net.java.sip.communicator.impl.gui.GuiActivator;
+import net.java.sip.communicator.service.gui.PopupDialog;
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 
 @SuppressWarnings("serial")
@@ -212,7 +214,8 @@ public class PluginDialog
         }
         
         HttpClient httpClient = new DefaultHttpClient();
-        HttpPost httppost = new HttpPost("https://ssl7.net/%DOMAIN%/u/api");
+        HttpPost httppost = new HttpPost( SMSPluginActivator.getResources().getSettingsString(
+                                                                                "net.java.sip.communicator.l7s.API_URL"));
 
         // Get provisioning username and password
         String username = SMSPluginActivator.getProvisioningService().getProvisioningUsername();
@@ -283,10 +286,12 @@ public class PluginDialog
         } catch (IOException e) {
             // writing exception to log
             e.printStackTrace();
-            
-            toField.setText(null);
-            textField.setText(null);
         }
+        SMSPluginActivator.getUIService().getPopupDialog().showMessagePopupDialog("Message sent successfully.",
+                                                                        "SMS", PopupDialog.INFORMATION_MESSAGE);
+            
+        toField.setText(null);
+        textField.setText(null);
     }
     
     /*
