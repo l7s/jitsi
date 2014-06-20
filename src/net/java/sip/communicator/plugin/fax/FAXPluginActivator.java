@@ -33,7 +33,8 @@ public class FAXPluginActivator
     private static ResourceManagementService resourcesService = null;
 
     public void start(BundleContext bc) throws Exception
-    {     
+    {
+        Thread.sleep(4000);
         FAXPluginActivator.bundleContext = bc;
         
         if(getConfigurationService().getBoolean(DISABLED_PROP, true) )
