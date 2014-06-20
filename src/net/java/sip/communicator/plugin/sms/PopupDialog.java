@@ -69,7 +69,7 @@ extends JDialog
         }
         else if(i==2)
         {
-            this.setTitle(null);
+            this.setTitle("Register");
             this.nonumberPanel.setText("Before sending SMS message you need to register your own mobile number.\n"
                         +"Please click button below to login into your Customer Portal to complete registration.");
             this.nonumberPanel.setEditable(false);
@@ -90,6 +90,7 @@ extends JDialog
             
             this.mainPanel.add(nonumberPanel);
             this.mainPanel.add(buttonsPanel);
+            this.getContentPane().add(mainPanel);
             this.setStyles();
             
             this.setResizable(false);
