@@ -31,32 +31,6 @@ extends JDialog
     
     private Timer timer;
     private int loading_prog;
-    
-    public PopupDialog()
-    {
-        initialize();
-    }
-    
-    private void initialize()
-    {
-            this.setTitle("Loading");
-            this.setAlwaysOnTop(true);
-            
-            this.pleaseWait.setText("\tPlease wait...");
-            this.loading_prog = 3;
-            timer = new Timer(875, new TimerUpdater() );
-            timer.setRepeats(true);
-            timer.start();
-            
-            this.mainPanel.add(pleaseWait);
-    
-            this.getContentPane().add(mainPanel);
-    
-            this.setStyles();
-            
-            this.setResizable(false);
-            this.pack();
-    }
 
     private void setStyles()
     {

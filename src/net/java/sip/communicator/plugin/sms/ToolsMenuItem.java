@@ -27,7 +27,8 @@ public class ToolsMenuItem
     
     private boolean isWorkerRunning = false;
     
-    private PopupDialog popupDialog;
+    private PopupDialog popupDialog1 = new PopupDialog();
+    private PopupDialog popupDialog2 = new PopupDialog();
     /* Default Constructor */
     public ToolsMenuItem()
     {
@@ -40,16 +41,16 @@ public class ToolsMenuItem
 
     public void actionPerformed(ActionEvent e)
     {
-        this.popupDialog = new PopupDialog();
+        this.popupDialog1.setPopup(1);
 
-        this.popupDialog.setLocation(
+        this.popupDialog1.setLocation(
             Toolkit.getDefaultToolkit().getScreenSize().width/2
-                - this.popupDialog.getWidth()/2,
+                - this.popupDialog1.getWidth()/2,
                 Toolkit.getDefaultToolkit().getScreenSize().height/2
-                - this.popupDialog.getHeight()/2
+                - this.popupDialog1.getHeight()/2
             );
 
-        popupDialog.setVisible(true);
+        popupDialog1.setVisible(true);
         setWorker();
     }
 
@@ -176,20 +177,20 @@ public class ToolsMenuItem
                             Toolkit.getDefaultToolkit().getScreenSize().height/2
                             - pluginDialog.getHeight()/2);
                     
-                    popupDialog.setVisible(false);
+                    popupDialog1.setVisible(false);
                     pluginDialog.setVisible(true);
                 }
                 else if(error=="NO_NUM")
                 {   
-                    popupDialog.setPopup(2);;
+                    popupDialog2.setPopup(2);
                     
-                    popupDialog.setLocation(
+                    popupDialog2.setLocation(
                         Toolkit.getDefaultToolkit().getScreenSize().width/2
-                            - popupDialog.getWidth()/2,
+                            - popupDialog2.getWidth()/2,
                             Toolkit.getDefaultToolkit().getScreenSize().height/2
-                            - popupDialog.getHeight()/2);
-                    
-                    popupDialog.setVisible(true);
+                            - popupDialog2.getHeight()/2);
+                    popupDialog1.dispose();
+                    popupDialog2.setVisible(true);
                 }
                 else if(error=="ERROR_HANDLED"){}
                 else
@@ -200,7 +201,7 @@ public class ToolsMenuItem
                                 error);
                     
                     errorDialog.showDialog();      
-                    popupDialog.setVisible(false);
+                    popupDialog1.setVisible(false);
                 }
             }
         };
