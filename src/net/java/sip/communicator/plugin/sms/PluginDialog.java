@@ -94,7 +94,8 @@ public class PluginDialog
         this.setStyles();
         
         this.setResizable(false);
-        this.pack();       
+        this.pack();
+        this.charactersLabel.setText("0/160 characters.");
     }
 
     private void setStyles()
@@ -169,7 +170,6 @@ public class PluginDialog
         this.textField.setBorder( toField.getBorder() );     
         
         this.mainPanel.setLayout(layout);
-        this.charactersLabel.setText("0/160 characters.");
     }
     
     private void setCharacterCount()
