@@ -46,7 +46,6 @@ extends JDialog
     public void setPopup(int i)
     {
         this.mainPanel.removeAll();
-        timer.stop();
         
         if(i==1)
         {
