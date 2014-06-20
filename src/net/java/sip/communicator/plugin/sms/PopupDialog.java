@@ -109,6 +109,7 @@ extends JDialog
                 public void actionPerformed(ActionEvent e)
                 {
                     SMSPluginActivator.getBrowserService().openURL("http://%DOMAIN%/en/login");
+                    PopupDialog.this.dispose();
                 }            
             });
             

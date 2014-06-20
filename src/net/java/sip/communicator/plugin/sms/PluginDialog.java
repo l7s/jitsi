@@ -75,7 +75,7 @@ public class PluginDialog
         this.sendButton.setText("Send");
         this.sendButton.setEnabled(false);
 
-        this.charactersLabel.setText("0/160 characters.");
+        this.charactersLabel.setText("000/160 characters.");
         
         this.mainPanel.add(fromLabel);
         this.mainPanel.add(fromField);
@@ -132,19 +132,21 @@ public class PluginDialog
         this.mainPanel.add(toField, c);
         //row 2
         c.weightx = 1;
+        c.weighty = 1;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.gridx = 0;
         c.gridwidth = 4;
         c.gridy = 2;
         this.mainPanel.add(textField, c);   
         //row 3
+        c.weighty = 0;
         c.weightx = 0;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.gridx = 0;
         c.gridwidth = 2;
         c.gridy = 3;
         this.mainPanel.add(charactersLabel, c);
-        c.weightx = 0;
+        c.weightx = 0.5;
         c.fill = GridBagConstraints.NONE;
         c.anchor = GridBagConstraints.EAST;
         c.gridx = 3;
@@ -167,6 +169,7 @@ public class PluginDialog
         this.textField.setBorder( toField.getBorder() );     
         
         this.mainPanel.setLayout(layout);
+        this.charactersLabel.setText("0/160 characters.");
     }
     
     private void setCharacterCount()
