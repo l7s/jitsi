@@ -37,7 +37,6 @@ public class SMSPluginActivator
 
     public void start(BundleContext bc) throws Exception
     {
-        Thread.sleep(4000);
         SMSPluginActivator.bundleContext = bc;
         
         if(getConfigurationService().getBoolean(DISABLED_PROP, true) )
@@ -58,7 +57,7 @@ public class SMSPluginActivator
                 @Override
                 protected PluginComponent getPluginInstance()
                 {
-                    return new ToolsMenuItem();
+                    return new ToolsMenuItem(this);
                 }
             },
             toolsMenuFilter);

@@ -19,9 +19,8 @@ import net.java.sip.communicator.service.protocol.AccountID;
 import net.java.sip.communicator.service.protocol.Contact;
 
 public class ToolsMenuItem
-    extends JMenuItem
-    implements  PluginComponent,
-                ActionListener
+    extends AbstractPluginComponent
+    implements ActionListener
 { 
     private String number = null;
     
@@ -29,15 +28,14 @@ public class ToolsMenuItem
     
     private PopupDialog popupDialog1 = new PopupDialog();
     private PopupDialog popupDialog2 = new PopupDialog();
+    
+    private JMenuItem smsMenu = new JMenuItem("Send SMS");
     /* Default Constructor */
-    public ToolsMenuItem()
+    public ToolsMenuItem(PluginComponentFactory parentFactory)
     {
-        super("Send SMS");
-        this.addActionListener(this);
+        super(Container.CONTAINER_TOOLS_MENU, parentFactory);
+        smsMenu.addActionListener(this);
     }
-
-    public void setCurrentContactGroup(MetaContactGroup metaGroup)
-    {}
 
     public void actionPerformed(ActionEvent e)
     {
@@ -52,26 +50,6 @@ public class ToolsMenuItem
 
         popupDialog1.setVisible(true);
         setWorker();
-    }
-
-    public String getConstraints()
-    {
-        return null;
-    }
-
-    public Container getContainer()
-    {
-        return Container.CONTAINER_TOOLS_MENU;
-    }
-
-    public int getPositionIndex()
-    {
-        return 0;
-    }
-
-    public boolean isNativeComponent()
-    {
-        return false;
     }
     
     public String getNumber(String url)
@@ -207,30 +185,22 @@ public class ToolsMenuItem
         };
         worker.execute();
     }
-    /* Unused classes */
+
     @Override
-    public PluginComponentFactory getParentFactory()
+    public String getName()
     {
-        return null;
+        return this.smsMenu.getText();
     }
 
     @Override
-    public void setCurrentContact(Contact contact)
-    {   
-    }
-
-    @Override
-    public void setCurrentContact(Contact contact, String resourceName)
-    {   
-    }
-
-    @Override
-    public void setCurrentAccountID(AccountID accountID)
-    {   
-    }
-
-    @Override
-    public void setCurrentContact(MetaContact metaContact)
+    public Object getComponent()
     {
+        return smsMenu;
+    }
+    
+    @Override
+    public int getPositionIndex()
+    {
+        return 0;
     }
 }
