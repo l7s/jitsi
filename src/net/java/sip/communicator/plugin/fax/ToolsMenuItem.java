@@ -25,6 +25,7 @@ public class ToolsMenuItem
     public static PluginDialog pluginDialog;
     
     private PopupDialog popupDialog;
+    private PopupDialog popupDialog2;
     
     private JMenuItem faxMenu = new JMenuItem("Send FAX");
     /* Default Constructor */
@@ -45,6 +46,7 @@ public class ToolsMenuItem
         else
         {
             this.popupDialog = new PopupDialog();
+            this.popupDialog.setPopup(1);
     
             this.popupDialog.setLocation(
                 Toolkit.getDefaultToolkit().getScreenSize().width/2
@@ -196,15 +198,15 @@ public class ToolsMenuItem
                 }
                 else if(error=="NO_NUM")
                 {   
-                    popupDialog.setPopup(2);;
+                    popupDialog2.setPopup(2);
                     
-                    popupDialog.setLocation(
+                    popupDialog2.setLocation(
                         Toolkit.getDefaultToolkit().getScreenSize().width/2
-                            - popupDialog.getWidth()/2,
+                            - popupDialog2.getWidth()/2,
                             Toolkit.getDefaultToolkit().getScreenSize().height/2
-                            - popupDialog.getHeight()/2);
+                            - popupDialog2.getHeight()/2);
                     
-                    popupDialog.setVisible(true);
+                    popupDialog2.setVisible(true);
                 }
                 else if(error=="ERROR_HANDLED"){}
                 else

@@ -31,32 +31,6 @@ extends JDialog
     
     private Timer timer;
     private int loading_prog;
-    
-    public PopupDialog()
-    {
-        initialize();
-    }
-    
-    private void initialize()
-    {
-            this.setTitle("Loading");
-            this.setAlwaysOnTop(true);
-            
-            this.pleaseWait.setText("\tPlease wait...");
-            this.loading_prog = 3;
-            timer = new Timer(875, new TimerUpdater() );
-            timer.setRepeats(true);
-            timer.start();
-            
-            this.mainPanel.add(pleaseWait);
-    
-            this.getContentPane().add(mainPanel);
-    
-            this.setStyles();
-            
-            this.setResizable(false);
-            this.pack();
-    }
 
     private void setStyles()
     {
@@ -72,7 +46,6 @@ extends JDialog
     public void setPopup(int i)
     {
         this.mainPanel.removeAll();
-        timer.stop();
         
         if(i==1)
         {
@@ -96,9 +69,9 @@ extends JDialog
         }
         else if(i==2)
         {
-            this.setTitle(null);
-            this.nonumberPanel.setText("Before sending FAX you need to buy FAX numbers.\n"
-                        +"Please click button below to login into your Customer Portal to continue.");
+            this.setTitle("");
+            this.nonumberPanel.setText("Before sending FAX messages you need to activate one of your Inbound Numbers as Fax2Email."+
+                    "\nPlease click button below to login into your Customer Portal to change your settings.");
             this.nonumberPanel.setEditable(false);
             this.nonumberPanel.setColumns(25);
             this.nonumberPanel.setOpaque(false);
@@ -116,6 +89,7 @@ extends JDialog
             
             this.mainPanel.add(nonumberPanel);
             this.mainPanel.add(buttonsPanel);
+            this.getContentPane().add(mainPanel);
             this.setStyles();
             
             this.setResizable(false);
