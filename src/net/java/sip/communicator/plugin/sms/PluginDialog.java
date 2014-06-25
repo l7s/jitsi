@@ -336,6 +336,14 @@ public class PluginDialog
 
                 if( jsonObject.get("success").toString() != "true")
                 {
+                  if(!jsonObject.containsKey("errors"))
+                  {
+                        ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
+                            , "Error", "Unknown error occured."
+                            , ErrorDialog.WARNING);
+                        errorDialog.showDialog();
+                        return;
+                  }
                   jsonObject = (JSONObject)jsonObject.get("errors");
                   String error_msg= "";
                   for(Object key : jsonObject.keySet() )
@@ -344,7 +352,7 @@ public class PluginDialog
                   }
                   
                   ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
-                      , "Error","There was an error:\n" + error_msg
+                      , "Error", error_msg
                       , ErrorDialog.WARNING);
                   errorDialog.showDialog();
                   return;
