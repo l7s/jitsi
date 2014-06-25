@@ -198,6 +198,7 @@ public class ToolsMenuItem
                 }
                 else if(error=="NO_NUM")
                 {   
+                    popupDialog2 = new PopupDialog();
                     popupDialog2.setPopup(2);
                     
                     popupDialog2.setLocation(
@@ -206,6 +207,7 @@ public class ToolsMenuItem
                             Toolkit.getDefaultToolkit().getScreenSize().height/2
                             - popupDialog2.getHeight()/2);
                     
+                    popupDialog.setVisible(false);
                     popupDialog2.setVisible(true);
                 }
                 else if(error=="ERROR_HANDLED"){}
