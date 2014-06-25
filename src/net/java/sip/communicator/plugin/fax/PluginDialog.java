@@ -3,14 +3,29 @@ package net.java.sip.communicator.plugin.fax;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.*;
 import java.nio.charset.Charset;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import javax.swing.*;
 
 import org.apache.http.*;
 import org.apache.http.client.*;
 import org.apache.http.client.methods.*;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -24,6 +39,7 @@ import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 import net.java.sip.communicator.plugin.desktoputil.GenericFileDialog;
 import net.java.sip.communicator.plugin.desktoputil.SipCommFileChooser;
 import net.java.sip.communicator.plugin.desktoputil.SipCommFileFilter;
+
 
 @SuppressWarnings("serial")
 public class PluginDialog
@@ -52,6 +68,15 @@ public class PluginDialog
 
     public PluginDialog(String number[])
     {
+        this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e)
+            {
+                ToolsMenuItem.pluginDialog = null;
+                PluginDialog.this.dispose();
+            }         
+        });
         this.number = number;
         this.setIconImage( FAXPluginActivator.getResources().getImage("service.gui.SIP_COMMUNICATOR_LOGO_64x64").getImage());
         initialize(this.number);
@@ -242,7 +267,17 @@ public class PluginDialog
         
         httppost.setEntity(params);
 
-
+        if(FAXPluginActivator.getResources().getSettingsString(
+            "net.java.sip.communicator.service.gui.ALWAYS_TRUST_MODE_ENABLED").contentEquals("true"))
+        {
+        System.out.println("SSL cert checking disabled.");
+        httpClient = WebClientDevWrapper.wrapClient(httpClient);
+        }
+        else
+        {
+        httpClient = new DefaultHttpClient();
+        }
+        
         //Execute and get the response.
         try {
             HttpResponse response = httpClient.execute(httppost);
@@ -309,6 +344,7 @@ public class PluginDialog
                             - faxDialog.getHeight()/2);
                     
                     faxDialog.setVisible(true);
+                    ToolsMenuItem.pluginDialog = null;
                     this.dispose();
                     return;
                 }
@@ -346,5 +382,54 @@ public class PluginDialog
             return "Documents";
         }
     }
-           
+
+    public static class WebClientDevWrapper {
+        
+        public static HttpClient wrapClient(HttpClient base) {
+            try {
+                SSLContext ctx = SSLContext.getInstance("TLS");
+                X509TrustManager tm = new X509TrustManager() {
+     
+                    public void checkClientTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+                    }
+     
+                    public void checkServerTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+                    }
+     
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+                };
+                X509HostnameVerifier verifier = new X509HostnameVerifier() {
+     
+                    @Override
+                    public void verify(String string, SSLSocket ssls) throws IOException {
+                    }
+     
+                    @Override
+                    public void verify(String string, X509Certificate xc) throws SSLException {
+                    }
+     
+                    @Override
+                    public void verify(String string, String[] strings, String[] strings1) throws SSLException {
+                    }
+     
+                    @Override
+                    public boolean verify(String string, SSLSession ssls) {
+                        return true;
+                    }
+                };
+                ctx.init(null, new TrustManager[]{tm}, null);
+                SSLSocketFactory ssf = new SSLSocketFactory(ctx);
+                ssf.setHostnameVerifier(verifier);
+                ClientConnectionManager ccm = base.getConnectionManager();
+                SchemeRegistry sr = ccm.getSchemeRegistry();
+                sr.register(new Scheme("https", ssf, 443));
+                return new DefaultHttpClient(ccm, base.getParams());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                return null;
+            }
+        }
+    }
 }
