@@ -1,28 +1,24 @@
 package net.java.sip.communicator.plugin.sms;
 
-import java.awt.Frame;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 
 import javax.swing.JMenuItem;
-import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
-import net.java.sip.communicator.service.contactlist.MetaContact;
-import net.java.sip.communicator.service.contactlist.MetaContactGroup;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.service.httputil.HttpUtils;
-import net.java.sip.communicator.service.protocol.AccountID;
-import net.java.sip.communicator.service.protocol.Contact;
 
 public class ToolsMenuItem
     extends AbstractPluginComponent
     implements ActionListener
 { 
     private String number = null;
+    
+    public static PluginDialog pluginDialog;
     
     private boolean isWorkerRunning = false;
     
@@ -39,17 +35,26 @@ public class ToolsMenuItem
 
     public void actionPerformed(ActionEvent e)
     {
-        this.popupDialog1.setPopup(1);
-
-        this.popupDialog1.setLocation(
-            Toolkit.getDefaultToolkit().getScreenSize().width/2
-                - this.popupDialog1.getWidth()/2,
-                Toolkit.getDefaultToolkit().getScreenSize().height/2
-                - this.popupDialog1.getHeight()/2
-            );
-
-        popupDialog1.setVisible(true);
-        setWorker();
+        if(pluginDialog!=null)
+        {
+                popupDialog1.setVisible(false);
+                pluginDialog.setVisible(true);
+                pluginDialog.setState(java.awt.Frame.NORMAL);
+        }
+        else
+        {
+            this.popupDialog1.setPopup(1);
+    
+            this.popupDialog1.setLocation(
+                Toolkit.getDefaultToolkit().getScreenSize().width/2
+                    - this.popupDialog1.getWidth()/2,
+                    Toolkit.getDefaultToolkit().getScreenSize().height/2
+                    - this.popupDialog1.getHeight()/2
+                );
+    
+            popupDialog1.setVisible(true);
+            setWorker();
+        }
     }
     
     public String getNumber(String url)
@@ -144,7 +149,7 @@ public class ToolsMenuItem
             {
                 isWorkerRunning=false;
                 
-                PluginDialog pluginDialog;
+                
                 if(error=="OK")
                 {
                     pluginDialog = new PluginDialog(number);

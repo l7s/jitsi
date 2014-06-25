@@ -5,6 +5,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.*;
 import java.util.*;
 import java.util.List;
@@ -38,7 +41,6 @@ import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.impl.client.*;
 import org.apache.http.message.*;
 import org.apache.http.util.EntityUtils;
-
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -72,7 +74,15 @@ public class PluginDialog
 
     public PluginDialog(String number)
     {
-        this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e)
+            {
+                ToolsMenuItem.pluginDialog = null;
+                PluginDialog.this.dispose();
+            }         
+        });
         this.number = number;
         this.setIconImage( SMSPluginActivator.getResources().getImage("service.gui.SIP_COMMUNICATOR_LOGO_64x64").getImage());
         initialize(this.number);
@@ -344,7 +354,7 @@ public class PluginDialog
                 {
                     SMSPluginActivator.getUIService().getPopupDialog().showMessagePopupDialog("Message sent successfully.",
                         "SMS", PopupDialog.INFORMATION_MESSAGE);
-                    
+                    ToolsMenuItem.pluginDialog = null;
                     this.dispose();
                     return;
                 }
