@@ -11,16 +11,38 @@ import java.util.List;
 
 import javax.swing.*;
 import javax.swing.text.*;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
 
 import org.apache.http.*;
 import org.apache.http.client.*;
 import org.apache.http.client.entity.*;
 import org.apache.http.client.methods.*;
+
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
+import org.apache.http.client.HttpClient;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.impl.client.*;
 import org.apache.http.message.*;
 import org.apache.http.util.EntityUtils;
 
-import net.java.sip.communicator.impl.gui.GuiActivator;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 import net.java.sip.communicator.service.gui.PopupDialog;
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 
@@ -50,6 +72,7 @@ public class PluginDialog
 
     public PluginDialog(String number)
     {
+        this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.number = number;
         this.setIconImage( SMSPluginActivator.getResources().getImage("service.gui.SIP_COMMUNICATOR_LOGO_64x64").getImage());
         initialize(this.number);
@@ -58,7 +81,18 @@ public class PluginDialog
             @Override
             public void actionPerformed(ActionEvent e)
             {
-                sendSMS();
+                try
+                {
+                    sendSMS();
+                }
+                catch(NoSuchAlgorithmException ex)
+                {
+                    System.out.println(ex);
+                }
+                catch(KeyManagementException ex)
+                {
+                    System.out.println(ex);
+                }
             }            
         });
     }
@@ -207,7 +241,7 @@ public class PluginDialog
         });
     }
     
-    private void sendSMS()
+    private void sendSMS() throws NoSuchAlgorithmException, KeyManagementException
     {
         int lenght = textField.getText().length();
         charactersLabel.setText( lenght + "/160 characters.");
@@ -249,7 +283,18 @@ public class PluginDialog
             // writing error to Log
             e.printStackTrace();
         }
-
+        
+        if(SMSPluginActivator.getResources().getSettingsString(
+                                    "net.java.sip.communicator.service.gui.ALWAYS_TRUST_MODE_ENABLED").contentEquals("true"))
+        {
+            System.out.println("SSL cert checking disabled.");
+            httpClient = WebClientDevWrapper.wrapClient(httpClient);
+        }
+        else
+        {
+            httpClient = new DefaultHttpClient();
+        }
+        
         //Execute and get the response.
         try {
             HttpResponse response = httpClient.execute(httppost);
@@ -260,27 +305,48 @@ public class PluginDialog
                 String content =  EntityUtils.toString(respEntity);
                 System.out.println("\tSMS API response: " + content);
                 
-                if(content.split(",")[0].contains("false") )
+                JSONParser parser = new JSONParser();
+                Object obj;
+                try
                 {
-                  String error_msg = null;
-                  if(content.contains("Failed to parse To number.") )
-                  {
-                      error_msg="Please input proper number";
-                  }
-                  else if(content.contains("Invalid format of To field.") )
-                  {
-                      error_msg="Invalid format of \"To\" field.";
-                  }
-                  else
-                  {
-                      error_msg= "\nUnknown error:\n" + content;
-                  }
+                  obj = parser.parse(content);
+                }
+                catch(ParseException pe)
+                {
+                  System.out.println("Response parsing error at position: " + pe.getPosition());
+                  System.out.println(pe);
                   
                   ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
-                      , "No connection","There was an error:\n" + error_msg
+                      , "Error", "Unexpected server response."
                       , ErrorDialog.WARNING);
                   errorDialog.showDialog();
                   return;
+                }
+                
+                JSONObject jsonObject = (JSONObject)obj;
+
+                if( jsonObject.get("success").toString() != "true")
+                {
+                  jsonObject = (JSONObject)jsonObject.get("errors");
+                  String error_msg= "";
+                  for(Object key : jsonObject.keySet() )
+                  {
+                      error_msg+= jsonObject.get(key).toString()+"\n";
+                  }
+                  
+                  ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
+                      , "Error","There was an error:\n" + error_msg
+                      , ErrorDialog.WARNING);
+                  errorDialog.showDialog();
+                  return;
+                }
+                else
+                {
+                    SMSPluginActivator.getUIService().getPopupDialog().showMessagePopupDialog("Message sent successfully.",
+                        "SMS", PopupDialog.INFORMATION_MESSAGE);
+                    
+                    this.dispose();
+                    return;
                 }
             }
         } catch (ClientProtocolException e) {
@@ -290,11 +356,6 @@ public class PluginDialog
             // writing exception to log
             e.printStackTrace();
         }
-        SMSPluginActivator.getUIService().getPopupDialog().showMessagePopupDialog("Message sent successfully.",
-                                                                        "SMS", PopupDialog.INFORMATION_MESSAGE);
-            
-        toField.setText(null);
-        textField.setText(null);
     }
     
     /*
@@ -330,5 +391,55 @@ public class PluginDialog
             else
                 Toolkit.getDefaultToolkit().beep();
             }
+    }
+    
+    public static class WebClientDevWrapper {
+        
+        public static HttpClient wrapClient(HttpClient base) {
+            try {
+                SSLContext ctx = SSLContext.getInstance("TLS");
+                X509TrustManager tm = new X509TrustManager() {
+     
+                    public void checkClientTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+                    }
+     
+                    public void checkServerTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+                    }
+     
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+                };
+                X509HostnameVerifier verifier = new X509HostnameVerifier() {
+     
+                    @Override
+                    public void verify(String string, SSLSocket ssls) throws IOException {
+                    }
+     
+                    @Override
+                    public void verify(String string, X509Certificate xc) throws SSLException {
+                    }
+     
+                    @Override
+                    public void verify(String string, String[] strings, String[] strings1) throws SSLException {
+                    }
+     
+                    @Override
+                    public boolean verify(String string, SSLSession ssls) {
+                        return true;
+                    }
+                };
+                ctx.init(null, new TrustManager[]{tm}, null);
+                SSLSocketFactory ssf = new SSLSocketFactory(ctx);
+                ssf.setHostnameVerifier(verifier);
+                ClientConnectionManager ccm = base.getConnectionManager();
+                SchemeRegistry sr = ccm.getSchemeRegistry();
+                sr.register(new Scheme("https", ssf, 443));
+                return new DefaultHttpClient(ccm, base.getParams());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                return null;
+            }
+        }
     }
 }
