@@ -104,7 +104,7 @@ public class PluginDialog
                 File file;
                 if( fc.getFileFromDialog()!=null)
                 {
-                    file = fc.getFileFromDialog();
+                    file = fc.getApprovedFile();
                 }
                 else
                 {
@@ -296,27 +296,40 @@ public class PluginDialog
                 String content =  EntityUtils.toString(respEntity);
                 System.out.println("\tFAX API response: " + content);
                 
-                if(content.split(",")[0].contains("false") )
+                JSONParser parser1 = new JSONParser();
+                Object obj1;
+                try
                 {
-                  String error_msg = null;
-                  if(content.contains("To number field is required") )
-                  {
-                      error_msg="You need to ";
-                  }
-                  else if(content.contains("Enter Fax number in format:") )
-                  {
-                      error_msg="Enter Fax number in format:<br/>+&lt;Country Code&gt; &lt;Area Code&gt; &lt;Number&gt;";
-                  }
-                  else
-                  {
-                      error_msg= "\nUnknown error:\n" + content;
-                  }
+                  obj1 = parser1.parse(content);
+                }
+                catch(ParseException pe)
+                {
+                  System.out.println("Response parsing error at position: " + pe.getPosition());
+                  System.out.println(pe);
                   
                   ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
-                      , "Error", error_msg
+                      , "Error", "Unexpected server response."
                       , ErrorDialog.WARNING);
                   errorDialog.showDialog();
                   return;
+                }
+                
+                JSONObject jsonObject1 = (JSONObject)obj1;
+                
+                if( jsonObject1.get("success").toString() != "true" )
+                {
+                    jsonObject1 = (JSONObject)jsonObject1.get("errors");
+                    String error_msg= "";
+                    for(Object key : jsonObject1.keySet() )
+                    {
+                        error_msg+= jsonObject1.get(key).toString()+"\n";
+                    }
+                    
+                    ErrorDialog errorDialog = new ErrorDialog( (Frame)SwingUtilities.getWindowAncestor(this)
+                        , "Error","There was an error:\n" + error_msg
+                        , ErrorDialog.WARNING);
+                    errorDialog.showDialog();
+                    return;
                 }
                 else
                 {
