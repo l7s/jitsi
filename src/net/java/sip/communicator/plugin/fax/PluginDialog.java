@@ -101,8 +101,16 @@ public class PluginDialog
             @Override
             public void actionPerformed(ActionEvent e)
             {
-                
-                File file = fc.getFileFromDialog(); 
+                File file;
+                if( fc.getFileFromDialog()!=null)
+                {
+                    file = fc.getFileFromDialog();
+                }
+                else
+                {
+                    System.out.println("\tOpen command cancelled by user or file doesnt exist."); 
+                    return;
+                }
                 
                 if ( file.exists() )
                 { 
