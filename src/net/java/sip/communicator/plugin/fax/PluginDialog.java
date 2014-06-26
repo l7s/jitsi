@@ -3,6 +3,8 @@ package net.java.sip.communicator.plugin.fax;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.*;
@@ -148,7 +150,7 @@ public class PluginDialog
         
         this.getContentPane().add(mainPanel);
 
-
+        this.parseToField();
         this.setStyles();
         
         this.setResizable(false);
@@ -159,7 +161,30 @@ public class PluginDialog
                                                                         ,SipCommFileChooser.LOAD_FILE_OPERATION );
         fc.setFileFilter(new DocumentFileFilter() );
     }
-
+    
+    private void parseToField()
+    {
+        toField.addKeyListener(new KeyListener() {
+            @Override
+            public void keyReleased(KeyEvent e)
+            {
+                if(!toField.getText().startsWith("+"))
+                {
+                    toField.setText("+" + toField.getText() );
+                }
+            }
+            /* Unused classes */
+            @Override
+            public void keyPressed(KeyEvent e)
+            {  
+            }
+            @Override
+            public void keyTyped(KeyEvent e)
+            { 
+            }
+        });
+    }
+    
     private void setStyles()
     {
         GridBagLayout layout = new GridBagLayout();

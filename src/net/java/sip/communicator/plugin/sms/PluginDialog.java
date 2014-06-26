@@ -134,6 +134,7 @@ public class PluginDialog
         this.getContentPane().add(mainPanel);
 
         this.setCharacterCount();
+        this.parseToField();
         this.setStyles();
         
         this.setResizable(false);
@@ -213,6 +214,29 @@ public class PluginDialog
         this.textField.setBorder( toField.getBorder() );     
         
         this.mainPanel.setLayout(layout);
+    }
+    
+    private void parseToField()
+    {
+        toField.addKeyListener(new KeyListener() {
+            @Override
+            public void keyReleased(KeyEvent e)
+            {
+                if(!toField.getText().startsWith("+"))
+                {
+                    toField.setText("+" + toField.getText() );
+                }
+            }
+            /* Unused classes */
+            @Override
+            public void keyPressed(KeyEvent e)
+            {  
+            }
+            @Override
+            public void keyTyped(KeyEvent e)
+            { 
+            }
+        });
     }
     
     private void setCharacterCount()
