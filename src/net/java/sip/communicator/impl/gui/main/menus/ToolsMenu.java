@@ -535,60 +535,7 @@ public class ToolsMenu
      */
     private void initVideoBridgeMenu()
     {
-        // If video bridge is enabled in the config then add the menu item
-        if (GuiActivator.getConfigurationService()
-             .getBoolean(OperationSetVideoBridge
-                .IS_VIDEO_BRIDGE_DISABLED, false))
-        {
-            return;
-        }
-
-        if (!SwingUtilities.isEventDispatchThread())
-        {
-            SwingUtilities.invokeLater(new Runnable()
-            {
-                public void run()
-                {
-                    initVideoBridgeMenu();
-                }
-            });
-            return;
-        }
-
-        // We create the video default video bridge menu item and set it
-        // disabled until we have more information on video bridge support.
-        if (videoBridgeMenuItem == null)
-        {
-            videoBridgeMenuItem = new VideoBridgeProviderMenuItem(
-                    GuiActivator.getResources()
-                        .getI18NString("service.gui.CREATE_VIDEO_BRIDGE"),
-                        null);
-
-            videoBridgeMenuItem.setEnabled(false);
-
-            insert(videoBridgeMenuItem, 1);
-        }
-
-        // We re-init the video bridge menu item each time the
-        // parent menu is selected in order to be able to refresh the list
-        // of available video bridge active providers.
-        if (videoBridgeMenuListener == null)
-        {
-            videoBridgeMenuListener = new VideoBridgeMenuListener();
-
-            addMenuListener(videoBridgeMenuListener);
-        }
-
-        // Check the protocol providers supporting video bridge in a new thread.
-        if (initVideoBridgeMenuWorker == null)
-            initVideoBridgeMenuWorker
-                = (OSUtils.IS_MAC)
-                    ? new InitVideoBridgeMenuWorkerMacOSX()
-                    : new InitVideoBridgeMenuWorker();
-        else
-            initVideoBridgeMenuWorker.interrupt();
-
-        initVideoBridgeMenuWorker.start();
+        return;
     }
 
     /**
