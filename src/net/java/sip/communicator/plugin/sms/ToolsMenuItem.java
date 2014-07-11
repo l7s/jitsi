@@ -8,6 +8,7 @@ import java.io.IOException;
 import javax.swing.JMenuItem;
 import javax.swing.SwingWorker;
 
+import net.java.sip.communicator.plugin.desktoputil.DesktopUtilActivator;
 import net.java.sip.communicator.plugin.desktoputil.ErrorDialog;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.service.httputil.HttpUtils;
@@ -30,7 +31,8 @@ public class ToolsMenuItem
     public ToolsMenuItem(PluginComponentFactory parentFactory)
     {
         super(Container.CONTAINER_TOOLS_MENU, parentFactory);
-        smsMenu.addActionListener(this);
+        this.smsMenu.setIcon( DesktopUtilActivator.getResources().getImage("plugin.sms.SMS_16"));
+        this.smsMenu.addActionListener(this);
     }
 
     public void actionPerformed(ActionEvent e)
