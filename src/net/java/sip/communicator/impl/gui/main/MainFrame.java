@@ -1947,7 +1947,7 @@ public class MainFrame
         else if (contactListPanel.isVisible())
         {
             // Starts a chat with the currently selected contact.
-            GuiActivator.getContactList().startSelectedContactChat();
+            GuiActivator.getContactList().startSelectedContactCall();
         }
     }
 
@@ -1965,7 +1965,7 @@ public class MainFrame
         else if (contactListPanel.isVisible())
         {
             // Starts a chat with the currently selected contact.
-            GuiActivator.getContactList().startSelectedContactCall();
+            GuiActivator.getContactList().startSelectedContactChat();
         }
     }
 
