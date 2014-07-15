@@ -1942,7 +1942,7 @@ public class MainFrame
     {
         if (unknownContactPanel != null && unknownContactPanel.isVisible())
         {
-            unknownContactPanel.addUnknownContact();
+            unknownContactPanel.startCall();
         }
         else if (contactListPanel.isVisible())
         {
@@ -1960,7 +1960,7 @@ public class MainFrame
     {
         if (unknownContactPanel != null && unknownContactPanel.isVisible())
         {
-            unknownContactPanel.startCall();
+            unknownContactPanel.addUnknownContact();
         }
         else if (contactListPanel.isVisible())
         {
