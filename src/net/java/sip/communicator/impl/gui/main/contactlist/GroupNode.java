@@ -95,10 +95,9 @@ public class GroupNode
 
         add(contactNode);
 
-        int contactIndex = getIndex(contactNode);
-
-        if (contactIndex > -1)
-            fireNodeInserted(contactIndex);
+        // Since contactNode is added to the back of the list, don't go looking
+        // for it, just calculate which index is for the last node in the list.
+        fireNodeInserted(children.size() - 1);
 
         refreshSelection(selectedIndex, getLeadSelectionRow());
 
@@ -121,15 +120,27 @@ public class GroupNode
         ContactNode contactNode = new ContactNode(uiContact);
         uiContact.setContactNode(contactNode);
 
-        add(contactNode);
-
-        // TODO: Optimize!
-        Collections.sort(children, nodeComparator);
-
-        int contactIndex = getIndex(contactNode);
-
-        if (contactIndex > -1)
-            fireNodeInserted(contactIndex);
+        if (children == null)
+        {
+            // Initially, children will be null.
+            add(contactNode);
+            fireNodeInserted(0);
+        }
+        else
+        {
+            // Instead of sorting after every addition, find the spot where we
+            // should insert the node such that it is inserted in order.
+            final int insertionPoint = Collections.binarySearch(children,
+                    contactNode, nodeComparator);
+            if (insertionPoint < 0)
+            {
+                // index < 0 indicates that the node is not currently in the
+                // list and suggests an insertion point.
+                final int index = (insertionPoint + 1) * -1;
+                insert(contactNode, index);
+                fireNodeInserted(index);
+            }
+        }
 
         return contactNode;
     }
@@ -156,6 +167,10 @@ public class GroupNode
         
             index = getIndex(contactNode);
         }
+
+        // not found
+        if(index == -1)
+            return;
         
         int selectedIndex = getLeadSelectionRow();
 
@@ -191,14 +206,12 @@ public class GroupNode
             groupNode = new GroupNode(treeModel, uiGroup);
             uiGroup.setGroupNode(groupNode);
         }
-        
 
         add(groupNode);
 
-        int groupIndex = getIndex(groupNode);
-
-        if (groupIndex > -1)
-            fireNodeInserted(groupIndex);
+        // Since contactNode is added to the back of the list, don't go looking
+        // for it, just calculate which index is for the last node in the list.
+        fireNodeInserted(children.size() - 1);
 
         refreshSelection(selectedIndex, getLeadSelectionRow());
 
@@ -221,9 +234,13 @@ public class GroupNode
             if (groupNode == null)
                 return;
         }
-        
-            
+
         int index = getIndex(groupNode);
+
+        // not found
+        if(index == -1)
+            return;
+
         int selectedIndex = getLeadSelectionRow();
 
         // We remove the node directly from the list, thus skipping all the
@@ -258,15 +275,35 @@ public class GroupNode
             uiGroup.setGroupNode(groupNode);
         }
 
-        add(groupNode);
+        if (children == null)
+        {
+            // Initially, children will be null.
+            add(groupNode);
+            fireNodeInserted(0);
+        }
+        else
+        {
+            // Instead of sorting after every addition, find the spot where we
+            // should insert the node such that it is inserted in order.
+            int insertionPoint = Collections.binarySearch(children,
+                    groupNode, nodeComparator);
+            if (insertionPoint < 0)
+            {
+                // index < 0 indicates that the node is not currently in the
+                // list and suggests an insertion point.
+                insertionPoint = (insertionPoint + 1) * -1;
+            }
+            else
+            {
+                // A node with this index was already found. As the index
+                // is not guaranteed to be unique, add this group after the
+                // one just found.
+                ++insertionPoint;
+            }
 
-        // TODO: Optimize!
-        Collections.sort(children, nodeComparator);
-
-        int contactIndex = getIndex(groupNode);
-
-        if (contactIndex > -1)
-            fireNodeInserted(contactIndex);
+            insert(groupNode, insertionPoint);
+            fireNodeInserted(insertionPoint);
+        }
 
         return groupNode;
     }
@@ -421,7 +458,7 @@ public class GroupNode
      * Note: this comparator imposes orderings that are inconsistent with
      * equals.
      */
-    private static class NodeComparator
+    static class NodeComparator
         implements Comparator<ContactListNode>
     {
         /**
@@ -439,6 +476,10 @@ public class GroupNode
             int index1 = node1.getSourceIndex();
             int index2 = node2.getSourceIndex();
 
+            // If both indexes are unknown, consider them equal. We need this
+            // case to ensure the property of symmetry in the node comparator.
+            if (index1 < 0 && index2 < 0)
+                return 0;
             // If the first index is unknown then we position it at the end.
             if (index1 < 0)
                 return 1;

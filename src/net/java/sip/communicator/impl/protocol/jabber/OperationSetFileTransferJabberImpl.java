@@ -112,6 +112,25 @@ public class OperationSetFileTransferJabberImpl
                 IllegalArgumentException,
                 OperationNotSupportedException
     {
+        return sendFile(toContact, file, null);
+    }
+
+    /**
+     * Sends a file transfer request to the given <tt>toContact</tt>.
+     * @return the transfer object
+     *
+     * @param toContact the contact that should receive the file
+     * @param file file to send
+     * @param gw special gateway to be used for receiver if its jid
+     * misses the domain part
+     */
+    FileTransfer sendFile(Contact toContact,
+                          File file,
+                          String gw)
+        throws  IllegalStateException,
+                IllegalArgumentException,
+                OperationNotSupportedException
+    {
         OutgoingFileTransferJabberImpl outgoingTransfer = null;
 
         try
@@ -127,8 +146,10 @@ public class OperationSetFileTransferJabberImpl
             // and is with highest priority if more than one found
             // if we have equals priorities
             // choose the one that is more available
-            if(jabberProvider.getOperationSet(OperationSetMultiUserChat.class)
-                .isPrivateMessagingContact(toContact.getAddress()))
+            OperationSetMultiUserChat mucOpSet = jabberProvider
+                .getOperationSet(OperationSetMultiUserChat.class);
+            if(mucOpSet != null
+                && mucOpSet.isPrivateMessagingContact(toContact.getAddress()))
             {
                 fullJid = toContact.getAddress();
             }
@@ -183,6 +204,13 @@ public class OperationSetFileTransferJabberImpl
             {
                 throw new OperationNotSupportedException(
                     "Contact client or server does not support file transfers.");
+            }
+
+            if(gw != null
+               && !fullJid.contains("@")
+               && !fullJid.endsWith(gw))
+            {
+                fullJid = fullJid + "@" + gw;
             }
 
             OutgoingFileTransfer transfer

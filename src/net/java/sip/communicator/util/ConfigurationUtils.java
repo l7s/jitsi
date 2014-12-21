@@ -102,6 +102,11 @@ public class ConfigurationUtils
     private static boolean isLeaveChatRoomOnWindowCloseEnabled;
 
     /**
+     * Indicates if private messaging is enabled for chat rooms.
+     */
+    private static boolean isPrivateMessagingInChatRoomDisabled;
+
+    /**
      * Indicates if the history should be shown in the chat window.
      */
     private static boolean isHistoryShown;
@@ -510,6 +515,10 @@ public class ConfigurationUtils
             isMultiChatWindowEnabled
                 = Boolean.parseBoolean(isMultiChatWindowEnabledString);
         }
+
+        isPrivateMessagingInChatRoomDisabled
+            = configService.getBoolean(
+                "service.gui.IS_PRIVATE_CHAT_IN_CHATROOM_DISABLED", false);
 
         // Load the "isLeaveChatroomOnWindowCloseEnabled" property.
         String isLeaveChatRoomOnWindowCloseEnabledStringProperty
@@ -1101,6 +1110,20 @@ public class ConfigurationUtils
     }
 
     /**
+     * Returns <code>true</code> if the "isPrivateMessagingInChatRoomDisabled"
+     * property is true, otherwise - returns <code>false</code>.
+     * Indicates to the user interface whether the private messaging is disabled
+     * in chat rooms.
+     *
+     * @return <code>true</code> if the "isPrivateMessagingInChatRoomDisabled"
+     * property is true, otherwise - returns <code>false</code>.
+     */
+    public static boolean isPrivateMessagingInChatRoomDisabled()
+    {
+        return isPrivateMessagingInChatRoomDisabled;
+    }
+
+    /**
      * Updates the "isMultiChatWindowEnabled" property through the
      * <tt>ConfigurationService</tt>.
      *
@@ -1566,25 +1589,25 @@ public class ConfigurationUtils
         String savedAccountId)
     {
         ProtocolProviderService protocolProvider = null;
-        for (ProtocolProviderFactory providerFactory : UtilActivator
-            .getProtocolProviderFactories().values())
-        {
-            ServiceReference serRef;
 
+        for (ProtocolProviderFactory providerFactory
+                : UtilActivator.getProtocolProviderFactories().values())
+        {
             for (AccountID accountId : providerFactory.getRegisteredAccounts())
             {
                 // We're interested only in the savedAccountId
                 if (!accountId.getAccountUniqueID().equals(savedAccountId))
                     continue;
 
-                serRef = providerFactory.getProviderForAccount(accountId);
+                ServiceReference<ProtocolProviderService> serRef
+                    = providerFactory.getProviderForAccount(accountId);
 
                 protocolProvider
-                    = (ProtocolProviderService) UtilActivator.bundleContext
-                            .getService(serRef);
+                    = UtilActivator.bundleContext.getService(serRef);
+                if (protocolProvider != null)
+                    break;
             }
         }
-
         return protocolProvider;
     }
 
@@ -2686,6 +2709,12 @@ public class ConfigurationUtils
                 "service.gui.IS_MULTI_CHAT_WINDOW_ENABLED"))
             {
                 isMultiChatWindowEnabled = Boolean.parseBoolean(newValue);
+            }
+            else if (evt.getPropertyName().equals(
+                "service.gui.IS_PRIVATE_CHAT_IN_CHATROOM_DISABLED"))
+            {
+                isPrivateMessagingInChatRoomDisabled
+                    = Boolean.parseBoolean(newValue);
             }
             else if (evt.getPropertyName().equals(
                 "service.gui.LEAVE_CHATROOM_ON_WINDOW_CLOSE"))

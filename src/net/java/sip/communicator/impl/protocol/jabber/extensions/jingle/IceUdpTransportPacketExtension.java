@@ -232,7 +232,93 @@ public class IceUdpTransportPacketExtension
         else if(childExtension instanceof CandidatePacketExtension)
             addCandidate((CandidatePacketExtension) childExtension);
 
-        else if (childExtension instanceof DtlsFingerprintPacketExtension)
+        else
             super.addChildExtension(childExtension);
+    }
+
+    /**
+     * Checks whether an 'rtcp-mux' extension has been added to this
+     * <tt>IceUdpTransportPacketExtension</tt>.
+     * @return <tt>true</tt> if this <tt>IceUdpTransportPacketExtension</tt>
+     * has a child with the 'rtcp-mux' name.
+     */
+    public boolean isRtcpMux()
+    {
+        for (PacketExtension packetExtension : getChildExtensions())
+        {
+            if (RtcpmuxPacketExtension.ELEMENT_NAME
+                    .equals(packetExtension.getElementName()))
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Clones a specific <tt>IceUdpTransportPacketExtension</tt> and its
+     * candidates.
+     *
+     * @param src the <tt>IceUdpTransportPacketExtension</tt> to be cloned
+     * @return a new <tt>IceUdpTransportPacketExtension</tt> instance which has
+     * the same run-time type, attributes, namespace, text and candidates as the
+     * specified <tt>src</tt>
+     * @throws Exception if an error occurs during the cloning of the specified
+     * <tt>src</tt> and its candidates
+     */
+    public static IceUdpTransportPacketExtension cloneTransportAndCandidates(
+            IceUdpTransportPacketExtension src)
+    {
+        return cloneTransportAndCandidates(src, false);
+    }
+
+    /**
+     * Clones a specific <tt>IceUdpTransportPacketExtension</tt> and its
+     * candidates.
+     *
+     * @param src the <tt>IceUdpTransportPacketExtension</tt> to be cloned
+     * @param copyDtls if <tt>true</tt> will also copy
+     *                 {@link DtlsFingerprintPacketExtension}.
+     * @return a new <tt>IceUdpTransportPacketExtension</tt> instance which has
+     * the same run-time type, attributes, namespace, text and candidates as the
+     * specified <tt>src</tt>
+     * @throws Exception if an error occurs during the cloning of the specified
+     * <tt>src</tt> and its candidates
+     */
+    public static IceUdpTransportPacketExtension cloneTransportAndCandidates(
+            IceUdpTransportPacketExtension src, boolean copyDtls)
+    {
+        if (src == null)
+            return null;
+
+        IceUdpTransportPacketExtension dst = AbstractPacketExtension.clone(src);
+        // Copy candidates
+        for (CandidatePacketExtension srcCand : src.getCandidateList())
+        {
+            if (!(srcCand instanceof RemoteCandidatePacketExtension))
+                dst.addCandidate(
+                    AbstractPacketExtension.clone(srcCand));
+        }
+        // Copy RTCP MUX
+        if (src.isRtcpMux())
+        {
+            dst.addChildExtension(new RtcpmuxPacketExtension());
+        }
+        // Optionally copy DTLS
+        if (copyDtls)
+        {
+            for (DtlsFingerprintPacketExtension dtlsFingerprint
+                : src.getChildExtensionsOfType(
+                DtlsFingerprintPacketExtension.class))
+            {
+                DtlsFingerprintPacketExtension copy
+                    = new DtlsFingerprintPacketExtension();
+
+                copy.setFingerprint(dtlsFingerprint.getFingerprint());
+                copy.setHash(dtlsFingerprint.getHash());
+                copy.setRequired(dtlsFingerprint.getRequired());
+
+                dst.addChildExtension(copy);
+            }
+        }
+        return dst;
     }
 }

@@ -116,7 +116,7 @@ public abstract class AsyncContactQuery<T extends ContactSourceService>
 
         return changed;
     }
-    
+
     /**
      * Adds a specific <tt>SourceContact</tt> to the list of
      * <tt>SourceContact</tt>s to be returned by this <tt>ContactQuery</tt> in
@@ -140,6 +140,62 @@ public abstract class AsyncContactQuery<T extends ContactSourceService>
 
         return changed;
     }
+
+    /**
+     * Removes a specific <tt>SourceContact</tt> from the list of
+     * <tt>SourceContact</tt>s.
+     *
+     * @param sourceContact the <tt>SourceContact</tt> to be removed from the
+     * <tt>queryResults</tt> of this <tt>ContactQuery</tt>
+     * @return <tt>true</tt> if the <tt>queryResults</tt> of this
+     * <tt>ContactQuery</tt> has changed in response to the call
+     */
+    protected boolean removeQueryResult(SourceContact sourceContact)
+    {
+        boolean changed;
+
+        synchronized (queryResults)
+        {
+            changed = queryResults.remove(sourceContact);
+        }
+        if (changed)
+            fireContactRemoved(sourceContact);
+
+        return changed;
+    }
+
+    /**
+     * Adds a set of <tt>SourceContact</tt> instances to the list of
+     * <tt>SourceContact</tt>s to be returned by this <tt>ContactQuery</tt> in
+     * response to {@link #getQueryResults()}.
+     *
+     * @param sourceContacts the set of <tt>SourceContact</tt> to be added to
+     * the <tt>queryResults</tt> of this <tt>ContactQuery</tt>
+     * @return <tt>true</tt> if the <tt>queryResults</tt> of this
+     * <tt>ContactQuery</tt> has changed in response to the call
+     */
+    protected boolean addQueryResults(
+        final Set<? extends SourceContact> sourceContacts)
+    {
+        final boolean changed;
+
+        synchronized (queryResults)
+        {
+            changed = queryResults.addAll(sourceContacts);
+        }
+
+        if (changed)
+        {
+            // TODO Need something to fire one event for multiple contacts.
+            for (SourceContact contact : sourceContacts)
+            {
+                fireContactReceived(contact, false);
+            }
+        }
+
+        return changed;
+    }
+
 
     /**
      * Gets the {@link #query} of this <tt>AsyncContactQuery</tt> as a

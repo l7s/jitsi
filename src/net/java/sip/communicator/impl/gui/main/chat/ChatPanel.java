@@ -37,6 +37,7 @@ import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.util.Logger;
 import net.java.sip.communicator.util.skin.*;
 
+import org.apache.commons.lang3.*;
 import org.jitsi.util.*;
 
 /**
@@ -911,7 +912,7 @@ public class ChatPanel
 
             if (historyString != null)
                 conversationPanel.appendMessageToEnd(
-                    historyString, ChatHtmlUtils.TEXT_CONTENT_TYPE);
+                    historyString, ChatHtmlUtils.HTML_CONTENT_TYPE);
         }
 
         fireChatHistoryChange();
@@ -1091,7 +1092,7 @@ public class ChatPanel
      *
      * @param chatMessage the message to append
      */
-    private void appendChatMessage(ChatMessage chatMessage)
+    private void appendChatMessage(final ChatMessage chatMessage)
     {
         String keyword = null;
 
@@ -1113,12 +1114,14 @@ public class ChatPanel
             String meCommandMsg
                 = this.conversationPanel.processMeCommand(chatMessage);
 
+            // FIXME I'm pretty sure we are losing the previously prepared
+            // processedMessage content.
             if (meCommandMsg.length() > 0)
                 processedMessage = meCommandMsg;
         }
 
         this.conversationPanel.appendMessageToEnd(
-            processedMessage, chatMessage.getContentType());
+            processedMessage, ChatHtmlUtils.HTML_CONTENT_TYPE);
     }
 
     /**
@@ -1130,32 +1133,6 @@ public class ChatPanel
     private void applyMessageCorrection(ChatMessage message)
     {
         conversationPanel.correctMessage(message);
-    }
-
-    /**
-     * Passes the message to the contained <code>ChatConversationPanel</code>
-     * for processing.
-     *
-     * @param contactName The name of the contact sending the message.
-     * @param contactDisplayName the display name of the contact sending the
-     * message
-     * @param date The time at which the message is sent or received.
-     * @param messageType The type of the message. One of OUTGOING_MESSAGE
-     * or INCOMING_MESSAGE.
-     * @param message The message text.
-     * @param contentType the content type of the message (html or plain text)
-     *
-     * @return a string containing the processed message.
-     */
-    private String processHistoryMessage(String contactName,
-                                         String contactDisplayName,
-                                         Date date,
-                                         String messageType,
-                                         String message,
-                                         String contentType)
-    {
-      return processHistoryMessage(contactName, contactDisplayName,
-              date, messageType, message, contentType, null);
     }
 
     /**
@@ -1506,8 +1483,13 @@ public class ChatPanel
             public Object construct()
                 throws Exception
             {
-                final FileTransfer fileTransfer
-                    = sendFileTransport.sendFile(file);
+                FileTransfer ft;
+                if (writeMessagePanel.isSmsSelected())
+                    ft = sendFileTransport.sendMultimediaFile(file);
+                else
+                    ft = sendFileTransport.sendFile(file);
+
+                final FileTransfer fileTransfer = ft;
 
                 addActiveFileTransfer(fileTransfer.getID(), fileTransfer);
 
@@ -1960,6 +1942,12 @@ public class ChatPanel
      */
     public void loadHistory(final String escapedMessageID)
     {
+        if (!ConfigurationUtils.isHistoryShown())
+        {
+            isHistoryLoaded = true;
+            return;
+        }
+
         SwingWorker historyWorker = new SwingWorker()
         {
             private Collection<Object> historyList;
@@ -3071,12 +3059,16 @@ public class ChatPanel
      */
     public void chatRoomPropertyChanged(ChatRoomMemberPropertyChangeEvent event)
     {
+        String message = GuiActivator.getResources().getI18NString(
+            "service.gui.CHAT_NICKNAME_CHANGE",
+            new String[]{
+                (String) event.getOldValue(),
+                (String) event.getNewValue()
+            });
         this.conversationPanel
             .appendMessageToEnd(
                 "<DIV identifier=\"message\" style=\"color:#707070;\">"
-                + event.getOldValue()
-                + " is now known as "
-                + event.getNewValue() + "</DIV>",
+                + StringEscapeUtils.escapeHtml4(message) + "</DIV>",
                 ChatHtmlUtils.HTML_CONTENT_TYPE);
     }
 

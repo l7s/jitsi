@@ -17,8 +17,9 @@ import net.java.sip.communicator.service.protocol.*;
  * @author Stephane Remy
  * @author Loic Kempf
  * @author Lubomir Marinov
+ * @author Danny van Heumen
  */
-public class IrcStatusEnum
+public final class IrcStatusEnum
     extends PresenceStatus
 {
 
@@ -54,13 +55,14 @@ public class IrcStatusEnum
     /**
      * Initialize the list of supported status states.
      */
-    private static final List<IrcStatusEnum> supportedStatusSet
+    private static final List<IrcStatusEnum> SUPPORTED_STATUS_SET
         = new LinkedList<IrcStatusEnum>();
+
     static
     {
-        supportedStatusSet.add(OFFLINE);
-        supportedStatusSet.add(AWAY);
-        supportedStatusSet.add(ONLINE);
+        SUPPORTED_STATUS_SET.add(OFFLINE);
+        SUPPORTED_STATUS_SET.add(AWAY);
+        SUPPORTED_STATUS_SET.add(ONLINE);
     }
 
     /**
@@ -70,9 +72,8 @@ public class IrcStatusEnum
      * @param statusName the name of the presence status.
      * @param statusIcon the icon associated with this status
      */
-    private IrcStatusEnum(int status,
-                                String statusName,
-                                byte[] statusIcon)
+    private IrcStatusEnum(final int status, final String statusName,
+        final byte[] statusIcon)
     {
         super(status, statusName, statusIcon);
     }
@@ -85,7 +86,7 @@ public class IrcStatusEnum
      */
     static Iterator<IrcStatusEnum> supportedStatusSet()
     {
-        return supportedStatusSet.iterator();
+        return SUPPORTED_STATUS_SET.iterator();
     }
 
     /**
@@ -96,7 +97,7 @@ public class IrcStatusEnum
      * @return the byte representation of the image corresponding to the given
      * identifier.
      */
-    private static byte[] getImageInBytes(String imageID)
+    private static byte[] getImageInBytes(final String imageID)
     {
         return ProtocolIconIrcImpl.getImageInBytes(imageID);
     }

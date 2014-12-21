@@ -8,10 +8,13 @@ package net.java.sip.communicator.impl.protocol.jabber.extensions.colibri;
 
 import java.util.*;
 
+import net.java.sip.communicator.impl.protocol.jabber.extensions.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingle.*;
 
 import org.jitsi.service.neomedia.*;
+
 import org.jivesoftware.smack.packet.*;
+import org.jivesoftware.smack.packet.IQ;
 
 /**
  * Implements the Jitsi Videobridge <tt>conference</tt> IQ within the
@@ -19,6 +22,7 @@ import org.jivesoftware.smack.packet.*;
  *
  * @author Lyubomir Marinov
  * @author Boris Grozev
+ * @author George Politis
  */
 public class ColibriConferenceIQ
     extends IQ
@@ -50,14 +54,66 @@ public class ColibriConferenceIQ
     public static final int[] NO_SSRCS = new int[0];
 
     /**
+     * The list of {@link ChannelBundle}s included into this <tt>conference</tt>
+     * IQ.
+     */
+    private final List<ChannelBundle> channelBundles
+        = new LinkedList<ChannelBundle>();
+
+    /**
      * The list of {@link Content}s included into this <tt>conference</tt> IQ.
      */
     private final List<Content> contents = new LinkedList<Content>();
 
     /**
+     * The list of <tt>Endpoint</tt>s included into this <tt>conference</tt> IQ.
+     */
+    private final List<Endpoint> endpoints = new LinkedList<Endpoint>();
+
+    /**
      * The ID of the conference represented by this IQ.
      */
     private String id;
+
+    /**
+     * Media recording.
+     */
+    private Recording recording;
+
+    private RTCPTerminationStrategy rtcpTerminationStrategy;
+
+    /**
+     * Indicates if the information about graceful shutdown status is being
+     * carried by this IQ.
+     */
+    private boolean gracefulShutdown;
+
+    /**
+     * Returns an error response for given <tt>IQ</tt> that is returned by
+     * the videobridge after it has entered graceful shutdown mode and new
+     * conferences can no longer be created.
+     *
+     * @param request the IQ for which error response will be created.
+     * @return an IQ of 'error' type and 'service-unavailable' condition plus
+     *         the body of request IQ.
+     */
+    public static IQ createGracefulShutdownErrorResponse(final IQ request)
+    {
+        final XMPPError error
+            = new XMPPError(XMPPError.Condition.service_unavailable);
+
+        error.addExtension(new GracefulShutdown());
+
+        final IQ result = IQ.createErrorResponse(request, error);
+
+        result.setType(Type.ERROR);
+        result.setPacketID(request.getPacketID());
+        result.setFrom(request.getTo());
+        result.setTo(request.getFrom());
+        result.setError(error);
+
+        return result;
+    }
 
     /** Initializes a new <tt>ColibriConferenceIQ</tt> instance. */
     public ColibriConferenceIQ()
@@ -65,19 +121,19 @@ public class ColibriConferenceIQ
     }
 
     /**
-     * Initializes a new {@link Content} instance with a specific name and adds
-     * it to the list of <tt>Content</tt> instances included into this
-     * <tt>conference</tt> IQ.
-     *
-     * @param contentName the name which which the new <tt>Content</tt> instance
-     * is to be initialized
-     * @return <tt>true</tt> if the list of <tt>Content</tt> instances included
-     * into this <tt>conference</tt> IQ has been modified as a result of the
-     * method call; otherwise, <tt>false</tt>
+     * Adds a specific {@link Content} instance to the list of <tt>Content</tt>
+     * instances included into this <tt>conference</tt> IQ.
+     * @param channelBundle the <tt>ChannelBundle</tt> to add.
      */
-    public boolean addContent(String contentName)
+    public boolean addChannelBundle(ChannelBundle channelBundle)
     {
-        return addContent(new Content(contentName));
+        if (channelBundle == null)
+            throw new NullPointerException("channelBundle");
+
+        return
+            channelBundles.contains(channelBundles)
+               ? false
+               : channelBundles.add(channelBundle);
     }
 
     /**
@@ -101,6 +157,65 @@ public class ColibriConferenceIQ
     }
 
     /**
+     * Initializes a new {@link Content} instance with a specific name and adds
+     * it to the list of <tt>Content</tt> instances included into this
+     * <tt>conference</tt> IQ.
+     *
+     * @param contentName the name which which the new <tt>Content</tt> instance
+     * is to be initialized
+     * @return <tt>true</tt> if the list of <tt>Content</tt> instances included
+     * into this <tt>conference</tt> IQ has been modified as a result of the
+     * method call; otherwise, <tt>false</tt>
+     */
+    public boolean addContent(String contentName)
+    {
+        return addContent(new Content(contentName));
+    }
+
+    /**
+     * Add an <tt>Endpoint</tt> to this <tt>ColibriConferenceIQ</tt>.
+     * @param endpoint the <tt>Endpoint</tt> to add.
+     */
+    public void addEndpoint(Endpoint endpoint)
+    {
+        endpoints.add(endpoint);
+    }
+
+    /**
+     * Returns a list of the <tt>ChannelBundle</tt>s included into this
+     * <tt>conference</tt> IQ.
+     *
+     * @return an unmodifiable <tt>List</tt> of the <tt>ChannelBundle</tt>s
+     * included into this <tt>conference</tt> IQ.
+     */
+    public List<ChannelBundle> getChannelBundles()
+    {
+        return Collections.unmodifiableList(channelBundles);
+    }
+
+    /**
+     * Finds {@link ChannelBundle} identified by given <tt>bundleId</tt>.
+     * @param bundleId <tt>ChannelBundle</tt> identifier.
+     * @return {@link ChannelBundle} identified by given <tt>bundleId</tt> or
+     *         <tt>null</tt> if not found.
+     */
+    public ChannelBundle getChannelBundle(String bundleId)
+    {
+        if (bundleId == null)
+        {
+            return null;
+        }
+        for (ChannelBundle bundle : channelBundles)
+        {
+            if (bundleId.equals(bundle.getId()))
+            {
+                return bundle;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Returns an XML <tt>String</tt> representation of this <tt>IQ</tt>.
      *
      * @return an XML <tt>String</tt> representation of this <tt>IQ</tt>
@@ -120,8 +235,16 @@ public class ColibriConferenceIQ
                     .append('\'');
 
         List<Content> contents = getContents();
+        List<ChannelBundle> channelBundles = getChannelBundles();
 
-        if (contents.size() == 0)
+        boolean hasChildren
+            = (recording != null)
+                || (rtcpTerminationStrategy != null)
+                || (gracefulShutdown)
+                || (contents.size() > 0)
+                || (channelBundles.size() > 0);
+
+        if (!hasChildren)
         {
             xml.append(" />");
         }
@@ -130,6 +253,15 @@ public class ColibriConferenceIQ
             xml.append('>');
             for (Content content : contents)
                 content.toXML(xml);
+            for (ChannelBundle channelBundle : channelBundles)
+                channelBundle.toXML(xml);
+            if (recording != null)
+                recording.toXML(xml);
+            if (rtcpTerminationStrategy != null)
+                rtcpTerminationStrategy.toXML(xml);
+            if (gracefulShutdown)
+                xml.append(new GracefulShutdown().toXML());
+
             xml.append("</").append(ELEMENT_NAME).append('>');
         }
         return xml.toString();
@@ -148,8 +280,10 @@ public class ColibriConferenceIQ
     public Content getContent(String contentName)
     {
         for (Content content : getContents())
+        {
             if (contentName.equals(content.getName()))
                 return content;
+        }
         return null;
     }
 
@@ -163,6 +297,17 @@ public class ColibriConferenceIQ
     public List<Content> getContents()
     {
         return Collections.unmodifiableList(contents);
+    }
+
+    /**
+     * Returns the list of <tt>Endpoint</tt>s included in this
+     * <tt>ColibriConferenceIQ</tt>.
+     * @return the list of <tt>Endpoint</tt>s included in this
+     * <tt>ColibriConferenceIQ</tt>.
+     */
+    public List<Endpoint> getEndpoints()
+    {
+        return Collections.unmodifiableList(endpoints);
     }
 
     /**
@@ -195,8 +340,21 @@ public class ColibriConferenceIQ
             content = new Content(contentName);
             addContent(content);
         }
-
         return content;
+    }
+
+    /**
+     * Gets the value of the recording field.
+     * @return the value of the recording field.
+     */
+    public Recording getRecording()
+    {
+        return recording;
+    }
+
+    public RTCPTerminationStrategy getRTCPTerminationStrategy()
+    {
+        return rtcpTerminationStrategy;
     }
 
     /**
@@ -225,265 +383,39 @@ public class ColibriConferenceIQ
     }
 
     /**
-     * Class contains common code for both <tt>Channel</tt> and
-     * <tt>SctpConnection</tt> IQ classes.
-     *
-     * @author Pawel Domas
+     * Sets the recording field.
+     * @param recording the value to set.
      */
-    public static abstract class ChannelCommon
+    public void setRecording(Recording recording)
     {
-        /**
-         * The XML name of the <tt>endpoint</tt> attribute which specifies the
-         * optional identifier of the endpoint of the conference participant
-         * associated with a <tt>channel</tt>. The value of the
-         * <tt>endpoint</tt> attribute is an opaque <tt>String</tt> from the
-         * point of view of Jitsi Videobridge.
-         */
-        public static final String ENDPOINT_ATTR_NAME = "endpoint";
+        this.recording = recording;
+    }
 
-        /**
-         * The XML name of the <tt>expire</tt> attribute of a <tt>channel</tt>
-         * of a <tt>content</tt> of a <tt>conference</tt> IQ which represents
-         * the value of the <tt>expire</tt> property of
-         * <tt>ColibriConferenceIQ.Channel</tt>.
-         */
-        public static final String EXPIRE_ATTR_NAME = "expire";
+    public void setRTCPTerminationStrategy(
+            RTCPTerminationStrategy rtcpTerminationStrategy)
+    {
+        this.rtcpTerminationStrategy = rtcpTerminationStrategy;
+    }
 
-        /**
-         * The value of the <tt>expire</tt> property of
-         * <tt>ColibriConferenceIQ.Channel</tt> which indicates that no actual
-         * value has been specified for the property in question.
-         */
-        public static final int EXPIRE_NOT_SPECIFIED = -1;
+    /**
+     * Sets whether this IQ should contain the information about graceful
+     * shutdown in progress status.
+     *
+     * @param isGracefulShutdown <tt>true</tt> if graceful shutdown status
+     *        should be indicated in this IQ.
+     */
+    public void setGracefulShutdown(boolean isGracefulShutdown)
+    {
+        this.gracefulShutdown = isGracefulShutdown;
+    }
 
-        /**
-         * The XML name of the <tt>initiator</tt> attribute of a
-         * <tt>channel</tt> of a <tt>content</tt> of a <tt>conference</tt> IQ
-         * which represents the value of the <tt>initiator</tt> property of
-         * <tt>ColibriConferenceIQ.Channel</tt>.
-         */
-        public static final String INITIATOR_ATTR_NAME = "initiator";
-
-        /**
-         * The identifier of the endpoint of the conference participant
-         * associated with this <tt>Channel</tt>.
-         */
-        private String endpoint;
-
-        /**
-         * The number of seconds of inactivity after which the <tt>channel</tt>
-         * represented by this instance expires.
-         */
-        private int expire = EXPIRE_NOT_SPECIFIED;
-
-        /**
-         * The indicator which determines whether the conference focus is the
-         * initiator/offerer (as opposed to the responder/answerer) of the media
-         * negotiation associated with this instance.
-         */
-        private Boolean initiator;
-
-        private IceUdpTransportPacketExtension transport;
-
-        /**
-         * XML element name.
-         */
-        private String elementName;
-
-        /**
-         * Initializes this class with given XML <tt>elementName</tt>.
-         * @param elementName XML element name to be used for producing XML
-         *                    representation of derived IQ class.
-         */
-        protected ChannelCommon(String elementName)
-        {
-            this.elementName = elementName;
-        }
-
-        /**
-         * Gets the identifier of the endpoint of the conference participant
-         * associated with this <tt>Channel</tt>.
-         *
-         * @return the identifier of the endpoint of the conference participant
-         * associated with this <tt>Channel</tt>
-         */
-        public String getEndpoint()
-        {
-            return endpoint;
-        }
-
-        /**
-         * Gets the number of seconds of inactivity after which the
-         * <tt>channel</tt> represented by this instance expires.
-         *
-         * @return the number of seconds of inactivity after which the
-         * <tt>channel</tt> represented by this instance expires
-         */
-        public int getExpire()
-        {
-            return expire;
-        }
-
-        public IceUdpTransportPacketExtension getTransport()
-        {
-            return transport;
-        }
-
-        /**
-         * Gets the indicator which determines whether the conference focus is
-         * the initiator/offerer (as opposed to the responder/answerer) of the
-         * media negotiation associated with this instance.
-         *
-         * @return {@link Boolean#TRUE} if the conference focus is the
-         * initiator/offerer of the media negotiation associated with this
-         * instance, {@link Boolean#FALSE} if the conference focus is the
-         * responder/answerer or <tt>null</tt> if the <tt>initiator</tt> state
-         * is unspecified
-         */
-        public Boolean isInitiator()
-        {
-            return initiator;
-        }
-
-        /**
-         * Sets the identifier of the endpoint of the conference participant
-         * associated with this <tt>Channel</tt>.
-         *
-         * @param endpoint the identifier of the endpoint of the conference
-         * participant associated with this <tt>Channel</tt>
-         */
-        public void setEndpoint(String endpoint)
-        {
-            this.endpoint = endpoint;
-        }
-
-        /**
-         * Sets the number of seconds of inactivity after which the
-         * <tt>channel</tt> represented by this instance expires.
-         *
-         * @param expire the number of seconds of activity after which the
-         * <tt>channel</tt> represented by this instance expires
-         * @throws IllegalArgumentException if the value of the specified
-         * <tt>expire</tt> is other than {@link #EXPIRE_NOT_SPECIFIED} and
-         * negative
-         */
-        public void setExpire(int expire)
-        {
-            if ((expire != EXPIRE_NOT_SPECIFIED) && (expire < 0))
-                throw new IllegalArgumentException("expire");
-
-            this.expire = expire;
-        }
-
-        /**
-         * Sets the indicator which determines whether the conference focus is
-         * the initiator/offerer (as opposed to the responder/answerer) of the
-         * media negotiation associated with this instance.
-         *
-         * @param initiator {@link Boolean#TRUE} if the conference focus is the
-         * initiator/offerer of the media negotiation associated with this
-         * instance, {@link Boolean#FALSE} if the conference focus is the
-         * responder/answerer or <tt>null</tt> if the <tt>initiator</tt> state
-         * is to be unspecified
-         */
-        public void setInitiator(Boolean initiator)
-        {
-            this.initiator = initiator;
-        }
-
-        public void setTransport(IceUdpTransportPacketExtension transport)
-        {
-            this.transport = transport;
-        }
-
-        /**
-         * Derived class implements this method in order to print additional
-         * attributes to main XML element.
-         * @param xml <the <tt>StringBuilder</tt> to which the XML
-         *            <tt>String</tt> representation of this <tt>Channel</tt>
-         *            is to be appended</tt>
-         */
-        protected abstract void printAttributes(StringBuilder xml);
-
-        /**
-         * Indicates whether there are some contents that should be printed as
-         * child elements of this IQ. If <tt>true</tt> is returned
-         * {@link #printContent(StringBuilder)} method will be called when
-         * XML representation of this IQ is being constructed.
-         * @return <tt>true</tt> if there are content to be printed as child
-         *         elements of this IQ or <tt>false</tt> otherwise.
-         */
-        protected abstract boolean hasContent();
-
-        /**
-         * Implement in order to print content child elements of this IQ using
-         * given <tt>StringBuilder</tt>. Called during construction of XML
-         * representation if {@link #hasContent()} returns <tt>true</tt>.
-         *
-         * @param xml the <tt>StringBuilder</tt> to which the XML
-         *        <tt>String</tt> representation of this <tt>Channel</tt>
-         *        is to be appended</tt></tt>.
-         */
-        protected abstract void printContent(StringBuilder xml);
-
-        /**
-         * Appends the XML <tt>String</tt> representation of this
-         * <tt>Channel</tt> to a specific <tt>StringBuilder</tt>.
-         *
-         * @param xml the <tt>StringBuilder</tt> to which the XML
-         * <tt>String</tt> representation of this <tt>Channel</tt> is to be
-         * appended
-         */
-        public void toXML(StringBuilder xml)
-        {
-            xml.append('<').append(elementName);
-
-            // endpoint
-            String endpoint = getEndpoint();
-
-            if (endpoint != null)
-            {
-                xml.append(' ').append(ENDPOINT_ATTR_NAME).append("='")
-                    .append(endpoint).append('\'');
-            }
-
-            // expire
-            int expire = getExpire();
-
-            if (expire >= 0)
-            {
-                xml.append(' ').append(EXPIRE_ATTR_NAME).append("='")
-                    .append(expire).append('\'');
-            }
-
-            // initiator
-            Boolean initiator = isInitiator();
-
-            if (initiator != null)
-            {
-                xml.append(' ').append(INITIATOR_ATTR_NAME).append("='")
-                    .append(initiator).append('\'');
-            }
-
-            // Print derived class attributes
-            printAttributes(xml);
-
-            IceUdpTransportPacketExtension transport = getTransport();
-            boolean hasTransport = (transport != null);
-            if (hasTransport || hasContent())
-            {
-                xml.append('>');
-                if(hasContent())
-                    printContent(xml);
-                if (hasTransport)
-                    xml.append(transport.toXML());
-                xml.append("</").append(elementName).append('>');
-            }
-            else
-            {
-                xml.append(" />");
-            }
-        }
+    /**
+     * Returns <tt>true</tt> if graceful shutdown status info is indicated in
+     * this <tt>ColibriConferenceIQ</tt> instance.
+     */
+    public boolean isGracefulShutdown()
+    {
+        return gracefulShutdown;
     }
 
     /**
@@ -518,14 +450,6 @@ public class ColibriConferenceIQ
         public static final String HOST_ATTR_NAME = "host";
 
         /**
-         * The XML name of the <tt>id</tt> attribute of a <tt>channel</tt> of a
-         * <tt>content</tt> of a <tt>conference</tt> IQ which represents the
-         * value of the <tt>id</tt> property of
-         * <tt>ColibriConferenceIQ.Channel</tt>.
-         */
-        public static final String ID_ATTR_NAME = "id";
-
-        /**
          * The XML name of the <tt>last-n</tt> attribute of a video
          * <tt>channel</tt> which specifies the maximum number of video RTP
          * streams to be sent from Jitsi Videobridge to the endpoint associated
@@ -533,6 +457,31 @@ public class ColibriConferenceIQ
          * attribute is a positive number.
          */
         public static final String LAST_N_ATTR_NAME = "last-n";
+
+        /**
+         * The XML name of the <tt>adaptive-last-n</tt> attribute of a video
+         * <tt>channel</tt>.
+         */
+        public static final String ADAPTIVE_LAST_N_ATTR_NAME
+            = "adaptive-last-n";
+
+        /**
+         * The XML name of the <tt>adaptive-simulcast</tt> attribute of a video
+         * <tt>channel</tt>.
+         */
+        public static final String ADAPTIVE_SIMULCAST_ATTR_NAME
+                = "adaptive-simulcast";
+
+        /**
+         * The XML name of the <tt>receive-simulcast-layer</tt> attribute of a
+         * video <tt>Channel</tt> which specifies the target quality of the
+         * simulcast substreams to be sent from Jitsi Videobridge to the
+         * endpoint associated with the video <tt>Channel</tt>. The value of the
+         * <tt>receive-simulcast-layer</tt> attribute is an unsigned integer.
+         * Typically used for debugging purposes.
+         */
+        public static final String RECEIVING_SIMULCAST_LAYER
+                = "receive-simulcast-layer";
 
         /**
          * The XML name of the <tt>rtcpport</tt> attribute of a <tt>channel</tt>
@@ -583,11 +532,6 @@ public class ColibriConferenceIQ
         private String host;
 
         /**
-         * The ID of the <tt>channel</tt> represented by this instance.
-         */
-        private String id;
-
-        /**
          * The maximum number of video RTP streams to be sent from Jitsi
          * Videobridge to the endpoint associated with this video
          * <tt>Channel</tt>.
@@ -595,11 +539,28 @@ public class ColibriConferenceIQ
         private Integer lastN;
 
         /**
+         * The 'adaptive-last-n' flag.
+         */
+        private Boolean adaptiveLastN;
+
+        /**
+         * The 'adaptive-simulcast' flag.
+         */
+        private Boolean adaptiveSimulcast;
+
+        /**
          * The <tt>payload-type</tt> elements defined by XEP-0167: Jingle RTP
          * Sessions associated with this <tt>channel</tt>.
          */
         private final List<PayloadTypePacketExtension> payloadTypes
             = new ArrayList<PayloadTypePacketExtension>();
+
+        /**
+         * The target quality of the simulcast substreams to be sent from Jitsi
+         * Videobridge to the endpoint associated with this video
+         * <tt>Channel</tt>.
+         */
+        private Integer receivingSimulcastLayer;
 
         /**
          * The RTCP port of the <tt>channel</tt> represented by this instance.
@@ -626,6 +587,11 @@ public class ColibriConferenceIQ
          */
         @Deprecated
         private int rtpPort;
+
+        /**
+         * The <tt>SourceGroupPacketExtension</tt>s of this channel.
+         */
+        private List<SourceGroupPacketExtension> sourceGroups;
 
         /**
          * The <tt>SourcePacketExtension</tt>s of this channel.
@@ -692,6 +658,31 @@ public class ColibriConferenceIQ
         }
 
         /**
+         * Adds a <tt>SourceGroupPacketExtension</tt> to the list of source
+         * groups of this channel.
+         *
+         * @param sourceGroup the <tt>SourcePacketExtension</tt> to add to the
+         * list of sources of this channel
+         *
+         * @return <tt>true</tt> if the list of sources of this channel changed
+         * as a result of the execution of the method; otherwise, <tt>false</tt>
+         */
+        public synchronized boolean addSourceGroup(
+                SourceGroupPacketExtension sourceGroup)
+        {
+            if (sourceGroup == null)
+                throw new NullPointerException("sourceGroup");
+
+            if (sourceGroups == null)
+                sourceGroups = new LinkedList<SourceGroupPacketExtension>();
+
+            return
+                sourceGroups.contains(sourceGroup)
+                    ? false
+                    : sourceGroups.add(sourceGroup);
+        }
+
+        /**
          * Adds a specific (RTP) SSRC to the list of SSRCs seen/received on this
          * <tt>Channel</tt>. Invoked by the Jitsi Videobridge server, not its
          * clients.
@@ -706,8 +697,10 @@ public class ColibriConferenceIQ
         {
             // contains
             for (int i = 0; i < ssrcs.length; i++)
+            {
                 if (ssrcs[i] == ssrc)
                     return false;
+            }
 
             // add
             int[] newSSRCs = new int[ssrcs.length + 1];
@@ -746,16 +739,6 @@ public class ColibriConferenceIQ
         }
 
         /**
-         * Gets the ID of the <tt>channel</tt> represented by this instance.
-         *
-         * @return the ID of the <tt>channel</tt> represented by this instance
-         */
-        public String getID()
-        {
-            return id;
-        }
-
-        /**
          * Gets the maximum number of video RTP streams to be sent from Jitsi
          * Videobridge to the endpoint associated with this video
          * <tt>Channel</tt>.
@@ -770,6 +753,24 @@ public class ColibriConferenceIQ
         }
 
         /**
+         * Gets the value of the 'adaptive-last-n' flag.
+         * @return the value of the 'adaptive-last-n' flag.
+         */
+        public Boolean getAdaptiveLastN()
+        {
+            return adaptiveLastN;
+        }
+
+        /**
+         * Gets the value of the 'adaptive-simulcast' flag.
+         * @return the value of the 'adaptive-simulcast' flag.
+         */
+        public Boolean getAdaptiveSimulcast()
+        {
+            return adaptiveSimulcast;
+        }
+
+        /**
          * Gets a list of <tt>payload-type</tt> elements defined by XEP-0167:
          * Jingle RTP Sessions added to this <tt>channel</tt>.
          *
@@ -780,6 +781,20 @@ public class ColibriConferenceIQ
         public List<PayloadTypePacketExtension> getPayloadTypes()
         {
             return Collections.unmodifiableList(payloadTypes);
+        }
+
+        /**
+         * Gets the target quality of the simulcast substreams to be sent from
+         * Jitsi Videobridge to the endpoint associated with this video
+         * <tt>Channel</tt>.
+         *
+         * @return the target quality of the simulcast substreams to be sent
+         * from Jitsi Videobridge to the endpoint associated with this video
+         * <tt>Channel</tt>.
+         */
+        public Integer getReceivingSimulcastLayer()
+        {
+            return receivingSimulcastLayer;
         }
 
         /**
@@ -828,6 +843,21 @@ public class ColibriConferenceIQ
         }
 
         /**
+         * Gets the list of <tt>SourceGroupPacketExtensions</tt>s which
+         * represent the source groups of this channel.
+         *
+         * @return a <tt>List</tt> of <tt>SourceGroupPacketExtension</tt>s which
+         * represent the source groups of this channel
+         */
+        public synchronized List<SourceGroupPacketExtension> getSourceGroups()
+        {
+            return
+                (sourceGroups == null)
+                    ? null
+                    : new ArrayList<SourceGroupPacketExtension>(sourceGroups);
+        }
+
+        /**
          * Gets the list of <tt>SourcePacketExtensions</tt>s which represent the
          * sources of this channel.
          *
@@ -849,6 +879,112 @@ public class ColibriConferenceIQ
         public synchronized int[] getSSRCs()
         {
             return (ssrcs.length == 0) ? NO_SSRCS : ssrcs.clone();
+        }
+
+        @Override
+        protected boolean hasContent()
+        {
+            List<PayloadTypePacketExtension> payloadTypes = getPayloadTypes();
+
+            if (!payloadTypes.isEmpty())
+                return true;
+
+            List<SourceGroupPacketExtension> sourceGroups = getSourceGroups();
+            if (sourceGroups != null && !getSourceGroups().isEmpty())
+                return true;
+
+            List<SourcePacketExtension> sources = getSources();
+            if (!sources.isEmpty())
+                return true;
+
+            int[] ssrcs = getSSRCs();
+
+            return (ssrcs.length != 0);
+        }
+
+        @Override
+        protected void printAttributes(StringBuilder xml)
+        {
+            // direction
+            MediaDirection direction = getDirection();
+
+            if ((direction != null) && (direction != MediaDirection.SENDRECV))
+            {
+                xml.append(' ').append(DIRECTION_ATTR_NAME).append("='")
+                        .append(direction.toString()).append('\'');
+            }
+
+            // host
+            String host = getHost();
+
+            if (host != null)
+            {
+                xml.append(' ').append(HOST_ATTR_NAME).append("='").append(host)
+                        .append('\'');
+            }
+
+            // lastN
+            Integer lastN = getLastN();
+
+            if (lastN != null)
+            {
+                xml.append(' ').append(LAST_N_ATTR_NAME).append("='")
+                        .append(lastN).append('\'');
+            }
+
+            // rtcpPort
+            int rtcpPort = getRTCPPort();
+
+            if (rtcpPort > 0)
+            {
+                xml.append(' ').append(RTCP_PORT_ATTR_NAME).append("='")
+                        .append(rtcpPort).append('\'');
+            }
+
+            // rtpLevelRelayType
+            RTPLevelRelayType rtpLevelRelayType = getRTPLevelRelayType();
+
+            if (rtpLevelRelayType != null)
+            {
+                xml.append(' ').append(RTP_LEVEL_RELAY_TYPE_ATTR_NAME)
+                        .append("='").append(rtpLevelRelayType).append('\'');
+            }
+
+            // rtpPort
+            int rtpPort = getRTPPort();
+
+            if (rtpPort > 0)
+            {
+                xml.append(' ').append(RTP_PORT_ATTR_NAME).append("='")
+                        .append(rtpPort).append('\'');
+            }
+        }
+
+        @Override
+        protected void printContent(StringBuilder xml)
+        {
+            List<PayloadTypePacketExtension> payloadTypes = getPayloadTypes();
+            List<SourcePacketExtension> sources = getSources();
+            List<SourceGroupPacketExtension> souceGroups = getSourceGroups();
+            int[] ssrcs = getSSRCs();
+
+            for (PayloadTypePacketExtension payloadType : payloadTypes)
+                xml.append(payloadType.toXML());
+
+            for (SourcePacketExtension source : sources)
+                xml.append(source.toXML());
+
+            if (souceGroups != null && souceGroups.size() != 0)
+                for (SourceGroupPacketExtension sourceGroup : souceGroups)
+                    xml.append(sourceGroup.toXML());
+
+            for (int i = 0; i < ssrcs.length; i++)
+            {
+                xml.append('<').append(SSRC_ELEMENT_NAME).append('>')
+                    .append(Long.toString(ssrcs[i] & 0xFFFFFFFFL))
+                    .append("</").append(SSRC_ELEMENT_NAME)
+                    .append('>');
+            }
         }
 
         /**
@@ -957,16 +1093,6 @@ public class ColibriConferenceIQ
         }
 
         /**
-         * Sets the ID of the <tt>channel</tt> represented by this instance.
-         *
-         * @param id the ID of the <tt>channel</tt> represented by this instance
-         */
-        public void setID(String id)
-        {
-            this.id = id;
-        }
-
-        /**
          * Sets the maximum number of video RTP streams to be sent from Jitsi
          * Videobridge to the endpoint associated with this video
          * <tt>Channel</tt>.
@@ -978,6 +1104,38 @@ public class ColibriConferenceIQ
         public void setLastN(Integer lastN)
         {
             this.lastN = lastN;
+        }
+
+        /**
+         * Sets the value of the 'adaptive-last-n' flag.
+         * @param adaptiveLastN the value to set.
+         */
+        public void setAdaptiveLastN(Boolean adaptiveLastN)
+        {
+            this.adaptiveLastN = adaptiveLastN;
+        }
+
+        /**
+         * Sets the value of the 'adaptive-simulcast' flag.
+         * @param adaptiveSimulcast the value to set.
+         */
+        public void setAdaptiveSimulcast(Boolean adaptiveSimulcast)
+        {
+            this.adaptiveSimulcast = adaptiveSimulcast;
+        }
+
+        /**
+         * Sets the target quality of the simulcast substreams to be sent from
+         * Jitsi Videobridge to the endpoint associated with this video
+         * <tt>Channel</tt>.
+         *
+         * @param simulcastLayer the target quality of the simulcast substreams
+         * to be sent from Jitsi Videobridge to the endpoint associated with
+         * this video <tt>Channel</tt>.
+         */
+        public void setReceivingSimulcastLayer(Integer simulcastLayer)
+        {
+            this.receivingSimulcastLayer = simulcastLayer;
         }
 
         /**
@@ -1002,7 +1160,8 @@ public class ColibriConferenceIQ
          * section 2.3 &quot;Mixers and Translators&quot;) used for this
          * <tt>Channel</tt>.
          *
-         * @param s the type of RTP-level relay used for this <tt>Channel</tt>
+         * @param rtpLevelRelayType the type of RTP-level relay used for
+         * this <tt>Channel</tt>
          */
         public void setRTPLevelRelayType(RTPLevelRelayType rtpLevelRelayType)
         {
@@ -1055,26 +1214,394 @@ public class ColibriConferenceIQ
                     ? NO_SSRCS
                     : ssrcs.clone();
         }
+    }
 
-        @Override
-        protected void printAttributes(StringBuilder xml)
+    /**
+     * Represents a "channel-bundle" element.
+     */
+    public static class ChannelBundle
+    {
+        /**
+         * The name of the "channel-bundle" element.
+         */
+        public static final String ELEMENT_NAME = "channel-bundle";
+
+        /**
+         * The name of the "id" attribute.
+         */
+        public static final String ID_ATTR_NAME = "id";
+
+        /**
+         * The ID of this <tt>ChannelBundle</tt>.
+         */
+        private String id;
+
+        /**
+         * The transport element of this <tt>ChannelBundle</tt>.
+         */
+        private IceUdpTransportPacketExtension transport;
+
+        /**
+         * Initializes a new <tt>ChannelBundle</tt> with the given ID.
+         * @param id the ID.
+         */
+        public ChannelBundle(String id)
         {
-            // direction
-            MediaDirection direction = getDirection();
+            this.id = id;
+        }
 
-            if ((direction != null) && (direction != MediaDirection.SENDRECV))
+        /**
+         * Returns the ID of this <tt>ChannelBundle</tt>.
+         * @return  the ID of this <tt>ChannelBundle</tt>.
+         */
+        public String getId()
+        {
+            return id;
+        }
+
+        /**
+         * Returns the transport element of this <tt>ChannelBundle</tt>.
+         * @return  the transport element of this <tt>ChannelBundle</tt>.
+         */
+        public IceUdpTransportPacketExtension getTransport()
+        {
+            return transport;
+        }
+
+        /**
+         * Sets the ID of this <tt>ChannelBundle</tt>.
+         * @param id the ID to set.
+         */
+        public void setId(String id)
+        {
+            this.id = id;
+        }
+
+        /**
+         * Sets the transport element of this <tt>ChannelBundle</tt>.
+         * @param transport the transport to set.
+         */
+        public void setTransport(IceUdpTransportPacketExtension transport)
+        {
+            this.transport = transport;
+        }
+
+        /**
+         * Appends an XML representation of this <tt>ChannelBundle</tt> to
+         * <tt>xml</tt>.
+         * @param xml the <tt>StringBuilder</tt> to append to.
+         */
+        public void toXML(StringBuilder xml)
+        {
+            xml.append('<').append(ELEMENT_NAME).append(' ')
+                    .append(ID_ATTR_NAME).append("='").append(id).append('\'');
+
+            if (transport != null)
             {
-                xml.append(' ').append(DIRECTION_ATTR_NAME).append("='")
-                        .append(direction.toString()).append('\'');
+                xml.append('>');
+                xml.append(transport.toXML());
+                xml.append("</").append(ELEMENT_NAME).append('>');
+            }
+            else
+            {
+                xml.append(" />");
+            }
+        }
+    }
+
+    /**
+     * Class contains common code for both <tt>Channel</tt> and
+     * <tt>SctpConnection</tt> IQ classes.
+     *
+     * @author Pawel Domas
+     */
+    public static abstract class ChannelCommon
+    {
+        /**
+         * The name of the "channel-bundle-id" attribute.
+         */
+        public static final String CHANNEL_BUNDLE_ID_ATTR_NAME
+                = "channel-bundle-id";
+
+        /**
+         * The XML name of the <tt>endpoint</tt> attribute which specifies the
+         * optional identifier of the endpoint of the conference participant
+         * associated with a <tt>channel</tt>. The value of the
+         * <tt>endpoint</tt> attribute is an opaque <tt>String</tt> from the
+         * point of view of Jitsi Videobridge.
+         */
+        public static final String ENDPOINT_ATTR_NAME = "endpoint";
+
+        /**
+         * The XML name of the <tt>expire</tt> attribute of a <tt>channel</tt>
+         * of a <tt>content</tt> of a <tt>conference</tt> IQ which represents
+         * the value of the <tt>expire</tt> property of
+         * <tt>ColibriConferenceIQ.Channel</tt>.
+         */
+        public static final String EXPIRE_ATTR_NAME = "expire";
+
+        /**
+         * The value of the <tt>expire</tt> property of
+         * <tt>ColibriConferenceIQ.Channel</tt> which indicates that no actual
+         * value has been specified for the property in question.
+         */
+        public static final int EXPIRE_NOT_SPECIFIED = -1;
+
+        /**
+         * The XML name of the <tt>id</tt> attribute of a <tt>channel</tt> of a
+         * <tt>content</tt> of a <tt>conference</tt> IQ which represents the
+         * value of the <tt>id</tt> property of
+         * <tt>ColibriConferenceIQ.Channel</tt>.
+         */
+        public static final String ID_ATTR_NAME = "id";
+
+        /**
+         * The XML name of the <tt>initiator</tt> attribute of a
+         * <tt>channel</tt> of a <tt>content</tt> of a <tt>conference</tt> IQ
+         * which represents the value of the <tt>initiator</tt> property of
+         * <tt>ColibriConferenceIQ.Channel</tt>.
+         */
+        public static final String INITIATOR_ATTR_NAME = "initiator";
+
+        /**
+         * The channel-bundle-id attribute of this <tt>CommonChannel</tt>.
+         */
+        private String channelBundleId = null;
+
+        /**
+         * XML element name.
+         */
+        private String elementName;
+
+        /**
+         * The identifier of the endpoint of the conference participant
+         * associated with this <tt>Channel</tt>.
+         */
+        private String endpoint;
+
+        /**
+         * The number of seconds of inactivity after which the <tt>channel</tt>
+         * represented by this instance expires.
+         */
+        private int expire = EXPIRE_NOT_SPECIFIED;
+
+        /**
+         * The ID of the <tt>channel</tt> represented by this instance.
+         */
+        private String id;
+
+        /**
+         * The indicator which determines whether the conference focus is the
+         * initiator/offerer (as opposed to the responder/answerer) of the media
+         * negotiation associated with this instance.
+         */
+        private Boolean initiator;
+
+        private IceUdpTransportPacketExtension transport;
+
+        /**
+         * Initializes this class with given XML <tt>elementName</tt>.
+         * @param elementName XML element name to be used for producing XML
+         *                    representation of derived IQ class.
+         */
+        protected ChannelCommon(String elementName)
+        {
+            this.elementName = elementName;
+        }
+
+        /**
+         * Get the channel-bundle-id attribute of this <tt>CommonChannel</tt>.
+         * @return  the channel-bundle-id attribute of this
+         * <tt>CommonChannel</tt>.
+         */
+        public String getChannelBundleId()
+        {
+            return channelBundleId;
+        }
+
+        /**
+         * Gets the identifier of the endpoint of the conference participant
+         * associated with this <tt>Channel</tt>.
+         *
+         * @return the identifier of the endpoint of the conference participant
+         * associated with this <tt>Channel</tt>
+         */
+        public String getEndpoint()
+        {
+            return endpoint;
+        }
+
+        /**
+         * Gets the number of seconds of inactivity after which the
+         * <tt>channel</tt> represented by this instance expires.
+         *
+         * @return the number of seconds of inactivity after which the
+         * <tt>channel</tt> represented by this instance expires
+         */
+        public int getExpire()
+        {
+            return expire;
+        }
+
+        /**
+         * Gets the ID of the <tt>channel</tt> represented by this instance.
+         *
+         * @return the ID of the <tt>channel</tt> represented by this instance
+         */
+        public String getID()
+        {
+            return id;
+        }
+
+        public IceUdpTransportPacketExtension getTransport()
+        {
+            return transport;
+        }
+
+        /**
+         * Indicates whether there are some contents that should be printed as
+         * child elements of this IQ. If <tt>true</tt> is returned
+         * {@link #printContent(StringBuilder)} method will be called when
+         * XML representation of this IQ is being constructed.
+         * @return <tt>true</tt> if there are content to be printed as child
+         *         elements of this IQ or <tt>false</tt> otherwise.
+         */
+        protected abstract boolean hasContent();
+
+        /**
+         * Gets the indicator which determines whether the conference focus is
+         * the initiator/offerer (as opposed to the responder/answerer) of the
+         * media negotiation associated with this instance.
+         *
+         * @return {@link Boolean#TRUE} if the conference focus is the
+         * initiator/offerer of the media negotiation associated with this
+         * instance, {@link Boolean#FALSE} if the conference focus is the
+         * responder/answerer or <tt>null</tt> if the <tt>initiator</tt> state
+         * is unspecified
+         */
+        public Boolean isInitiator()
+        {
+            return initiator;
+        }
+
+        /**
+         * Derived class implements this method in order to print additional
+         * attributes to main XML element.
+         * @param xml <the <tt>StringBuilder</tt> to which the XML
+         *            <tt>String</tt> representation of this <tt>Channel</tt>
+         *            is to be appended</tt>
+         */
+        protected abstract void printAttributes(StringBuilder xml);
+
+        /**
+         * Implement in order to print content child elements of this IQ using
+         * given <tt>StringBuilder</tt>. Called during construction of XML
+         * representation if {@link #hasContent()} returns <tt>true</tt>.
+         *
+         * @param xml the <tt>StringBuilder</tt> to which the XML
+         *        <tt>String</tt> representation of this <tt>Channel</tt>
+         *        is to be appended</tt></tt>.
+         */
+        protected abstract void printContent(StringBuilder xml);
+
+        /**
+         * Sets the channel-bundle-id attribute of this <tt>CommonChannel</tt>.
+         * @param channelBundleId the value to set.
+         */
+        public void setChannelBundleId(String channelBundleId)
+        {
+            this.channelBundleId = channelBundleId;
+        }
+
+        /**
+         * Sets the identifier of the endpoint of the conference participant
+         * associated with this <tt>Channel</tt>.
+         *
+         * @param endpoint the identifier of the endpoint of the conference
+         * participant associated with this <tt>Channel</tt>
+         */
+        public void setEndpoint(String endpoint)
+        {
+            this.endpoint = endpoint;
+        }
+
+        /**
+         * Sets the number of seconds of inactivity after which the
+         * <tt>channel</tt> represented by this instance expires.
+         *
+         * @param expire the number of seconds of activity after which the
+         * <tt>channel</tt> represented by this instance expires
+         * @throws IllegalArgumentException if the value of the specified
+         * <tt>expire</tt> is other than {@link #EXPIRE_NOT_SPECIFIED} and
+         * negative
+         */
+        public void setExpire(int expire)
+        {
+            if ((expire != EXPIRE_NOT_SPECIFIED) && (expire < 0))
+                throw new IllegalArgumentException("expire");
+
+            this.expire = expire;
+        }
+
+        /*
+         * Sets the ID of the <tt>channel</tt> represented by this instance.
+         *
+         * @param id the ID of the <tt>channel</tt> represented by this instance
+         */
+        public void setID(String id)
+        {
+            this.id = id;
+        }
+
+        /**
+         * Sets the indicator which determines whether the conference focus is
+         * the initiator/offerer (as opposed to the responder/answerer) of the
+         * media negotiation associated with this instance.
+         *
+         * @param initiator {@link Boolean#TRUE} if the conference focus is the
+         * initiator/offerer of the media negotiation associated with this
+         * instance, {@link Boolean#FALSE} if the conference focus is the
+         * responder/answerer or <tt>null</tt> if the <tt>initiator</tt> state
+         * is to be unspecified
+         */
+        public void setInitiator(Boolean initiator)
+        {
+            this.initiator = initiator;
+        }
+
+        public void setTransport(IceUdpTransportPacketExtension transport)
+        {
+            this.transport = transport;
+        }
+
+        /**
+         * Appends the XML <tt>String</tt> representation of this
+         * <tt>Channel</tt> to a specific <tt>StringBuilder</tt>.
+         *
+         * @param xml the <tt>StringBuilder</tt> to which the XML
+         * <tt>String</tt> representation of this <tt>Channel</tt> is to be
+         * appended
+         */
+        public void toXML(StringBuilder xml)
+        {
+            xml.append('<').append(elementName);
+
+            // endpoint
+            String endpoint = getEndpoint();
+
+            if (endpoint != null)
+            {
+                xml.append(' ').append(ENDPOINT_ATTR_NAME).append("='")
+                    .append(endpoint).append('\'');
             }
 
-            // host
-            String host = getHost();
+            // expire
+            int expire = getExpire();
 
-            if (host != null)
+            if (expire >= 0)
             {
-                xml.append(' ').append(HOST_ATTR_NAME).append("='").append(host)
-                        .append('\'');
+                xml.append(' ').append(EXPIRE_ATTR_NAME).append("='")
+                    .append(expire).append('\'');
             }
 
             // id
@@ -1082,79 +1609,43 @@ public class ColibriConferenceIQ
 
             if (id != null)
             {
-                xml.append(' ').append(ID_ATTR_NAME).append("='").append(id)
-                        .append('\'');
+                xml.append(' ').append(ID_ATTR_NAME).append("='")
+                    .append(id).append('\'');
             }
 
-            // lastN
-            Integer lastN = getLastN();
+            // initiator
+            Boolean initiator = isInitiator();
 
-            if (lastN != null)
+            if (initiator != null)
             {
-                xml.append(' ').append(LAST_N_ATTR_NAME).append("='")
-                        .append(lastN).append('\'');
+                xml.append(' ').append(INITIATOR_ATTR_NAME).append("='")
+                    .append(initiator).append('\'');
             }
 
-            // rtcpPort
-            int rtcpPort = getRTCPPort();
-
-            if (rtcpPort > 0)
+            String channelBundleId = getChannelBundleId();
+            if (channelBundleId != null)
             {
-                xml.append(' ').append(RTCP_PORT_ATTR_NAME).append("='")
-                        .append(rtcpPort).append('\'');
+                xml.append(' ').append(CHANNEL_BUNDLE_ID_ATTR_NAME)
+                    .append("='").append(channelBundleId).append('\'');
             }
 
-            // rtpLevelRelayType
-            RTPLevelRelayType rtpLevelRelayType = getRTPLevelRelayType();
+            // Print derived class attributes
+            printAttributes(xml);
 
-            if (rtpLevelRelayType != null)
+            IceUdpTransportPacketExtension transport = getTransport();
+            boolean hasTransport = (transport != null);
+            if (hasTransport || hasContent())
             {
-                xml.append(' ').append(RTP_LEVEL_RELAY_TYPE_ATTR_NAME)
-                        .append("='").append(rtpLevelRelayType).append('\'');
+                xml.append('>');
+                if(hasContent())
+                    printContent(xml);
+                if (hasTransport)
+                    xml.append(transport.toXML());
+                xml.append("</").append(elementName).append('>');
             }
-
-            // rtpPort
-            int rtpPort = getRTPPort();
-
-            if (rtpPort > 0)
+            else
             {
-                xml.append(' ').append(RTP_PORT_ATTR_NAME).append("='")
-                        .append(rtpPort).append('\'');
-            }
-        }
-
-        @Override
-        protected boolean hasContent()
-        {
-            List<PayloadTypePacketExtension> payloadTypes = getPayloadTypes();
-            boolean hasPayloadTypes = !payloadTypes.isEmpty();
-            List<SourcePacketExtension> sources = getSources();
-            boolean hasSources = !sources.isEmpty();
-            int[] ssrcs = getSSRCs();
-            boolean hasSSRCs = (ssrcs.length != 0);
-
-            return hasPayloadTypes || hasSources || hasSSRCs;
-        }
-
-        @Override
-        protected void printContent(StringBuilder xml)
-        {
-            List<PayloadTypePacketExtension> payloadTypes = getPayloadTypes();
-            List<SourcePacketExtension> sources = getSources();
-            int[] ssrcs = getSSRCs();
-
-            for (PayloadTypePacketExtension payloadType : payloadTypes)
-                xml.append(payloadType.toXML());
-
-            for (SourcePacketExtension source : sources)
-                xml.append(source.toXML());
-
-            for (int i = 0; i < ssrcs.length; i++)
-            {
-                xml.append('<').append(SSRC_ELEMENT_NAME).append('>')
-                    .append(Long.toString(ssrcs[i] & 0xFFFFFFFFL))
-                    .append("</").append(SSRC_ELEMENT_NAME)
-                    .append('>');
+                xml.append(" />");
             }
         }
     }
@@ -1185,16 +1676,16 @@ public class ColibriConferenceIQ
         private final List<Channel> channels = new LinkedList<Channel>();
 
         /**
+         * The name of the <tt>content</tt> represented by this instance.
+         */
+        private String name;
+
+        /**
          * The list of {@link SctpConnection}s included into this
          * <tt>content</tt> of a <tt>conference</tt> IQ.
          */
         private final List<SctpConnection> sctpConnections
             = new LinkedList<SctpConnection>();
-
-        /**
-         * The name of the <tt>content</tt> represented by this instance.
-         */
-        private String name;
 
         /**
          * Initializes a new <tt>Content</tt> instance without a name and
@@ -1236,6 +1727,26 @@ public class ColibriConferenceIQ
         }
 
         /**
+         * Adds a specific <tt>SctpConnection</tt> to the list of
+         * <tt>SctpConnection</tt>s included into this <tt>Content</tt>.
+         *
+         * @param conn the <tt>SctpConnection</tt> to be included into this
+         * <tt>Content</tt>
+         * @return <tt>true</tt> if the list of <tt>SctpConnection</tt>s
+         * included into this <tt>Content</tt> was modified as a result of
+         * the execution of the method; otherwise, <tt>false</tt>
+         * @throws NullPointerException if the specified <tt>conn</tt> is
+         * <tt>null</tt>
+         */
+        public boolean addSctpConnection(SctpConnection conn)
+        {
+            if(conn == null)
+                throw new NullPointerException("Sctp connection");
+
+            return !sctpConnections.contains(conn) && sctpConnections.add(conn);
+        }
+
+        /**
          * Gets the <tt>Channel</tt> at a specific index/position within the
          * list of <tt>Channel</tt>s included in this <tt>Content</tt>.
          *
@@ -1264,8 +1775,25 @@ public class ColibriConferenceIQ
         public Channel getChannel(String channelID)
         {
             for (Channel channel : getChannels())
+            {
                 if (channelID.equals(channel.getID()))
                     return channel;
+            }
+            return null;
+        }
+
+        /**
+         * Finds an SCTP connection identified by given <tt>connectionID</tt>.
+         * @param connectionID the ID of the SCTP connection to find.
+         * @return <tt>SctpConnection</tt> instance identified by given ID
+         *         or <tt>null</tt> if no such connection is contained in
+         *         this IQ.
+         */
+        public SctpConnection getSctpConnection(String connectionID)
+        {
+            for (SctpConnection conn : getSctpConnections())
+                if (connectionID.equals(conn.getID()))
+                    return conn;
             return null;
         }
 
@@ -1294,23 +1822,13 @@ public class ColibriConferenceIQ
         }
 
         /**
-         * Adds a specific <tt>SctpConnection</tt> to the list of
-         * <tt>SctpConnection</tt>s included into this <tt>Content</tt>.
+         * Gets the name of the <tt>content</tt> represented by this instance.
          *
-         * @param conn the <tt>SctpConnection</tt> to be included into this
-         * <tt>Content</tt>
-         * @return <tt>true</tt> if the list of <tt>SctpConnection</tt>s
-         * included into this <tt>Content</tt> was modified as a result of
-         * the execution of the method; otherwise, <tt>false</tt>
-         * @throws NullPointerException if the specified <tt>conn</tt> is
-         * <tt>null</tt>
+         * @return the name of the <tt>content</tt> represented by this instance
          */
-        public boolean addSctpConnection(SctpConnection conn)
+        public String getName()
         {
-            if(conn == null)
-                throw new NullPointerException("Sctp connection");
-
-            return !sctpConnections.contains(conn) && sctpConnections.add(conn);
+            return name;
         }
 
         /**
@@ -1323,16 +1841,6 @@ public class ColibriConferenceIQ
         public List<SctpConnection> getSctpConnections()
         {
             return Collections.unmodifiableList(sctpConnections);
-        }
-
-        /**
-         * Gets the name of the <tt>content</tt> represented by this instance.
-         *
-         * @return the name of the <tt>content</tt> represented by this instance
-         */
-        public String getName()
-        {
-            return name;
         }
 
         /**
@@ -1397,6 +1905,226 @@ public class ColibriConferenceIQ
                 xml.append("</").append(ELEMENT_NAME).append('>');
             }
         }
+
+        /**
+         * Removes given SCTP connection from this IQ.
+         * @param connection the SCTP connection instance to be removed.
+         * @return <tt>true</tt> if given <tt>connection</tt> was contained in
+         *         this IQ and has been removed successfully.
+         */
+        public boolean removeSctpConnection(SctpConnection connection)
+        {
+            return sctpConnections.remove(connection);
+        }
+    }
+
+    /**
+     * Represents an 'endpoint' element.
+     */
+    public static class Endpoint
+    {
+        /**
+         * The name of the 'displayname' attribute.
+         */
+        public static final String DISPLAYNAME_ATTR_NAME = "displayname";
+
+        /**
+         * The name of the 'endpoint' element.
+         */
+        public static final String ELEMENT_NAME = "endpoint";
+
+        /**
+         * The name of the 'id' attribute.
+         */
+        public static final String ID_ATTR_NAME = "id";
+
+        /**
+         * The 'display name' of this <tt>Endpoint</tt>.
+         */
+        private String displayName;
+
+        /**
+         * The 'id' of this <tt>Endpoint</tt>.
+         */
+        private String id;
+
+        /**
+         * Initializes a new <tt>Endpoint</tt> with the given ID and display
+         * name.
+         * @param id the ID.
+         * @param displayName the display name.
+         */
+        public Endpoint(String id, String displayName)
+        {
+            this.id = id;
+            this.displayName = displayName;
+        }
+
+        /**
+         * Returns the display name of this <tt>Endpoint</tt>.
+         * @return the display name of this <tt>Endpoint</tt>.
+         */
+        public String getDisplayName()
+        {
+            return displayName;
+        }
+
+        /**
+         * Returns the ID of this <tt>Endpoint</tt>.
+         * @return the ID of this <tt>Endpoint</tt>.
+         */
+        public String getId()
+        {
+            return id;
+        }
+
+        /**
+         * Sets the display name of this <tt>Endpoint</tt>.
+         * @param displayName the display name to set.
+         */
+        public void setDisplayName(String displayName)
+        {
+            this.displayName = displayName;
+        }
+
+        /**
+         * Sets the ID of this <tt>Endpoint</tt>.
+         * @param id the ID to set.
+         */
+        public void setId(String id)
+        {
+            this.id = id;
+        }
+    }
+
+    /**
+     * Represents a <tt>recording</tt> element.
+     */
+    public static class Recording
+    {
+        /**
+         * The XML name of the <tt>recording</tt> element.
+         */
+        public static final String ELEMENT_NAME = "recording";
+
+        /**
+         * The XML name of the <tt>path</tt> attribute.
+         */
+        public static final String DIRECTORY_ATTR_NAME = "directory";
+
+        /**
+         * The XML name of the <tt>state</tt> attribute.
+         */
+        public static final String STATE_ATTR_NAME = "state";
+
+        /**
+         * The XML name of the <tt>token</tt> attribute.
+         */
+        public static final String TOKEN_ATTR_NAME = "token";
+
+        private String directory;
+
+        private boolean state;
+
+        private String token;
+
+        public Recording(boolean state)
+        {
+            this.state = state;
+        }
+
+        public Recording(boolean state, String token)
+        {
+            this(state);
+
+            this.token = token;
+        }
+
+        public String getDirectory()
+        {
+            return directory;
+        }
+
+        public boolean getState()
+        {
+            return state;
+        }
+
+        public String getToken()
+        {
+            return token;
+        }
+
+        public void setToken(String token)
+        {
+            this.token = token;
+        }
+
+        public void setDirectory(String directory)
+        {
+            this.directory = directory;
+        }
+
+        public void toXML(StringBuilder xml)
+        {
+            xml.append('<').append(ELEMENT_NAME);
+            xml.append(' ').append(STATE_ATTR_NAME).append("='")
+                    .append(state).append('\'');
+            if (token != null)
+            {
+                xml.append(' ').append(TOKEN_ATTR_NAME).append("='")
+                        .append(token).append('\'');
+            }
+            if (directory != null)
+            {
+                xml.append(' ').append(DIRECTORY_ATTR_NAME).append("='")
+                        .append(directory).append('\'');
+            }
+            xml.append("/>");
+        }
+    }
+
+    /**
+     * Packet extension indicating graceful shutdown in progress status.
+     */
+    public static class GracefulShutdown
+        extends AbstractPacketExtension
+    {
+        public static final String ELEMENT_NAME = "graceful-shutdown";
+
+        public static final String NAMESPACE = ColibriConferenceIQ.NAMESPACE;
+
+        public GracefulShutdown()
+        {
+            super(ColibriConferenceIQ.NAMESPACE, ELEMENT_NAME);
+        }
+    }
+
+    public static class RTCPTerminationStrategy
+    {
+        public static final String ELEMENT_NAME = "rtcp-termination-strategy";
+
+        public static final String NAME_ATTR_NAME = "name";
+
+        private String name;
+
+        public String getName()
+        {
+            return name;
+        }
+
+        public void setName(String name)
+        {
+            this.name = name;
+        }
+
+        public void toXML(StringBuilder xml)
+        {
+            xml.append('<').append(ELEMENT_NAME);
+            xml.append(' ').append(NAME_ATTR_NAME).append("='")
+                    .append(name).append('\'');
+            xml.append("/>");
+        }
     }
 
     /**
@@ -1449,15 +2177,14 @@ public class ColibriConferenceIQ
         }
 
         /**
-         * Sets the SCTP port of the <tt>SctpConnection</tt> represented by this
-         * instance.
+         * {@inheritDoc}
          *
-         * @param port the SCTP port of the <tt>SctpConnection</tt>
-         *             represented by this instance
+         * No content other than transport for <tt>SctpConnection</tt>.
          */
-        public void setPort(int port)
+        @Override
+        protected boolean hasContent()
         {
-            this.port = port;
+            return false;
         }
 
         /**
@@ -1470,21 +2197,22 @@ public class ColibriConferenceIQ
                 .append(getPort()).append('\'');
         }
 
-        /**
-         * {@inheritDoc}
-         *
-         * No content other than transport for <tt>SctpConnection</tt>.
-         */
-        @Override
-        protected boolean hasContent()
-        {
-            return false;
-        }
-
         @Override
         protected void printContent(StringBuilder xml)
         {
             // No other content than the transport shared from ChannelCommon
+        }
+
+        /**
+         * Sets the SCTP port of the <tt>SctpConnection</tt> represented by this
+         * instance.
+         *
+         * @param port the SCTP port of the <tt>SctpConnection</tt>
+         *             represented by this instance
+         */
+        public void setPort(int port)
+        {
+            this.port = port;
         }
     }
 }

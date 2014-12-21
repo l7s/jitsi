@@ -49,6 +49,12 @@ public class AccountStatusPanel
         AccountStatusPanel.class.getName() +  "OpaquePanelUI";
 
     /**
+     * Property name to disable the avatar change menu.
+     */
+    private static final String PNAME_DISABLE_AVATAR_MENU
+        = "net.java.sip.communicator.gui.DISABLE_AVATAR_MENU";
+
+    /**
      * Adds the ui class to UIDefaults.
      */
     static
@@ -60,12 +66,12 @@ public class AccountStatusPanel
     /**
      * The desired height of the avatar.
      */
-    private static final int AVATAR_ICON_HEIGHT = 40;
+    private static final int AVATAR_ICON_HEIGHT = 50;
 
     /**
      * The desired width of the avatar.
      */
-    private static final int AVATAR_ICON_WIDTH = 40;
+    private static final int AVATAR_ICON_WIDTH = 50;
 
     /**
      * The image object storing the avatar.
@@ -126,6 +132,18 @@ public class AccountStatusPanel
     private final PluginContainer mainToolbarPluginContainer;
 
     /**
+     * When setting global status message, the message will be displayed in this
+     * label.
+     */
+    private final JLabel statusMessageLabel = new JLabel();
+
+    /**
+     * This is the panel that contains display name, status message, status
+     * selector box and plugins.
+     */
+    private final TransparentPanel rightPanel = new TransparentPanel();
+
+    /**
      * Creates an instance of <tt>AccountStatusPanel</tt> by specifying the
      * main window, where this panel is added.
      */
@@ -140,7 +158,12 @@ public class AccountStatusPanel
                                 .getImage(ImageLoader.DEFAULT_USER_PHOTO)),
                     AVATAR_ICON_WIDTH,
                     AVATAR_ICON_HEIGHT);
-        imageWithMenu.setPopupMenu(new SelectAvatarMenu(imageWithMenu));
+        if (!GuiActivator.getConfigurationService().getBoolean(
+            PNAME_DISABLE_AVATAR_MENU, false))
+        {
+            imageWithMenu.setPopupMenu(new SelectAvatarMenu(imageWithMenu));
+        }
+
         this.accountImageLabel = imageWithMenu;
 
         accountNameLabel.setFont(
@@ -148,7 +171,7 @@ public class AccountStatusPanel
         accountNameLabel.setOpaque(true);
         accountNameLabel.setBackground(new Color(222,236,245) );
 
-        statusComboBox = new GlobalStatusSelectorBox();
+        statusComboBox = new GlobalStatusSelectorBox(this);
         // Align status combo box with account name field.
         statusComboBox.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
@@ -167,7 +190,11 @@ public class AccountStatusPanel
 
         statusToolsPanel.add(toolbarPluginPanel, BorderLayout.EAST);
 
-        TransparentPanel rightPanel = new TransparentPanel();
+        statusMessageLabel.setFont(
+            statusMessageLabel.getFont().deriveFont(9f));
+        statusMessageLabel.setForeground(Color.GRAY);
+
+
         rightPanel.setLayout(new BorderLayout(0, 0));
         
         upperPanel = new TransparentPanel();
@@ -205,6 +232,24 @@ public class AccountStatusPanel
 
             if(!StringUtils.isNullOrEmpty(globalDisplayName))
                 accountNameLabel.setText(globalDisplayName);
+        }
+    }
+
+    /**
+     * Updates status message.
+     * @param text
+     */
+    void setStatusMessage(String text)
+    {
+        if(text == null)
+        {
+            statusMessageLabel.setText("");
+            rightPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        }
+        else
+        {
+            rightPanel.setBorder(null);
+            statusMessageLabel.setText(text);
         }
     }
 

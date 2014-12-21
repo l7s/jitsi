@@ -48,36 +48,26 @@ public class ArgDelegationPeerImpl
      */
     public ArgDelegationPeerImpl(BundleContext bundleContext)
     {
-        ServiceReference[] uriHandlerRefs;
+        Collection<ServiceReference<UriHandler>> uriHandlerRefs
+            = ServiceUtils.getServiceReferences(
+                    bundleContext,
+                    UriHandler.class);
 
-        try
+        if (!uriHandlerRefs.isEmpty())
         {
-            uriHandlerRefs = bundleContext.getServiceReferences(
-                                UriHandler.class.getName(), null);
-        }
-        catch (InvalidSyntaxException exc)
-        {
-            // this shouldn't happen because we aren't using a filter
-            // but let's log just the same.
-            if (logger.isInfoEnabled())
-                logger.info("An error occurred while retrieving UriHandlers", exc);
-            return;
-        }
-
-        if(uriHandlerRefs == null)
-        {
-            //none URI handlers are registered at this point. Some might
-            //come later.
-            return;
-        }
-
-        synchronized (uriHandlers)
-        {
-            for (ServiceReference uriHandlerRef : uriHandlerRefs)
+            synchronized (uriHandlers)
             {
-                UriHandler uriHandler = (UriHandler) bundleContext
-                                .getService(uriHandlerRef);
-                uriHandlers.put(uriHandler.getProtocol(), uriHandler);
+                for (ServiceReference<UriHandler> uriHandlerRef
+                        : uriHandlerRefs)
+                {
+                    UriHandler uriHandler
+                        = bundleContext.getService(uriHandlerRef);
+
+                    for (String protocol : uriHandler.getProtocol())
+                    {
+                        uriHandlers.put(protocol, uriHandler);
+                    }
+                }
             }
         }
     }
@@ -117,14 +107,19 @@ public class ArgDelegationPeerImpl
             {
             case ServiceEvent.MODIFIED:
             case ServiceEvent.REGISTERED:
-                uriHandlers.put(uriHandler.getProtocol(), uriHandler);
+                for (String protocol : uriHandler.getProtocol())
+                {
+                    uriHandlers.put(protocol, uriHandler);
+                }
                 break;
 
             case ServiceEvent.UNREGISTERING:
-                String protocol = uriHandler.getProtocol();
+                for (String protocol : uriHandler.getProtocol())
+                {
+                    if(uriHandlers.get(protocol) == uriHandler)
+                        uriHandlers.remove(protocol);
+                }
 
-                if(uriHandlers.get(protocol) == uriHandler)
-                    uriHandlers.remove(protocol);
                 break;
             }
         }
@@ -153,7 +148,7 @@ public class ArgDelegationPeerImpl
             ArgDelegationActivator.getUIService().getPopupDialog()
                 .showMessagePopupDialog(
                         "Could not determine how to handle: " + uriArg
-                        + ".\nNo protocol scheme found.",
+                            + ".\nNo protocol scheme found.",
                         "Error handling URI",
                         PopupDialog.ERROR_MESSAGE);
             return;
@@ -174,9 +169,9 @@ public class ArgDelegationPeerImpl
                          + "No handler found for protocol"+ scheme);
             ArgDelegationActivator.getUIService().getPopupDialog()
                 .showMessagePopupDialog(
-                     "\"" + scheme + "\" URIs are currently not supported.",
-                     "Error handling URI",
-                     PopupDialog.ERROR_MESSAGE);
+                        "\"" + scheme + "\" URIs are currently not supported.",
+                        "Error handling URI",
+                        PopupDialog.ERROR_MESSAGE);
             return;
         }
 
@@ -194,9 +189,9 @@ public class ArgDelegationPeerImpl
 
             ArgDelegationActivator.getUIService().getPopupDialog()
                 .showMessagePopupDialog(
-                    "Error handling " + uriArg,
-                 "Error handling URI",
-                 PopupDialog.ERROR_MESSAGE);
+                        "Error handling " + uriArg,
+                        "Error handling URI",
+                        PopupDialog.ERROR_MESSAGE);
             logger.error("Failed to handle \""+ uriArg +"\"", thr);
         }
     }
@@ -213,3 +208,4 @@ public class ArgDelegationPeerImpl
         ArgDelegationActivator.getUIService().setVisible(true);
     }
 }
+

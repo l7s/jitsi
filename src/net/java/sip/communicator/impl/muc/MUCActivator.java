@@ -31,13 +31,6 @@ public class MUCActivator
     implements  BundleActivator
 {
     /**
-     * The <tt>Logger</tt> used by the
-     * <tt>MUCActivator</tt> class for logging output.
-     */
-    private static final Logger logger
-        = Logger.getLogger(MUCActivator.class);
-
-    /**
      * The configuration property to disable
      */
     private static final String DISABLED_PROPERTY
@@ -282,38 +275,25 @@ public class MUCActivator
         protocolProviderRegListener = new ProtocolProviderRegListener();
         bundleContext.addServiceListener(protocolProviderRegListener);
 
-        ServiceReference[] serRefs = null;
-        try
-        {
-            // get all registered provider factories
-            serRefs
-                = bundleContext.getServiceReferences(
-                        ProtocolProviderFactory.class.getName(),
-                        null);
-        }
-        catch (InvalidSyntaxException e)
-        {
-            logger.error("LoginManager : " + e);
-        }
+        Collection<ServiceReference<ProtocolProviderFactory>> serRefs
+            = ServiceUtils.getServiceReferences(
+                    bundleContext,
+                    ProtocolProviderFactory.class);
 
-        if (serRefs != null)
+        if (!serRefs.isEmpty())
         {
-            for (ServiceReference serRef : serRefs)
+            for (ServiceReference<ProtocolProviderFactory> ppfSerRef : serRefs)
             {
                 ProtocolProviderFactory providerFactory
-                    = (ProtocolProviderFactory)
-                        bundleContext.getService(serRef);
-
-                ProtocolProviderService protocolProvider;
+                    = bundleContext.getService(ppfSerRef);
 
                 for (AccountID accountID
                         : providerFactory.getRegisteredAccounts())
                 {
-                    serRef = providerFactory.getProviderForAccount(accountID);
-
-                    protocolProvider
-                        = (ProtocolProviderService) bundleContext
-                            .getService(serRef);
+                    ServiceReference<ProtocolProviderService> ppsSerRef
+                        = providerFactory.getProviderForAccount(accountID);
+                    ProtocolProviderService protocolProvider
+                        = bundleContext.getService(ppsSerRef);
 
                     handleProviderAdded(protocolProvider);
                 }
@@ -333,7 +313,7 @@ public class MUCActivator
          */
         public void serviceChanged(ServiceEvent event)
         {
-            ServiceReference serviceRef = event.getServiceReference();
+            ServiceReference<?> serviceRef = event.getServiceReference();
 
             // if the event is caused by a bundle being stopped, we don't want to
             // know
