@@ -689,7 +689,13 @@ public class ReconnectPluginActivator
         {
             ProtocolProviderService pp = (ProtocolProviderService)evt.getSource();
 
-            if(evt.getNewState().equals(RegistrationState.CONNECTION_FAILED))
+            boolean isServerReturnedErroneousInputEvent =
+                evt.getNewState().equals(RegistrationState.CONNECTION_FAILED)
+                && evt.getReasonCode() == RegistrationStateChangeEvent
+                    .REASON_SERVER_RETURNED_ERRONEOUS_INPUT;
+
+            if(evt.getNewState().equals(RegistrationState.CONNECTION_FAILED)
+                && !isServerReturnedErroneousInputEvent)
             {
                 if(!hasAtLeastOneSuccessfulConnection(pp))
                 {
@@ -773,9 +779,14 @@ public class ReconnectPluginActivator
                     traceCurrentPPState();
                 }
             }
-            else if(evt.getNewState().equals(RegistrationState.UNREGISTERED))
+            else if(evt.getNewState().equals(RegistrationState.UNREGISTERED)
+                    || isServerReturnedErroneousInputEvent)
             {
-                autoReconnEnabledProviders.remove(pp);
+                // Removes from list of autoreconnect only if the unregister
+                // event is by user request
+                if(evt.isUserRequest()
+                    || isServerReturnedErroneousInputEvent)
+                    autoReconnEnabledProviders.remove(pp);
 
                 if(!unregisteringProviders.contains(pp)
                     && currentlyReconnecting.containsKey(pp))
@@ -787,6 +798,22 @@ public class ReconnectPluginActivator
                 if(logger.isTraceEnabled())
                 {
                     logger.trace("Got Unregistered for " + pp);
+
+                    if(!currentlyReconnecting.containsKey(pp)
+                        && !needsReconnection.contains(pp)
+                        && logger.isTraceEnabled())
+                    {
+                        // provider is not present in any collection
+                        // it will be no longer reconnected, maybe user request
+                        // to unregister lets trace check
+                        logger.trace(
+                            "Provider is unregistered and will not " +
+                            "be reconnected (maybe on user request): " + pp
+                            + " / reason:" + evt.getReason()
+                            + " / reasonCode:" + evt.getReasonCode()
+                            + " / oldState:" + evt.getOldState(),
+                            new Exception("Trace exception."));
+                    }
                     traceCurrentPPState();
                 }
             }

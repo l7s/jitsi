@@ -40,8 +40,8 @@ public abstract class AbstractPacketExtension
     /**
      * A map of all attributes that this extension is currently using.
      */
-    protected final Map<String, String> attributes
-                                    = new LinkedHashMap<String, String>();
+    protected final Map<String, Object> attributes
+        = new LinkedHashMap<String, Object>();
     
     /**
      * A list of all packets that are wrapped by this extension.
@@ -121,7 +121,7 @@ public abstract class AbstractPacketExtension
             bldr.append("xmlns='").append(namespace).append("'");
 
         //add the rest of the attributes if any
-        for(Map.Entry<String, String> entry : attributes.entrySet())
+        for(Map.Entry<String, Object> entry : attributes.entrySet())
         {
             bldr.append(" ").append(entry.getKey()).append("='")
                     .append(entry.getValue()).append("'");
@@ -235,7 +235,7 @@ public abstract class AbstractPacketExtension
         synchronized(attributes)
         {
             if(value != null)
-                this.attributes.put(name, value.toString());
+                this.attributes.put(name, value);
             else
                 this.attributes.remove(name);
         }
@@ -468,5 +468,45 @@ public abstract class AbstractPacketExtension
         }
 
         return result;
+    }
+
+    /**
+     * Clones the attributes, namespace and text of a specific
+     * <tt>AbstractPacketExtension</tt> into a new
+     * <tt>AbstractPacketExtension</tt> instance of the same run-time type.
+     *
+     * @param src the <tt>AbstractPacketExtension</tt> to be cloned
+     * @return a new <tt>AbstractPacketExtension</tt> instance of the run-time
+     * type of the specified <tt>src</tt> which has the same attributes,
+     * namespace and text
+     * @throws Exception if an error occurs during the cloning of the specified
+     * <tt>src</tt>
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends AbstractPacketExtension> T clone(T src)
+    {
+        T dst = null;
+        try
+        {
+            dst = (T) src.getClass().newInstance();
+        }
+        catch (InstantiationException e)
+        {
+            throw new RuntimeException(e);
+        }
+        catch (IllegalAccessException e)
+        {
+            throw new RuntimeException(e);
+        }
+
+        // attributes
+        for (String name : src.getAttributeNames())
+            dst.setAttribute(name, src.getAttribute(name));
+        // namespace
+        dst.setNamespace(src.getNamespace());
+        // text
+        dst.setText(src.getText());
+
+        return dst;
     }
 }

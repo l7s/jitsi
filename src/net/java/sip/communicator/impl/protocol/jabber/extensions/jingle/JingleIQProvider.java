@@ -8,6 +8,7 @@ package net.java.sip.communicator.impl.protocol.jabber.extensions.jingle;
 
 import net.java.sip.communicator.impl.protocol.jabber.extensions.*;
 
+import net.java.sip.communicator.impl.protocol.jabber.extensions.jitsimeet.*;
 import org.jivesoftware.smack.provider.*;
 import org.xmlpull.v1.*;
 
@@ -77,6 +78,20 @@ public class JingleIQProvider implements IQProvider
             RtpDescriptionPacketExtension.NAMESPACE,
             new DefaultPacketExtensionProvider
                 <CryptoPacketExtension>(CryptoPacketExtension.class));
+
+        // <bundle/> provider
+        providerManager.addExtensionProvider(
+            BundlePacketExtension.ELEMENT_NAME,
+            BundlePacketExtension.NAMESPACE,
+            new DefaultPacketExtensionProvider
+                <BundlePacketExtension>(BundlePacketExtension.class));
+
+        // <group/> provider
+        providerManager.addExtensionProvider(
+            GroupPacketExtension.ELEMENT_NAME,
+            GroupPacketExtension.NAMESPACE,
+            new DefaultPacketExtensionProvider
+                <GroupPacketExtension>(GroupPacketExtension.class));
 
         //ice-udp transport
         providerManager.addExtensionProvider(
@@ -156,6 +171,20 @@ public class JingleIQProvider implements IQProvider
                 ConferenceDescriptionPacketExtension.NAMESPACE,
                 new DefaultPacketExtensionProvider<CallIdPacketExtension>(
                         CallIdPacketExtension.class));
+
+        //rtcp-fb
+        providerManager.addExtensionProvider(
+            RtcpFbPacketExtension.ELEMENT_NAME,
+            RtcpFbPacketExtension.NAMESPACE,
+            new DefaultPacketExtensionProvider<RtcpFbPacketExtension>(
+                RtcpFbPacketExtension.class));
+
+        //rtcp-mux
+        providerManager.addExtensionProvider(
+                RtcpmuxPacketExtension.ELEMENT_NAME,
+                IceUdpTransportPacketExtension.NAMESPACE,
+                new DefaultPacketExtensionProvider<RtcpmuxPacketExtension>(
+                        RtcpmuxPacketExtension.class));
     }
 
     /**

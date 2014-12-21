@@ -14,6 +14,7 @@ import net.java.sip.communicator.service.protocol.event.*;
 import net.java.sip.communicator.util.*;
 
 import org.jitsi.service.neomedia.*;
+import org.jitsi.service.neomedia.recording.*;
 
 /**
  * Represents a default implementation of <tt>OperationSetBasicTelephony</tt> in
@@ -170,6 +171,11 @@ public abstract class AbstractOperationSetBasicTelephony
 
         for (CallListener listener : listeners)
         {
+            if (logger.isDebugEnabled())
+                logger.debug(
+                    "Dispatching a CallEvent to "
+                        + listener.getClass() + " . The event is: "+ event);
+
             switch (eventID)
             {
             case CallEvent.CALL_INITIATED:

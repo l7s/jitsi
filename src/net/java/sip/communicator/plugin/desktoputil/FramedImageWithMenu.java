@@ -51,7 +51,6 @@ public class FramedImageWithMenu
 
     /**
      * Creates the component.
-     * @param mainFrame the parent frame.
      * @param imageIcon the image icon to show as default one.
      * @param width width of component.
      * @param height height of component.
@@ -199,6 +198,11 @@ public class FramedImageWithMenu
 
     public void mouseEntered(MouseEvent e)
     {
+        if (this.popupMenu == null)
+        {
+            return;
+        }
+
         if (this.drawOverlay || !this.isEnabled())
             return;
 
@@ -214,6 +218,11 @@ public class FramedImageWithMenu
 
     public void mouseExited(MouseEvent e)
     {
+        if (this.popupMenu == null)
+        {
+            return;
+        }
+
         // Remove overlay only if the dialog isn't visible
         if (!popupMenu.isVisible() && this.isEnabled())
         {
@@ -224,6 +233,11 @@ public class FramedImageWithMenu
 
     public void mouseReleased(MouseEvent e)
     {
+        if (this.popupMenu == null)
+        {
+            return;
+        }
+
         if (this.isEnabled())
             showDialog(e, !popupMenu.isVisible());
     }

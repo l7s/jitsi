@@ -241,26 +241,16 @@ public class ChatRoomTableDialog
             public void keyReleased(KeyEvent e)
             {
                 updateOKButtonEnableState();
+                if (e.getKeyCode() == KeyEvent.VK_ENTER && okButton.isEnabled())
+                {
+                    okButton.doClick();
+                }
             }
         };
         // when we are typing we clear any selection in the available and saved
         // rooms
         chatRoomNameField.addKeyListener(keyListener);
         nicknameField.addKeyListener(keyListener);
-
-        chatRoomNameField.addKeyListener(new KeyListener() {
-
-            public void keyTyped(KeyEvent e)
-            {}
-
-            public void keyPressed(KeyEvent e)
-            {}
-
-            public void keyReleased(KeyEvent e)
-            {
-                updateOKButtonEnableState();
-            }
-        });
 
         providersCombo.addItemListener(new ItemListener()
         {
@@ -405,6 +395,14 @@ public class ChatRoomTableDialog
                         false,
                         false,
                         false);
+
+                if (chatRoomWrapper == null)
+                {
+                    // In case the protocol failed to create a chat room, null
+                    // is returned, so we can stop preparing the UI to open the
+                    // (null) chat room.
+                    return;
+                }
 
                 if(!chatRoomWrapper.isPersistent())
                 {

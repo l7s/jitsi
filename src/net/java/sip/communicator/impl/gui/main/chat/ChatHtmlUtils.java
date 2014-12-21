@@ -5,6 +5,7 @@
  */
 package net.java.sip.communicator.impl.gui.main.chat;
 
+import java.io.*;
 import java.text.*;
 import java.util.*;
 
@@ -13,6 +14,8 @@ import javax.swing.text.html.HTML.Tag;
 import net.java.sip.communicator.impl.gui.*;
 import net.java.sip.communicator.service.history.*;
 import net.java.sip.communicator.util.*;
+
+import org.apache.commons.lang3.*;
 
 /**
  *
@@ -45,16 +48,6 @@ public class ChatHtmlUtils
      * The message identifier attribute.
      */
     public final static String MESSAGE_TEXT_ID = "message";
-
-    /**
-     * The closing tag of the <code>PLAINTEXT</code> HTML element.
-     */
-    public static final String END_PLAINTEXT_TAG = "</PLAINTEXT>";
-
-    /**
-     * The opening tag of the <code>PLAINTEXT</code> HTML element.
-     */
-    public static final String START_PLAINTEXT_TAG = "<PLAINTEXT>";
 
     /**
      * The html text content type.
@@ -240,8 +233,8 @@ public class ChatHtmlUtils
 
         SimpleDateFormat sdf = new SimpleDateFormat(HistoryService.DATE_FORMAT);
         headerBuffer.append("<h2 id=\"").append(MESSAGE_HEADER_ID).append("\" ");
-        headerBuffer.append(DATE_ATTRIBUTE).append("='")
-            .append(sdf.format(date)).append("'>");
+        headerBuffer.append(DATE_ATTRIBUTE).append("=\"")
+            .append(sdf.format(date)).append("\">");
         headerBuffer.append("<a style=\"color:");
         headerBuffer.append(MSG_IN_NAME_FOREGROUND).append(";");
         headerBuffer.append("font-weight:bold;");
@@ -252,12 +245,12 @@ public class ChatHtmlUtils
         headerBuffer.append("</a>");
         headerBuffer.append("</h2>");
 
-        StringBuffer messageBuff = new StringBuffer();
+        final StringBuilder messageBuff = new StringBuilder();
 
         messageBuff.append("<table width=\"100%\" ");
         messageBuff.append(NAME_ATTRIBUTE).append("=\"")
             .append(Tag.TABLE.toString())
-            .append("\" id=\"messageHeader\"");
+            .append("\" id=\"messageHeader\" ");
         messageBuff.append("style=\"background-color:");
         messageBuff.append(MSG_NAME_BACKGROUND).append(";\">");
         messageBuff.append("<tr>");
@@ -310,8 +303,8 @@ public class ChatHtmlUtils
 
         SimpleDateFormat sdf = new SimpleDateFormat(HistoryService.DATE_FORMAT);
         headerBuffer.append("<h3 id=\"").append(MESSAGE_HEADER_ID).append("\" ");
-        headerBuffer.append(DATE_ATTRIBUTE).append("='")
-            .append(sdf.format(date)).append("'>");
+        headerBuffer.append(DATE_ATTRIBUTE).append("=\"")
+            .append(sdf.format(date)).append("\">");
         headerBuffer.append("<a style=\"color:#535353;");
         headerBuffer.append("font-weight:bold;");
         headerBuffer.append("text-decoration:none;\" ");
@@ -593,44 +586,6 @@ public class ChatHtmlUtils
     }
 
     /**
-     * Creates the start tag, which indicates that the next text would be plain
-     * text.
-     *
-     * @param contentType the current content type
-     * @return the start plaintext tag
-     */
-    public static String createStartPlainTextTag(String contentType)
-    {
-        if (HTML_CONTENT_TYPE.equals(contentType))
-        {
-            return "";
-        }
-        else
-        {
-            return START_PLAINTEXT_TAG;
-        }
-    }
-
-    /**
-     * Creates the end tag, which indicates that the next text would be plain
-     * text.
-     *
-     * @param contentType the current content type
-     * @return the end plaintext tag
-     */
-    public static String createEndPlainTextTag(String contentType)
-    {
-        if (HTML_CONTENT_TYPE.equals(contentType))
-        {
-            return "";
-        }
-        else
-        {
-            return END_PLAINTEXT_TAG;
-        }
-    }
-
-    /**
      * Creates a tag that shows the last edit time of a message, in the format
      *  (Edited at ...).
      * If <tt>date < 0</tt>, returns an empty tag that serves as a placeholder
@@ -646,9 +601,9 @@ public class ChatHtmlUtils
         StringBuilder res = new StringBuilder();
         // Use a <cite /> tag here as most of the other inline tags (e.g. h1-7,
         // b, i) cause different problems when used in setOuterHTML.
-        res.append("<cite id='");
+        res.append("<cite id=\"");
         res.append(messageUID);
-        res.append("-editedAt'> ");
+        res.append("-editedAt\"> ");
         if (date > 0)
         {
             res.append("&nbsp;");
@@ -685,21 +640,28 @@ public class ChatHtmlUtils
         StringBuilder messageTag = new StringBuilder();
 
         SimpleDateFormat sdf = new SimpleDateFormat(HistoryService.DATE_FORMAT);
-        messageTag.append(String.format("<div id='%s' %s = '%s' ",
+        messageTag.append(String.format("<div id=\"%s\" %s=\"%s\" ",
                 MESSAGE_TEXT_ID + messageID, NAME_ATTRIBUTE,
                 contactName));
         messageTag.append(DATE_ATTRIBUTE).append("=\"")
             .append(sdf.format(date)).append("\" ");
-        messageTag.append(String.format("%s = '%s' ",
-                ORIGINAL_MESSAGE_ATTRIBUTE, GuiUtils.escapeHTMLChars(message)));
+        final byte[] encodedMessageBytes = net.java.sip.communicator.util.Base64
+            .encode(getMessageBytes(message));
+        messageTag.append(String.format("%s=\"%s\" ",
+            ORIGINAL_MESSAGE_ATTRIBUTE, new String(encodedMessageBytes)));
         messageTag.append(IncomingMessageStyle
             .createSingleMessageStyle(isHistory, isEdited, true));
         messageTag.append(">");
-        messageTag.append(createStartPlainTextTag(contentType));
-        messageTag.append(message);
+        if (HTML_CONTENT_TYPE.equalsIgnoreCase(contentType))
+        {
+            messageTag.append(message);
+        }
+        else
+        {
+            messageTag.append(StringEscapeUtils.escapeHtml4(message));
+        }
         if (isEdited)
             messageTag.append("    ");
-        messageTag.append(createEndPlainTextTag(contentType));
         if (isEdited)
             messageTag.append(createEditedAt(date));
         messageTag.append("</div>");
@@ -730,26 +692,47 @@ public class ChatHtmlUtils
         StringBuilder messageTag = new StringBuilder();
 
         SimpleDateFormat sdf = new SimpleDateFormat(HistoryService.DATE_FORMAT);
-        messageTag.append(String.format("<div id='%s' %s = '%s' ",
+        messageTag.append(String.format("<div id=\"%s\" %s=\"%s\" ",
                 MESSAGE_TEXT_ID + messageID, NAME_ATTRIBUTE,
                 contactName));
         messageTag.append(DATE_ATTRIBUTE).append("=\"")
             .append(sdf.format(date)).append("\" ");
-        messageTag.append(String.format("%s = '%s' ",
-                ORIGINAL_MESSAGE_ATTRIBUTE, GuiUtils.escapeHTMLChars(message)));
+        final byte[] encodedMessageBytes =net.java.sip.communicator.util.Base64
+            .encode(getMessageBytes(message));
+        messageTag.append(String.format("%s=\"%s\" ",
+            ORIGINAL_MESSAGE_ATTRIBUTE, new String(encodedMessageBytes)));
         messageTag.append(IncomingMessageStyle
             .createSingleMessageStyle(isHistory, isEdited, false));
         messageTag.append(">");
-        messageTag.append(createStartPlainTextTag(contentType));
-        messageTag.append(message);
+        if (HTML_CONTENT_TYPE.equalsIgnoreCase(contentType))
+        {
+            messageTag.append(message);
+        }
+        else
+        {
+            messageTag.append(StringEscapeUtils.escapeHtml4(message));
+        }
         if (isEdited)
+        {
             messageTag.append("    ");
-        messageTag.append(createEndPlainTextTag(contentType));
-        if (isEdited)
             messageTag.append(createEditedAt(date));
+        }
         messageTag.append("</div>");
 
         return messageTag.toString();
+    }
+
+    private static byte[] getMessageBytes(final String message) {
+        try
+        {
+            return message.getBytes("UTF-8");
+        }
+        catch (UnsupportedEncodingException e)
+        {
+            // this should not happen since we hard-code the character encoding
+            throw new IllegalStateException("This should not happen since we "
+                + "hard-code the required character encoding.");
+        }
     }
 
     /**

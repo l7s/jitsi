@@ -33,6 +33,7 @@ import org.jivesoftware.smackx.packet.*;
  * @author Matthieu Helleringer
  * @author Alain Knaebel
  * @author Emil Ivov
+ * @author Hristo Terezov
  */
 public class OperationSetBasicInstantMessagingJabberImpl
     extends AbstractOperationSetBasicInstantMessaging
@@ -56,9 +57,14 @@ public class OperationSetBasicInstantMessagingJabberImpl
      * target a specific resource (rather than sending a message to all logged
      * instances of a user).
      */
-    private Map<String, TargetAddress> jids
-                                    = new Hashtable<String, TargetAddress>();
+    private Map<String, StoredThreadID> jids
+        = new Hashtable<String, StoredThreadID>();
 
+    /**
+     * The most recent full JID used for the contact address.
+     */
+    private Map<String, String> recentJIDForAddress
+        = new Hashtable<String, String>();
     /**
      * The smackMessageListener instance listens for incoming messages.
      * Keep a reference of it so if anything goes wrong we don't add
@@ -70,17 +76,26 @@ public class OperationSetBasicInstantMessagingJabberImpl
      * Contains the complete jid of a specific user and the time that it was
      * last used so that we could remove it after a certain point.
      */
-    public static class TargetAddress
+    public static class StoredThreadID
     {
-        /** The last complete JID (including resource) that we got a msg from*/
-        String jid;
-
         /** The time that we last sent or received a message from this jid */
         long lastUpdatedTime;
 
         /** The last chat used, this way we will reuse the thread-id */
-        Chat chat;
+        String threadID;
     }
+
+    /**
+     * A prefix helps to make sure that thread ID's are unique across mutliple
+     * instances.
+     */
+    private static String prefix = StringUtils.randomString(5);
+
+    /**
+     * Keeps track of the current increment, which is appended to the prefix to
+     * forum a unique thread ID.
+     */
+    private static long id = 0;
 
     /**
      * The number of milliseconds that we preserve threads with no traffic
@@ -266,11 +281,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
             return true;
         else if(contentType.equals(HTML_MIME_TYPE))
         {
-            String toJID = null;
-
-            TargetAddress ta = getJidForAddress(contact.getAddress());
-            if(ta != null)
-                toJID = ta.jid;
+            String toJID = recentJIDForAddress.get(contact.getAddress());
 
             if (toJID == null)
                 toJID = contact.getAddress();
@@ -284,73 +295,24 @@ public class OperationSetBasicInstantMessagingJabberImpl
     }
 
     /**
-     * Returns a reference to an open chat with the specified
-     * <tt>jid</tt> if one exists or creates a new one otherwise.
-     *
-     * @param toAddress the address without the resource, we used to put
-     * a reference in jids table.
-     * @param jid the Jabber ID that we'd like to obtain a chat instance for.
-     *
-     * @return a reference to an open chat with the specified
-     * <tt>jid</tt> if one exists or creates a new one otherwise.
-     */
-    public Chat obtainChatInstance(String toAddress,
-                                   String jid)
-    {
-        XMPPConnection jabberConnection
-            = jabberProvider.getConnection();
-
-        TargetAddress ta = getJidForAddress(toAddress);
-
-        if (ta != null
-            && ta.chat != null
-            && ta.jid.equals(jid))
-        {
-            return ta.chat;
-        }
-
-        org.jivesoftware.smack.MessageListener msgListener
-            = new org.jivesoftware.smack.MessageListener()
-            {
-                public void processMessage(
-                    Chat chat,
-                    org.jivesoftware.smack.packet.Message message)
-                {
-                    //we are not fully supporting chat based messaging
-                    //right now and only use a hack to make it look that
-                    //way. as a result we don't listen on the chat
-                    //itself and the only thing we do here is an update
-                    //of the active thread timestamp.
-                }
-            };
-
-
-        //we don't have a thread for this chat, so let's create one.
-        Chat chat = jabberConnection.getChatManager()
-                .createChat(jid, msgListener);
-
-        return chat;
-    }
-
-    /**
      * Remove from our <tt>jids</tt> map all entries that have not seen any
      * activity (i.e. neither outgoing nor incoming messags) for more than
      * JID_INACTIVITY_TIMEOUT. Note that this method is not synchronous and that
-     * it is only meant for use by the {@link #getJidForAddress(String)} and
-     * {@link #putJidForAddress(String, String, Chat)}
+     * it is only meant for use by the {@link #getThreadIDForAddress(String)} and
+     * {@link #putJidForAddress(String, String)}
      */
     private void purgeOldJids()
     {
         long currentTime = System.currentTimeMillis();
 
-        Iterator<Map.Entry<String, TargetAddress>> entries
+        Iterator<Map.Entry<String, StoredThreadID>> entries
             = jids.entrySet().iterator();
 
 
         while( entries.hasNext() )
         {
-            Map.Entry<String, TargetAddress> entry = entries.next();
-            TargetAddress target = entry.getValue();
+            Map.Entry<String, StoredThreadID> entry = entries.next();
+            StoredThreadID target = entry.getValue();
 
             if (currentTime - target.lastUpdatedTime
                             > JID_INACTIVITY_TIMEOUT)
@@ -365,25 +327,25 @@ public class OperationSetBasicInstantMessagingJabberImpl
      * entries that haven't seen any activity (i.e. no one has tried to get or
      * remap it) for a delay longer than <tt>JID_INACTIVITY_TIMEOUT</tt>.
      *
-     * @param address the <tt>address</tt> that we'd like to obtain a jid for.
+     * @param jid the <tt>jid</tt> that we'd like to obtain a threadID for.
      *
      * @return the last jid that the party with the specified <tt>address</tt>
      * contacted us from or <tt>null</tt> if we don't have a jid for the
      * specified <tt>address</tt> yet.
      */
-    TargetAddress getJidForAddress(String address)
+    String getThreadIDForAddress(String jid)
     {
         synchronized(jids)
         {
             purgeOldJids();
-            TargetAddress ta = jids.get(address);
+            StoredThreadID ta = jids.get(jid);
 
             if (ta == null)
                 return null;
 
             ta.lastUpdatedTime = System.currentTimeMillis();
 
-            return ta;
+            return ta.threadID;
         }
     }
 
@@ -393,28 +355,28 @@ public class OperationSetBasicInstantMessagingJabberImpl
      * the specified <tt>address</tt> to the <tt>jid</tt> that they last
      * contacted us from.
      *
-     * @param address the bare address (i.e. no resource included) of the
-     * contact that we'd like to set a jid for.
+     * @param threadID the threadID of conversation.
      * @param jid the jid (i.e. address/resource) that the contact with the
      * specified <tt>address</tt> last contacted us from.
      */
-    private void putJidForAddress(String address, String jid, Chat chat)
+    private void putJidForAddress(String jid, String threadID)
     {
         synchronized(jids)
         {
             purgeOldJids();
 
-            TargetAddress ta = jids.get(address);
+            StoredThreadID ta = jids.get(jid);
 
             if (ta == null)
             {
-                ta = new TargetAddress();
-                jids.put(address, ta);
+                ta = new StoredThreadID();
+                jids.put(jid, ta);
             }
 
-            ta.jid = jid;
+            recentJIDForAddress.put(StringUtils.parseBareAddress(jid), jid);
+
             ta.lastUpdatedTime = System.currentTimeMillis();
-            ta.chat = chat;
+            ta.threadID = threadID;
         }
     }
 
@@ -441,81 +403,65 @@ public class OperationSetBasicInstantMessagingJabberImpl
                "The specified contact is not a Jabber contact."
                + to);
 
-        try
+        assertConnected();
+
+        org.jivesoftware.smack.packet.Message msg =
+            new org.jivesoftware.smack.packet.Message();
+
+        String toJID = null;
+
+        if (toResource != null)
         {
-            assertConnected();
-
-            org.jivesoftware.smack.packet.Message msg =
-                new org.jivesoftware.smack.packet.Message();
-
-            String toJID = null;
-
-            boolean sendToBaseResource = false;
-            if (toResource != null)
+            if(toResource.equals(ContactResource.BASE_RESOURCE))
             {
-                if(toResource.equals(ContactResource.BASE_RESOURCE))
-                {
-                    toJID = to.getAddress();
-                    sendToBaseResource = true;
-                }
-                else
-                    toJID =
-                        ((ContactResourceJabberImpl) toResource).getFullJid();
-            }
-
-            if (toJID == null)
-            {
-                TargetAddress ta = getJidForAddress(to.getAddress());
-                if(ta != null)
-                    toJID = ta.jid;
-            }
-
-            if (toJID == null)
-            {
-                sendToBaseResource = true;
                 toJID = to.getAddress();
             }
+            else
+                toJID =
+                    ((ContactResourceJabberImpl) toResource).getFullJid();
+        }
 
-            Chat chat = obtainChatInstance(to.getAddress(), toJID);
+        if (toJID == null)
+        {
+            toJID = to.getAddress();
+        }
 
-            msg.setPacketID(message.getMessageUID());
-            msg.setTo(toJID);
+        msg.setPacketID(message.getMessageUID());
+        msg.setTo(toJID);
 
-            for (PacketExtension ext : extensions)
-            {
-                msg.addExtension(ext);
-            }
+        for (PacketExtension ext : extensions)
+        {
+            msg.addExtension(ext);
+        }
 
-            if (logger.isTraceEnabled())
-                logger.trace("Will send a message to:" + toJID
-                            + " chat.jid=" + chat.getParticipant()
-                            + " chat.tid=" + chat.getThreadID());
+        if (logger.isTraceEnabled())
+            logger.trace("Will send a message to:" + toJID
+                        + " chat.jid=" + toJID);
 
-            MessageDeliveredEvent msgDeliveryPendingEvt
-                = new MessageDeliveredEvent(message, to, toResource);
+        MessageDeliveredEvent msgDeliveryPendingEvt
+            = new MessageDeliveredEvent(message, to, toResource);
 
-            msgDeliveryPendingEvt
-                = messageDeliveryPendingTransform(msgDeliveryPendingEvt);
+        MessageDeliveredEvent[] transformedEvents = messageDeliveryPendingTransform(msgDeliveryPendingEvt);
 
-            if (msgDeliveryPendingEvt == null)
-                return null;
+        if (transformedEvents == null || transformedEvents.length == 0)
+            return null;
 
-            String content = msgDeliveryPendingEvt
-                                    .getSourceMessage().getContent();
+        for (MessageDeliveredEvent event : transformedEvents)
+        {
+            String content = event.getSourceMessage().getContent();
 
-            if(message.getContentType().equals(HTML_MIME_TYPE))
+            if (message.getContentType().equals(HTML_MIME_TYPE))
             {
                 msg.setBody(Html2Text.extractText(content));
 
                 // Check if the other user supports XHTML messages
                 // make sure we use our discovery manager as it caches calls
-                if(jabberProvider.isFeatureListSupported(
-                        chat.getParticipant(),
-                        HTML_NAMESPACE))
+                if (jabberProvider
+                    .isFeatureListSupported(toJID, HTML_NAMESPACE))
                 {
                     // Add the XHTML text to the message
-                    XHTMLManager.addBody(msg,
-                        OPEN_BODY_TAG + content + CLOSE_BODY_TAG);
+                    XHTMLManager.addBody(msg, OPEN_BODY_TAG + content
+                        + CLOSE_BODY_TAG);
                 }
             }
             else
@@ -524,32 +470,30 @@ public class OperationSetBasicInstantMessagingJabberImpl
                 msg.setBody(content);
             }
 
-            //msg.addExtension(new Version());
+            // msg.addExtension(new Version());
 
-            if(msgDeliveryPendingEvt.isMessageEncrypted())
+            if (event.isMessageEncrypted())
             {
                 msg.addExtension(new CarbonPacketExtension.PrivateExtension());
             }
 
-            MessageEventManager.
-                addNotificationsRequests(msg, true, false, false, true);
+            MessageEventManager.addNotificationsRequests(msg, true, false,
+                false, true);
 
-            chat.sendMessage(msg);
+            String threadID = getThreadIDForAddress(toJID);
+            if (threadID == null)
+                threadID = nextThreadID();
 
-            putJidForAddress(to.getAddress(), toJID, chat);
+            msg.setThread(threadID);
+            msg.setType(org.jivesoftware.smack.packet.Message.Type.chat);
+            msg.setFrom(jabberProvider.getConnection().getUser());
 
-            MessageDeliveredEvent msgDeliveredEvt
-                = new MessageDeliveredEvent(message, to, toResource);
+            jabberProvider.getConnection().sendPacket(msg);
 
-            // msgDeliveredEvt = messageDeliveredTransform(msgDeliveredEvt);
-
-            return msgDeliveredEvt;
+            putJidForAddress(toJID, threadID);
         }
-        catch (XMPPException ex)
-        {
-            logger.error("message not sent", ex);
-            return null;
-        }
+
+        return new MessageDeliveredEvent(message, to, toResource);
     }
 
     /**
@@ -867,9 +811,13 @@ public class OperationSetBasicInstantMessagingJabberImpl
             String userBareID = StringUtils.parseBareAddress(userFullId);
 
             boolean isPrivateMessaging = false;
-            ChatRoom privateContactRoom = ((OperationSetMultiUserChatJabberImpl)
-                jabberProvider.getOperationSet(OperationSetMultiUserChat.class))
-                    .getChatRoom(userBareID);
+            ChatRoom privateContactRoom = null;
+            OperationSetMultiUserChatJabberImpl mucOpSet =
+                (OperationSetMultiUserChatJabberImpl)jabberProvider
+                    .getOperationSet(OperationSetMultiUserChat.class);
+            if(mucOpSet != null)
+                privateContactRoom = mucOpSet.getChatRoom(userBareID);
+
             if(privateContactRoom != null)
             {
                 isPrivateMessaging = true;
@@ -981,20 +929,29 @@ public class OperationSetBasicInstantMessagingJabberImpl
                 if (logger.isInfoEnabled())
                     logger.info("Message error received from " + userBareID);
 
-                int errorCode = packet.getError().getCode();
                 int errorResultCode = MessageDeliveryFailedEvent.UNKNOWN_ERROR;
-
-                if(errorCode == 503)
+                if (packet.getError() != null)
                 {
-                    org.jivesoftware.smackx.packet.MessageEvent msgEvent =
-                        (org.jivesoftware.smackx.packet.MessageEvent)
-                            packet.getExtension("x", "jabber:x:event");
-                    if(msgEvent != null && msgEvent.isOffline())
+                    int errorCode = packet.getError().getCode();
+    
+                    if(errorCode == 503)
                     {
-                        errorResultCode =
-                            MessageDeliveryFailedEvent
-                                .OFFLINE_MESSAGES_NOT_SUPPORTED;
+                        org.jivesoftware.smackx.packet.MessageEvent msgEvent =
+                            (org.jivesoftware.smackx.packet.MessageEvent)
+                                packet.getExtension("x", "jabber:x:event");
+                        if(msgEvent != null && msgEvent.isOffline())
+                        {
+                            errorResultCode =
+                                MessageDeliveryFailedEvent
+                                    .OFFLINE_MESSAGES_NOT_SUPPORTED;
+                        }
                     }
+                }
+
+                if (sourceContact == null)
+                {
+                    sourceContact = opSetPersPresence.createVolatileContact(
+                        userFullId, isPrivateMessaging);
                 }
 
                 MessageDeliveryFailedEvent ev
@@ -1009,27 +966,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
                     fireMessageEvent(ev);
                 return;
             }
-            //cache the jid (resource included) of the contact that's sending us
-            //a message so that all following messages would go to the resource
-            //that they contacted us from.
-            String address = userBareID;
-            if(isPrivateMessaging)
-            {
-                address = JabberActivator.getResources().getI18NString(
-                        "service.gui.FROM",
-                        new String[]{
-                            StringUtils.parseResource(msg.getFrom()),
-                            userBareID} );
-            }
-
-            Chat chat =
-                jabberProvider.getConnection().getChatManager()
-                    .getThreadChat(msg.getThread());
-            putJidForAddress(address, userFullId, chat);
-
-            if (logger.isTraceEnabled())
-                logger.trace("just mapped: " + userBareID
-                                + " to " + msg.getFrom());
+            putJidForAddress(userFullId, msg.getThread());
 
             // In the second condition we filter all group chat messages,
             // because they are managed by the multi user chat operation set.
@@ -1189,6 +1126,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
             ? "service.gui.NEW_GMAIL_MANY_FOOTER"
             : "service.gui.NEW_GMAIL_FOOTER";
 
+        // FIXME Escape HTML!
         String newMailHeader = JabberActivator.getResources().getI18NString(
             resourceHeaderKey,
             new String[]
@@ -1199,7 +1137,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
                     Integer.toString( threadCount )//{2} - thread count
                 });
 
-        StringBuffer message = new StringBuffer(newMailHeader);
+        StringBuilder message = new StringBuilder(newMailHeader);
 
         //we now start an html table for the threads.
         message.append("<table width=100% cellpadding=2 cellspacing=0 ");
@@ -1247,6 +1185,11 @@ public class OperationSetBasicInstantMessagingJabberImpl
         return message.toString();
     }
 
+    public String getRecentJIDForAddress(String address)
+    {
+        return recentJIDForAddress.get(address);
+    }
+
     /**
      * Receives incoming MailNotification Packets
      */
@@ -1261,7 +1204,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
          */
         public void processPacket(Packet packet)
         {
-            if(packet != null &&  !(packet instanceof MailboxIQ))
+            if(packet != null && !(packet instanceof MailboxIQ))
                 return;
 
             MailboxIQ mailboxIQ = (MailboxIQ) packet;
@@ -1358,4 +1301,16 @@ public class OperationSetBasicInstantMessagingJabberImpl
     {
         this.packetFilters.add(filter);
     }
+
+    /**
+     * Returns the next unique thread id. Each thread id made up of a short
+     * alphanumeric prefix along with a unique numeric value.
+     *
+     * @return the next thread id.
+     */
+    public static synchronized String nextThreadID() {
+        return prefix + Long.toString(id++);
+    }
+
+
 }
