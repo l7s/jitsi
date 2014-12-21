@@ -99,6 +99,11 @@ public class RegistrationStateChangeEvent extends PropertyChangeEvent
     public static final int REASON_TLS_REQUIRED = 9;
 
     /**
+     * Indicates that the specified server returned an error input.
+     */
+    public static final int REASON_SERVER_RETURNED_ERRONEOUS_INPUT = 10;
+
+    /**
      * The reason code returned by the server in order to explain the state
      * transition.
      */
@@ -109,6 +114,11 @@ public class RegistrationStateChangeEvent extends PropertyChangeEvent
      * reason code.
      */
     private final String reason;
+
+    /**
+     * Whether this event is after user request.
+     */
+    private boolean userRequest = false;
 
     /**
      * Creates an event instance indicating a change of the provider state
@@ -210,5 +220,23 @@ public class RegistrationStateChangeEvent extends PropertyChangeEvent
     public String getReason()
     {
         return reason;
+    }
+
+    /**
+     * Whether this event is after user request.
+     * @return whether this event is after user request.
+     */
+    public boolean isUserRequest()
+    {
+        return userRequest;
+    }
+
+    /**
+     * Changes the event to indicate that is created after use request.
+     * @param userRequest
+     */
+    public void setUserRequest(boolean userRequest)
+    {
+        this.userRequest = userRequest;
     }
 }

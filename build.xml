@@ -598,6 +598,12 @@
         depends="prepare-all-tests,prepare-local-accounts,deploy-os-specific-bundles"
         description="Starts felix and runs selected Service Impl Compatibility Kits.">
 
+        <condition property="logging.config.file"
+                   value="${custom.logging.config.file}"
+                   else="${lib}/logging.properties">
+            <isset property="custom.logging.config.file"/>
+        </condition>
+
         <!-- Do the testing itself. Note that we don't fail on error as we need
              to generate an html report before leaving this target.-->
         <java classname="org.apache.felix.main.Main"
@@ -635,7 +641,7 @@
 
             <!-- Tell java.util.logging about our logging preferences -->
             <sysproperty key="java.util.logging.config.file"
-                value="${lib}/logging.properties"/>
+                value="${logging.config.file}"/>
 
             <!-- Tell all protocol testers their account details. -->
             <syspropertyset id="accounts">
@@ -1048,6 +1054,7 @@
         bundle-icq-slick,bundle-mock,bundle-smacklib,bundle-jmdnslib,
         bundle-jabber,bundle-jabber-slick,bundle-swing-ui,bundle-ui-service,
         bundle-jnalib,bundle-phonenumbers,
+        bundle-irc-api,bundle-irc,bundle-plugin-ircaccregwizz,
         bundle-msn,bundle-msn-slick,bundle-yahoo,bundle-yahoo-slick,
         bundle-contactlist,meta-contactlist,meta-contactlist-slick,
         bundle-plugin-icqaccregwizz,bundle-plugin-jabberaccregwizz,
@@ -1091,7 +1098,8 @@
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
         bundle-plugin-propertieseditor,bundle-plugin-accountinfo,
-        bundle-guava,bundle-hsql"/>
+        bundle-plugin-connectioninfo,
+        bundle-guava,bundle-hsql,bundle-slf4j"/>
 
     <!--BUNDLE-SC-LAUNCHER-->
     <target name="bundle-sc-launcher">
@@ -1308,7 +1316,7 @@
 
             <zipfileset dir="${dest}/net/java/sip/communicator/impl/libjitsi"
                 prefix="net/java/sip/communicator/impl/libjitsi"/>
-            <zipfileset src="${lib.noinst}/bcpkix-jdk15on-150.jar" prefix=""
+            <zipfileset src="${lib.noinst}/bcpkix-jdk15on-151.jar" prefix=""
                 excludes="META-INF/BCKEY.*"/>
             <zipfileset src="${lib.noinst}/fmj.jar" prefix=""/>
             <zipfileset src="${lib.noinst}/libjitsi.jar" prefix=""/>
@@ -1466,7 +1474,7 @@ javax.swing.event, javax.swing.border"/>
     <!--BUNDLE-SIP-->
     <target name="bundle-sip">
         <!--internal-target- Creates a bundle containing the sip implementation of the protocol provider package -->
-        <jar compress="false" destfile="${bundles.dest}/protocol-sip.jar"
+        <jar compress="false" destfile="${bundles.dest}/protocol-sip.jar" duplicate="preserve"
             manifest="${src}/net/java/sip/communicator/impl/protocol/sip/sip.provider.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/impl/protocol/sip"
                 prefix="net/java/sip/communicator/impl/protocol/sip"/>
@@ -1492,7 +1500,10 @@ javax.swing.event, javax.swing.border"/>
         <jar compress="false" destfile="${bundles.dest}/protocol.jar"
             manifest="${src}/net/java/sip/communicator/service/protocol/protocol.provider.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/service/protocol"
-                prefix="net/java/sip/communicator/service/protocol"/>
+                prefix="net/java/sip/communicator/service/protocol">
+                <!-- the media package lives in the protocol-media bundle -->
+                <exclude name="media/**/*"/>
+            </zipfileset>
             <zipfileset dir="${resources}/images"
                 prefix="resources/images">
                 <include name="protocol/icq/**/*"/>
@@ -1726,7 +1737,7 @@ javax.swing.event, javax.swing.border"/>
     </target>
 
     <!-- BUNDLE-SWING-UI -->
-    <target name="bundle-swing-ui">
+    <target name="bundle-swing-ui" depends="bundle-commons-lang">
         <!-- Bundle Jitsi's UI.-->
         <jar compress="false" destfile="${bundles.dest}/swing-ui.jar"
             manifest="${src}/net/java/sip/communicator/impl/gui/swing.ui.manifest.mf">
@@ -2078,14 +2089,24 @@ javax.swing.event, javax.swing.border"/>
     </target>
 
     <!-- BUNDLE-IRC -->
-    <target name="bundle-irc">
+    <target name="bundle-irc" depends="bundle-irc-api">
         <!-- Creates a bundle containing the IRC impl of the protocol provider.-->
         <jar compress="false" destfile="${bundles.dest}/protocol-irc.jar"
-         manifest="${src}/net/java/sip/communicator/impl/protocol/irc/irc.provider.manifest.mf">
+            manifest="${src}/net/java/sip/communicator/impl/protocol/irc/irc.provider.manifest.mf">
             <zipfileset dir="${dest}/net/java/sip/communicator/impl/protocol/irc"
                         prefix="net/java/sip/communicator/impl/protocol/irc"/>
-            <zipfileset src="${lib.noinst}/pircbot.jar" prefix=""/>
         </jar>
+    </target>
+
+    <!-- BUNDLE IRC-API -->
+    <target name="bundle-irc-api" depends="bundle-slf4j">
+        <copy file="${lib.noinst}/irc-api-1.0.jar" tofile="${bundles.dest}/irc-api-1.0.jar"/>
+    </target>
+
+    <!-- BUNDLE SLF4J -->
+    <target name="bundle-slf4j">
+        <copy file="${lib.noinst}/slf4j-api-1.7.5.jar" tofile="${bundles.dest}/slf4j-api.jar"/>
+        <copy file="${lib.noinst}/slf4j-jdk14-1.7.5.jar" tofile="${bundles.dest}/slf4j-jdk14.jar"/>
     </target>
 
     <!-- BUNDLE-PLUGIN-IRCACCREGWIZZ -->
@@ -2204,6 +2225,15 @@ javax.swing.event, javax.swing.border"/>
             <zipfileset dir="${dest}/net/java/sip/communicator/plugin/accountinfo"
                 prefix="net/java/sip/communicator/plugin/accountinfo"/>
             <zipfileset src="${lib.noinst}/jcalendar-1.4.jar"/>
+        </jar>
+    </target>
+
+    <!-- BUNDLE-PLUGIN-CONNECTIONINFO -->
+    <target name="bundle-plugin-connectioninfo">
+        <jar compress="false" destfile="${bundles.dest}/connectioninfo.jar"
+            manifest="${src}/net/java/sip/communicator/plugin/connectioninfo/connectioninfo.manifest.mf">
+            <zipfileset dir="${dest}/net/java/sip/communicator/plugin/connectioninfo"
+                prefix="net/java/sip/communicator/plugin/connectioninfo"/>
         </jar>
     </target>
 
@@ -2415,32 +2445,31 @@ javax.swing.event, javax.swing.border"/>
 
             <zipfileset src="${lib.noinst}/zrtp4j-light.jar" prefix=""/>
             <manifest>
-                <attribute name="Export-Package" value="
-                    gnu.java.zrtp,
-                    gnu.java.zrtp.packets,
-                    gnu.java.zrtp.utils,
-                    gnu.java.zrtp.zidfile"/>
+                <attribute name="Export-Package" value="gnu.java.zrtp,
+gnu.java.zrtp.packets,
+gnu.java.zrtp.utils,
+gnu.java.zrtp.zidfile"/>
                 <attribute name="Import-Package" value="org.bouncycastle.asn1,
-                    org.bouncycastle.asn1.nist,
-                    org.bouncycastle.asn1.sec,
-                    org.bouncycastle.asn1.x9,
-                    org.bouncycastle.crypto,
-                    org.bouncycastle.crypto.agreement,
-                    org.bouncycastle.crypto.digests,
-                    org.bouncycastle.crypto.engines,
-                    org.bouncycastle.crypto.generators,
-                    org.bouncycastle.crypto.macs,
-                    org.bouncycastle.crypto.modes,
-                    org.bouncycastle.crypto.params,
-                    org.bouncycastle.crypto.prng,
-                    org.jitsi.bccontrib.digests,
-                    org.jitsi.bccontrib.engines,
-                    org.jitsi.bccontrib.macs,
-                    org.jitsi.bccontrib.params,
-                    org.jitsi.bccontrib.prng,
-                    org.bouncycastle.math.ec,
-                    org.bouncycastle.util.encoders,
-                    org.bouncycastle.util"/>
+org.bouncycastle.asn1.nist,
+org.bouncycastle.asn1.sec,
+org.bouncycastle.asn1.x9,
+org.bouncycastle.crypto,
+org.bouncycastle.crypto.agreement,
+org.bouncycastle.crypto.digests,
+org.bouncycastle.crypto.engines,
+org.bouncycastle.crypto.generators,
+org.bouncycastle.crypto.macs,
+org.bouncycastle.crypto.modes,
+org.bouncycastle.crypto.params,
+org.bouncycastle.crypto.prng,
+org.jitsi.bccontrib.digests,
+org.jitsi.bccontrib.engines,
+org.jitsi.bccontrib.macs,
+org.jitsi.bccontrib.params,
+org.jitsi.bccontrib.prng,
+org.bouncycastle.math.ec,
+org.bouncycastle.util.encoders,
+org.bouncycastle.util"/>
                 <attribute name="Bundle-Name" value="ZRTP4J"/>
                 <attribute name="Bundle-Description" value="ZRTP for Java library."/>
                 <attribute name="Bundle-Version" value="1.4.5"/>
@@ -2498,7 +2527,7 @@ javax.swing.event, javax.swing.border"/>
 
     <!--BUNDLE-BOUNCYCASTLE -->
     <target name="bundle-bouncycastle">
-        <copy file="${lib.noinst}/bcprov-jdk15on-150.jar" tofile="${bundles.dest}/bouncycastle.jar"/>
+        <copy file="${lib.noinst}/bcprov-jdk15on-151.jar" tofile="${bundles.dest}/bouncycastle.jar"/>
         <copy file="${lib.noinst}/bccontrib-1.0-SNAPSHOT.jar" tofile="${bundles.dest}/bccontrib.jar"/>
     </target>
 

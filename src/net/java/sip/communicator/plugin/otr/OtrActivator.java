@@ -23,6 +23,7 @@ import org.jitsi.util.*;
 import org.osgi.framework.*;
 
 /**
+ *
  * @author George Politis
  * @author Pawel Domas
  */
@@ -78,7 +79,7 @@ public class OtrActivator
     /**
      * The {@link ScOtrEngine} of the {@link OtrActivator}.
      */
-    public static ScOtrEngine scOtrEngine;
+    public static ScOtrEngineImpl scOtrEngine;
 
     /**
      * The {@link ScOtrKeyManager} of the {@link OtrActivator}.
@@ -102,6 +103,11 @@ public class OtrActivator
      */
     private static MessageHistoryService messageHistoryService;
 
+    /**
+     * The {@link OtrContactManager} of the {@link OtrActivator}.
+     */
+    private static OtrContactManager otrContactManager;
+    
     /**
      * Gets an {@link AccountID} by its UID.
      *
@@ -160,33 +166,23 @@ public class OtrActivator
     private static Map<Object, ProtocolProviderFactory>
         getProtocolProviderFactories()
     {
-        ServiceReference[] serRefs = null;
-        try
-        {
-            // get all registered provider factories
-            serRefs =
-                bundleContext.getServiceReferences(
-                    ProtocolProviderFactory.class.getName(), null);
+        Collection<ServiceReference<ProtocolProviderFactory>> serRefs
+            = ServiceUtils.getServiceReferences(
+                    bundleContext,
+                    ProtocolProviderFactory.class);
+        Map<Object, ProtocolProviderFactory> providerFactoriesMap
+            = new Hashtable<Object, ProtocolProviderFactory>();
 
-        }
-        catch (InvalidSyntaxException ex)
+        if (!serRefs.isEmpty())
         {
-            logger.error("Error while retrieving service refs", ex);
-            return null;
-        }
-
-        Map<Object, ProtocolProviderFactory> providerFactoriesMap =
-            new Hashtable<Object, ProtocolProviderFactory>();
-        if (serRefs != null)
-        {
-            for (ServiceReference serRef : serRefs)
+            for (ServiceReference<ProtocolProviderFactory> serRef : serRefs)
             {
-                ProtocolProviderFactory providerFactory =
-                    (ProtocolProviderFactory) bundleContext.getService(serRef);
+                ProtocolProviderFactory providerFactory
+                    = bundleContext.getService(serRef);
 
-                providerFactoriesMap.put(serRef
-                    .getProperty(ProtocolProviderFactory.PROTOCOL),
-                    providerFactory);
+                providerFactoriesMap.put(
+                        serRef.getProperty(ProtocolProviderFactory.PROTOCOL),
+                        providerFactory);
             }
         }
         return providerFactoriesMap;
@@ -230,6 +226,7 @@ public class OtrActivator
     /*
      * Implements ServiceListener#serviceChanged(ServiceEvent).
      */
+    @Override
     public void serviceChanged(ServiceEvent serviceEvent)
     {
         Object sService =
@@ -261,7 +258,6 @@ public class OtrActivator
         {
             this.handleProviderRemoved((ProtocolProviderService) sService);
         }
-
     }
 
     /**
@@ -303,33 +299,34 @@ public class OtrActivator
 
         // Init static variables, don't proceed without them.
         scOtrEngine = new ScOtrEngineImpl();
+        otrContactManager = new OtrContactManager();
         otrTransformLayer = new OtrTransformLayer();
 
         // Register Transformation Layer
         bundleContext.addServiceListener(this);
-        bundleContext.addServiceListener((ServiceListener) scOtrEngine);
-        bundleContext.addServiceListener(new OtrContactManager());
+        bundleContext.addServiceListener(scOtrEngine);
+        bundleContext.addServiceListener(otrContactManager);
 
-        ServiceReference[] protocolProviderRefs
+        Collection<ServiceReference<ProtocolProviderService>> protocolProviderRefs
             = ServiceUtils.getServiceReferences(
                     bundleContext,
                     ProtocolProviderService.class);
 
-        if (protocolProviderRefs != null && protocolProviderRefs.length > 0)
+        if (!protocolProviderRefs.isEmpty())
         {
             if (logger.isDebugEnabled())
             {
                 logger.debug(
-                        "Found " + protocolProviderRefs.length
+                        "Found " + protocolProviderRefs.size()
                             + " already installed providers.");
             }
-            for (ServiceReference protocolProviderRef : protocolProviderRefs)
+            for (ServiceReference<ProtocolProviderService> protocolProviderRef
+                    : protocolProviderRefs)
             {
                 ProtocolProviderService provider
-                    = (ProtocolProviderService)
-                        bundleContext.getService(protocolProviderRef);
+                    = bundleContext.getService(protocolProviderRef);
 
-                this.handleProviderAdded(provider);
+                handleProviderAdded(provider);
             }
         }
 
@@ -373,19 +370,22 @@ public class OtrActivator
                 OtrActionHandler.class.getName(),
                 new SwingOtrActionHandler(), null);
 
-        containerFilter.put(Container.CONTAINER_ID,
-                            Container.CONTAINER_CHAT_WRITE_PANEL.getID());
-        bundleContext.registerService(
-            PluginComponentFactory.class.getName(),
-            new PluginComponentFactory( Container.CONTAINER_CHAT_WRITE_PANEL)
-            {
-                protected PluginComponent getPluginInstance()
+            containerFilter.put(Container.CONTAINER_ID,
+                                Container.CONTAINER_CHAT_WRITE_PANEL.getID());
+            bundleContext.registerService(
+                PluginComponentFactory.class.getName(),
+                new PluginComponentFactory(Container.CONTAINER_CHAT_WRITE_PANEL)
                 {
-                    return new OTRv3OutgoingSessionSwitcher(
-                        getContainer(), this);
-                }
-            },
-            containerFilter);
+                    @Override
+                    protected PluginComponent getPluginInstance()
+                    {
+                        return
+                            new OTRv3OutgoingSessionSwitcher(
+                                    getContainer(),
+                                    this);
+                    }
+                },
+                containerFilter);
         }
 
         // If the general configuration form is disabled don't register it.
@@ -399,50 +399,47 @@ public class OtrActivator
                             ConfigurationForm.SECURITY_TYPE);
             // Register the configuration form.
             bundleContext.registerService(ConfigurationForm.class.getName(),
-                new LazyConfigurationForm(
-                    "net.java.sip.communicator.plugin.otr.authdialog." +
-                        "OtrConfigurationPanel",
-                    getClass().getClassLoader(),
-                    "plugin.otr.configform.ICON",
-                    "service.gui.CHAT", 1),
-                    properties);
+                    new LazyConfigurationForm(
+                            "net.java.sip.communicator.plugin.otr.authdialog."
+                                + "OtrConfigurationPanel",
+                            getClass().getClassLoader(),
+                            "plugin.otr.configform.ICON",
+                            "service.gui.CHAT", 1),
+                            properties);
         }
     }
 
     /*
      * Implements BundleActivator#stop(BundleContext).
      */
+    @Override
     public void stop(BundleContext bc) throws Exception
     {
         // Unregister transformation layer.
         // start listening for newly register or removed protocol providers
         bundleContext.removeServiceListener(this);
 
-        ServiceReference[] protocolProviderRefs = null;
-        try
-        {
-            protocolProviderRefs =
-                bundleContext.getServiceReferences(
-                    ProtocolProviderService.class.getName(), null);
-        }
-        catch (InvalidSyntaxException ex)
-        {
-            // this shouldn't happen since we're providing no parameter string
-            // but let's log just in case.
-            logger.error("Error while retrieving service refs", ex);
-            return;
-        }
+        if(scOtrEngine != null)
+            bundleContext.removeServiceListener(scOtrEngine);
 
-        if (protocolProviderRefs != null && protocolProviderRefs.length > 0)
+        if(otrContactManager != null)
+            bundleContext.removeServiceListener(otrContactManager);
+
+        Collection<ServiceReference<ProtocolProviderService>> protocolProviderRefs
+            = ServiceUtils.getServiceReferences(
+                    bundleContext,
+                    ProtocolProviderService.class);
+
+        if (!protocolProviderRefs.isEmpty())
         {
             // in case we found any
-            for (ServiceReference protocolProviderRef : protocolProviderRefs)
+            for (ServiceReference<ProtocolProviderService> protocolProviderRef
+                    : protocolProviderRefs)
             {
-                ProtocolProviderService provider =
-                    (ProtocolProviderService) bundleContext
-                        .getService(protocolProviderRef);
+                ProtocolProviderService provider
+                    = bundleContext.getService(protocolProviderRef);
 
-                this.handleProviderRemoved(provider);
+                handleProviderRemoved(provider);
             }
         }
     }
@@ -473,16 +470,20 @@ public class OtrActivator
     public static MessageHistoryService getMessageHistoryService()
     {
         if (messageHistoryService == null)
-            messageHistoryService = ServiceUtils.getService(bundleContext, 
-                MessageHistoryService.class);
+        {
+            messageHistoryService
+                = ServiceUtils.getService(
+                        bundleContext,
+                        MessageHistoryService.class);
+        }
         return messageHistoryService;
     }
     
     /**
-     * The factory that will be registered in OSGi and will create
-     * otr menu instances.
+     * The factory that will be registered in OSGi and will create OTR menu
+     * instances.
      */
-    private class OtrPluginComponentFactory
+    private static class OtrPluginComponentFactory
         extends PluginComponentFactory
     {
         OtrPluginComponentFactory(Container c)

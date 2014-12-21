@@ -6,17 +6,27 @@
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
+import java.util.*;
+
 import net.java.sip.communicator.service.protocol.*;
+import net.java.sip.communicator.util.*;
 
 /**
  * Represents a chat room member.
  *
  * @author Stephane Remy
  * @author Lubomir Marinov
+ * @author Danny van Heumen
  */
 public class ChatRoomMemberIrcImpl
     implements ChatRoomMember
 {
+    /**
+     * Logger.
+     */
+    private static final Logger LOGGER = Logger
+        .getLogger(ChatRoomMemberIrcImpl.class);
+
     /**
      * The ChatRoom.
      */
@@ -25,7 +35,17 @@ public class ChatRoomMemberIrcImpl
     /**
      * The id of the contact.
      */
-    private final String contactID;
+    private String contactID;
+
+    /**
+     * The ident of the contact.
+     */
+    private final String ident;
+
+    /**
+     * The host name of the contact.
+     */
+    private final String hostname;
 
     /**
      * The provider that created us.
@@ -33,9 +53,10 @@ public class ChatRoomMemberIrcImpl
     private final ProtocolProviderServiceIrcImpl parentProvider;
 
     /**
-     * The role of this member.
+     * Set of active roles.
      */
-    private ChatRoomMemberRole chatRoomMemberRole;
+    private final SortedSet<ChatRoomMemberRole> roles =
+        new TreeSet<ChatRoomMemberRole>();
 
     /**
      * Creates an instance of <tt>ChatRoomMemberIrcImpl</tt>, by specifying the
@@ -47,18 +68,48 @@ public class ChatRoomMemberIrcImpl
      * chat room belongs
      * @param chatRoom the chat room, where this member is joined
      * @param contactID the nickname of the member
+     * @param ident ident of member
+     * @param hostname host name of member
      * @param chatRoomMemberRole the role that this member has in the
      * corresponding chat room
      */
-    public ChatRoomMemberIrcImpl(ProtocolProviderServiceIrcImpl parentProvider,
-                                 ChatRoom chatRoom,
-                                 String contactID,
-                                 ChatRoomMemberRole chatRoomMemberRole)
+    public ChatRoomMemberIrcImpl(
+        final ProtocolProviderServiceIrcImpl parentProvider,
+        final ChatRoom chatRoom, final String contactID, final String ident,
+        final String hostname, final ChatRoomMemberRole chatRoomMemberRole)
     {
+        if (parentProvider == null)
+        {
+            throw new IllegalArgumentException(
+                "parent protocol provider cannot be null");
+        }
         this.parentProvider = parentProvider;
+        if (chatRoom == null)
+        {
+            throw new IllegalArgumentException(
+                "chat room instance cannot be null");
+        }
         this.chatRoom = chatRoom;
+        if (contactID == null)
+        {
+            throw new IllegalArgumentException("contact ID cannot be null");
+        }
         this.contactID = contactID;
-        this.chatRoomMemberRole = chatRoomMemberRole;
+        if (ident == null)
+        {
+            throw new IllegalArgumentException("ident cannot be null");
+        }
+        this.ident = ident;
+        if (hostname == null)
+        {
+            throw new IllegalArgumentException("hostname cannot be null");
+        }
+        this.hostname = hostname;
+        if (chatRoomMemberRole == null)
+        {
+            throw new IllegalArgumentException("member role cannot be null");
+        }
+        this.roles.add(chatRoomMemberRole);
     }
 
     /**
@@ -88,7 +139,7 @@ public class ChatRoomMemberIrcImpl
      * this method returns the same as getName().
      *
      * @return a String (contact address), uniquely representing the contact
-     * over the service being used by the associated protocol provider instance/
+     * over the service being used by the associated protocol provider instance
      */
     public String getContactAddress()
     {
@@ -96,10 +147,30 @@ public class ChatRoomMemberIrcImpl
     }
 
     /**
+     * Return the contact ident.
+     *
+     * @return returns ident
+     */
+    public String getIdent()
+    {
+        return this.ident;
+    }
+
+    /**
+     * Return the contact host name.
+     *
+     * @return returns host name
+     */
+    public String getHostname()
+    {
+        return this.hostname;
+    }
+
+    /**
      * Returns the name of this member as it is known in its containing
      * chat room (i.e. a nickname). The name returned by this method, may
      * sometimes match the string returned by getContactID() which is actually
-     * the address of  a contact in the realm of the corresponding protocol.
+     * the address of a contact in the realm of the corresponding protocol.
      *
      * @return the name of this member as it is known in the containing chat
      * room (i.e. a nickname).
@@ -110,6 +181,20 @@ public class ChatRoomMemberIrcImpl
     }
 
     /**
+     * Set a new name for this ChatRoomMember.
+     *
+     * @param newName new name to set for chat room member
+     */
+    public void setName(final String newName)
+    {
+        if (newName == null)
+        {
+            throw new IllegalArgumentException("newName cannot be null");
+        }
+        this.contactID = newName;
+    }
+
+    /**
      * Returns the role of this chat room member in its containing room.
      *
      * @return a <tt>ChatRoomMemberRole</tt> instance indicating the role
@@ -117,7 +202,7 @@ public class ChatRoomMemberIrcImpl
      */
     public ChatRoomMemberRole getRole()
     {
-        return this.chatRoomMemberRole;
+        return this.roles.first();
     }
 
     /**
@@ -125,9 +210,32 @@ public class ChatRoomMemberIrcImpl
      *
      * @param chatRoomMemberRole the role to be set
      */
-    public void setRole(ChatRoomMemberRole chatRoomMemberRole)
+    public void setRole(final ChatRoomMemberRole chatRoomMemberRole)
     {
-        this.chatRoomMemberRole = chatRoomMemberRole;
+        // Ignore explicit set role operations, since we only allow
+        // modifications from the IRC server.
+        LOGGER.debug("Ignoring request to set member role.");
+        return;
+    }
+
+    /**
+     * Add a role.
+     *
+     * @param role the new role
+     */
+    void addRole(final ChatRoomMemberRole role)
+    {
+        this.roles.add(role);
+    }
+
+    /**
+     * Remove a role.
+     *
+     * @param role the revoked role
+     */
+    void removeRole(final ChatRoomMemberRole role)
+    {
+        this.roles.remove(role);
     }
 
     /**
@@ -136,19 +244,58 @@ public class ChatRoomMemberIrcImpl
      *
      * @return null
      */
-     public byte[] getAvatar()
-     {
-         return null;
-     }
+    public byte[] getAvatar()
+    {
+        return null;
+    }
 
-     /**
-      * Returns null to indicate that there's no contact corresponding to the
-      * IRC member.
-      *
-      * @return null
-      */
-     public Contact getContact()
-     {
-         return null;
-     }
+    /**
+     * Get the corresponding contact for a chat room member if it exists.
+     *
+     * @return Contact instance if it exists, or null otherwise.
+     */
+    public Contact getContact()
+    {
+        return this.parentProvider.getPersistentPresence().findContactByID(
+            this.contactID);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode()
+    {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + contactID.hashCode();
+        result = prime * result + parentProvider.hashCode();
+        return result;
+    }
+
+    /**
+     * equality by provider protocol instance and contact ID.
+     *
+     * Enables the possibility to check if chat room member is same member in
+     * different chat rooms. Values are only reliable for the same connection,
+     * so also check protocol provider instance.
+     *
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(final Object obj)
+    {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ChatRoomMemberIrcImpl other = (ChatRoomMemberIrcImpl) obj;
+        if (!contactID.equals(other.contactID))
+            return false;
+        if (!parentProvider.equals(other.parentProvider))
+            return false;
+        return true;
+    }
 }

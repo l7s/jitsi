@@ -357,10 +357,41 @@ public class CallSipImpl
         Request invite
             = messageFactory.createInviteRequest(calleeAddress, cause);
 
+        // Transport preference
+        String forceTransport = null;
+        javax.sip.address.URI calleeURI = calleeAddress.getURI();
+        if(calleeURI.getScheme().toLowerCase().equals("sips"))
+        {
+            // MUST use TLS
+            forceTransport = "TLS";
+            logger.trace("detected SIPS URI, must use TLS");
+        }
+        else if(calleeURI.isSipURI() && calleeURI instanceof SipURI)
+        {
+            SipURI _calleeURI = (SipURI)calleeURI;
+            // check for a transport parameter
+            forceTransport = _calleeURI.getTransportParam();
+            if(forceTransport != null)
+            {
+                logger.trace("got transport parameter: " + forceTransport);
+            }
+        }
+
         // Transaction
         ClientTransaction inviteTransaction = null;
-        SipProvider jainSipProvider
-            = getProtocolProvider().getDefaultJainSipProvider();
+        SipProvider jainSipProvider;
+        if(forceTransport != null)
+        {
+            logger.trace("trying to use transport: " + forceTransport);
+            jainSipProvider = getProtocolProvider()
+                .getJainSipProvider(forceTransport);
+        }
+        else
+        {
+            logger.trace("trying default transport");
+            jainSipProvider = getProtocolProvider()
+                .getDefaultJainSipProvider();
+        }
 
         try
         {
@@ -447,40 +478,29 @@ public class CallSipImpl
         {
             if (logger.isTraceEnabled())
                 logger.trace("will send ringing response: ");
-            response = messageFactory.createResponse(Response.RINGING, invite);
-            serverTran.sendResponse(response);
-
-            if(serverTran instanceof SIPTransaction
-                && !((SIPTransaction)serverTran).isReliable())
+            if(peer.getState().equals(CallPeerState.INCOMING_CALL))
             {
-                final Timer timer = new Timer();
-                CallPeerAdapter stateListener = new CallPeerAdapter()
-                {
-                    @Override
-                    public void peerStateChanged(CallPeerChangeEvent evt)
-                    {
-                        if(!evt.getNewValue()
-                                .equals(CallPeerState.INCOMING_CALL))
-                        {
-                            timer.cancel();
-                            peer.removeCallPeerListener(this);
-                        }
-                    }
-                };
-                int interval = retransmitsRingingInterval;
-                int delay = 0;
-                for(int i = 0; i < MAX_RETRANSMISSIONS; i++)
-                {
-                    delay += interval;
-                    timer.schedule(new RingingResponseTask(response,
-                        serverTran, peer, timer, stateListener), delay);
-                    interval *= 2;
-                }
+                response = messageFactory.createResponse(Response.RINGING, invite);
 
-                peer.addCallPeerListener(stateListener);
+                serverTran.sendResponse(response);
+
+                if(serverTran instanceof SIPTransaction
+                    && !((SIPTransaction)serverTran).isReliable())
+                {
+                    final Timer timer = new Timer();
+                    int interval = retransmitsRingingInterval;
+                    int delay = 0;
+                    for(int i = 0; i < MAX_RETRANSMISSIONS; i++)
+                    {
+                        delay += interval;
+                        timer.schedule(new RingingResponseTask(response,
+                            serverTran, peer, timer), delay);
+                        interval *= 2;
+                    }
+                }
+                if (logger.isDebugEnabled())
+                    logger.debug("sent a ringing response: " + response);
             }
-            if (logger.isDebugEnabled())
-                logger.debug("sent a ringing response: " + response);
         }
         catch (Exception ex)
         {
@@ -595,11 +615,6 @@ public class CallSipImpl
         private final Timer timer;
 
         /**
-         * Listener for the state of the peer.
-         */
-        private CallPeerAdapter stateListener;
-
-        /**
          * Create ringing response task.
          * @param response the response.
          * @param serverTran the transaction.
@@ -608,13 +623,12 @@ public class CallSipImpl
          * @param stateListener the state listener.
          */
         RingingResponseTask(Response response, ServerTransaction serverTran,
-            CallPeerSipImpl peer, Timer timer, CallPeerAdapter stateListener)
+            CallPeerSipImpl peer, Timer timer)
         {
             this.response = response;
             this.serverTran = serverTran;
             this.peer = peer;
             this.timer = timer;
-            this.stateListener = stateListener;
         }
 
         /**
@@ -625,12 +639,19 @@ public class CallSipImpl
         {
             try
             {
-                serverTran.sendResponse(response);
+                if(!peer.getState().equals(
+                    CallPeerState.INCOMING_CALL))
+                {
+                    timer.cancel();
+                }
+                else
+                {
+                    serverTran.sendResponse(response);
+                }
             }
             catch (Exception ex)
             {
                 timer.cancel();
-                peer.removeCallPeerListener(stateListener);
             }
         }
     }

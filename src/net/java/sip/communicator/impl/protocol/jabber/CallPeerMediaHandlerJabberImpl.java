@@ -679,7 +679,7 @@ public class CallPeerMediaHandlerJabberImpl
                                             rtpExtensions,
                                             masterStream);
 
-            long ourSsrc = stream.getLocalSourceID() & 0xffffffffL;
+            long ourSsrc = stream.getLocalSourceID();
             if (direction.allowsSending() && ourSsrc != -1)
             {
                 description.setSsrc(Long.toString(ourSsrc));
@@ -2423,7 +2423,7 @@ public class CallPeerMediaHandlerJabberImpl
             if (dtlsControl != null)
             {
                 srtpControls.remove(mediaType, SrtpControlType.DTLS_SRTP);
-                dtlsControl.cleanup();
+                dtlsControl.cleanup(null);
             }
         }
         return b;
@@ -2590,7 +2590,7 @@ public class CallPeerMediaHandlerJabberImpl
             if (dtlsControl != null)
             {
                 srtpControls.remove(mediaType, SrtpControlType.DTLS_SRTP);
-                dtlsControl.cleanup();
+                dtlsControl.cleanup(null);
             }
         }
         return b;

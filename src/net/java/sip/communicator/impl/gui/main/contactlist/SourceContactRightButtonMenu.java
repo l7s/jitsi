@@ -56,14 +56,14 @@ public class SourceContactRightButtonMenu
     private SIPCommMenu callContactMenu;
 
     /**
-     * Contact details menu.
-     */
-    private SIPCommMenu contactDetailsMenu;
-
-    /**
      * Add contact component.
      */
     private Component addContactComponent;
+    
+    /**
+     * The send message menu item.
+     */
+    private JMenuItem sendMessageItem;
 
     /**
      * Creates an instance of <tt>SourceContactRightButtonMenu</tt> by
@@ -89,11 +89,11 @@ public class SourceContactRightButtonMenu
             .getPreferredContactDetail(OperationSetBasicTelephony.class);
 
         // Call menu.
-        if (cDetail != null
-            && sourceContact.getContactSource().getType()
-                != ContactSourceService.RECENT_MESSAGES_TYPE)
+        if (cDetail != null)
         {
-            add(initCallMenu());
+            Component c = initCallMenu();
+            if(c != null)
+                add(c);
         }
 
         // Only create the menu if the add contact functionality is enabled.
@@ -102,16 +102,44 @@ public class SourceContactRightButtonMenu
         {
             addContactComponent
                 = TreeContactList.createAddContactMenu(sourceContact);
+            initSendMessageMenu();
         }
 
         if (addContactComponent != null)
             add(addContactComponent);
+        
 
         for(JMenuItem item :
             sourceUIContact.getContactCustomActionMenuItems(true))
         {
             add(item);
         }
+    }
+
+    /**
+     * Initialized the send message menu.
+     */
+    private void initSendMessageMenu()
+    {
+        sendMessageItem = 
+            new JMenuItem(GuiActivator.getResources()
+                .getI18NString("service.gui.SEND_MESSAGE"));
+        sendMessageItem.setName("sendMessage");
+        sendMessageItem.setMnemonic(
+            GuiActivator.getResources()
+            .getI18nMnemonic("service.gui.SEND_MESSAGE"));
+        sendMessageItem.setIcon(new ImageIcon(
+            ImageLoader.getImage(ImageLoader.SEND_MESSAGE_16x16_ICON)));
+        sendMessageItem.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                GuiActivator.getUIService().getChatWindowManager()
+                    .startChat(sourceContact.getContactAddress());
+            }
+        });
+        add(sendMessageItem);
     }
 
     /**
@@ -181,6 +209,10 @@ public class SourceContactRightButtonMenu
                     contains(OperationSetBasicTelephony.class));
             callContactMenu.add(callContactItem);
         }
+
+        if(callContactMenu.getMenuComponentCount() == 0)
+            return null;
+
         return callContactMenu;
     }
 
@@ -230,6 +262,9 @@ public class SourceContactRightButtonMenu
     {
         callContactMenu.setIcon(new ImageIcon(ImageLoader
             .getImage(ImageLoader.CALL_16x16_ICON)));
+        
+        sendMessageItem.setIcon(new ImageIcon(
+            ImageLoader.getImage(ImageLoader.SEND_MESSAGE_16x16_ICON)));
 
         if(addContactComponent instanceof JMenuItem)
         {

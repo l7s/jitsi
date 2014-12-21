@@ -114,16 +114,12 @@ public class LoginManager
     private void addAccountsForProtocolProviderFactory(
         ProtocolProviderFactory providerFactory)
     {
-        ServiceReference serRef;
-        ProtocolProviderService protocolProvider;
-
         for (AccountID accountID : providerFactory.getRegisteredAccounts())
         {
-            serRef = providerFactory.getProviderForAccount(accountID);
-
-            protocolProvider =
-                (ProtocolProviderService) UtilActivator.bundleContext
-                    .getService(serRef);
+            ServiceReference<ProtocolProviderService> serRef
+                = providerFactory.getProviderForAccount(accountID);
+            ProtocolProviderService protocolProvider
+                = UtilActivator.bundleContext.getService(serRef);
 
             handleProviderAdded(protocolProvider);
         }
@@ -296,31 +292,26 @@ public class LoginManager
      */
     public void serviceChanged(ServiceEvent event)
     {
-        ServiceReference serviceRef = event.getServiceReference();
+        ServiceReference<?> serviceRef = event.getServiceReference();
 
         // if the event is caused by a bundle being stopped, we don't want to
         // know
         if (serviceRef.getBundle().getState() == Bundle.STOPPING)
-        {
             return;
-        }
 
-        Object service
-            = UtilActivator.bundleContext.getService(serviceRef);
+        Object service = UtilActivator.bundleContext.getService(serviceRef);
 
         // we don't care if the source service is not a protocol provider
         if (!(service instanceof ProtocolProviderService))
-        {
             return;
-        }
 
         switch (event.getType())
         {
         case ServiceEvent.REGISTERED:
-            this.handleProviderAdded((ProtocolProviderService) service);
+            handleProviderAdded((ProtocolProviderService) service);
             break;
         case ServiceEvent.UNREGISTERING:
-            this.handleProviderRemoved((ProtocolProviderService) service);
+            handleProviderRemoved((ProtocolProviderService) service);
             break;
         }
     }
@@ -412,6 +403,12 @@ public class LoginManager
         {
             this.protocolProvider = protocolProvider;
             this.secAuth = secAuth;
+
+            if(logger.isTraceEnabled())
+                logger.trace("Registering provider: "
+                    + protocolProvider.getAccountID().getAccountAddress(),
+                    new Exception(
+                        "Just tracing, provider registering, not an error!"));
         }
 
         /**
@@ -547,7 +544,7 @@ public class LoginManager
         {
             try
             {
-                protocolProvider.unregister();
+                protocolProvider.unregister(true);
             }
             catch (OperationFailedException ex)
             {

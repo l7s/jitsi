@@ -13,21 +13,21 @@ import java.io.*;
 import java.net.*;
 import java.text.*;
 import java.util.*;
+import java.util.Map;
 import java.util.regex.*;
 
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.text.*;
 import javax.swing.text.html.*;
-import javax.swing.text.html.HTML.*;
-
-import org.jitsi.service.configuration.*;
-import org.jitsi.service.fileaccess.FileCategory;
+import javax.swing.text.html.HTML.Attribute;
 
 import net.java.sip.communicator.impl.gui.*;
 import net.java.sip.communicator.impl.gui.main.chat.history.*;
 import net.java.sip.communicator.impl.gui.main.chat.menus.*;
+import net.java.sip.communicator.impl.gui.main.chat.replacers.*;
 import net.java.sip.communicator.impl.gui.utils.*;
+import net.java.sip.communicator.impl.gui.utils.Constants;
 import net.java.sip.communicator.plugin.desktoputil.*;
 import net.java.sip.communicator.plugin.desktoputil.SwingWorker;
 import net.java.sip.communicator.service.gui.*;
@@ -39,7 +39,12 @@ import net.java.sip.communicator.service.replacement.smilies.*;
 import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.util.Logger;
 import net.java.sip.communicator.util.skin.*;
-import org.jitsi.util.*;
+
+import org.apache.commons.lang3.*;
+import org.jitsi.service.configuration.*;
+import org.jitsi.service.fileaccess.*;
+import org.jitsi.util.StringUtils;
+import org.osgi.framework.*;
 
 /**
  * The <tt>ChatConversationPanel</tt> is the panel, where all sent and received
@@ -51,6 +56,7 @@ import org.jitsi.util.*;
  * @author Yana Stamcheva
  * @author Lyubomir Marinov
  * @author Adam Netocny
+ * @author Danny van Heumen
  */
 public class ChatConversationPanel
     extends SIPCommScrollPane
@@ -69,6 +75,12 @@ public class ChatConversationPanel
     /**
      * The regular expression (in the form of compiled <tt>Pattern</tt>) which
      * matches URLs for the purposed of turning them into links.
+     *
+     * TODO Current pattern misses tailing '/' (slash) that is sometimes
+     * included in URL's. (Danny)
+     *
+     * TODO Current implementation misses # after ? has been encountered in URL.
+     * (Danny)
      */
     private static final Pattern URL_PATTERN
         = Pattern.compile(
@@ -89,16 +101,44 @@ public class ChatConversationPanel
             Pattern.compile("(<div[^>]*>)(.*)(</div>)", Pattern.DOTALL);
 
     /**
-     * Extracting text from plaintext tags or content of anchors,
-     * text to be replaced.
+     * A regular expression for searching all pieces of plain text within a blob
+     * of HTML text. <i>This expression assumes that the plain text part is
+     * correctly escaped, such that there is no occurrence of the symbols &lt;
+     * and &gt;.</i>
+     *
+     * <pre>
+     * In essence this regexp pattern works as follows:
+     * 1. Find all the text that isn't the start of a tag. (so all chars != '<')
+     *    -> This is your actual result: textual content that is not part of a
+     *    tag.
+     * 2. Then, if you find a '<', find as much chars as you can until you find
+     *    '>' (if it is possible at all to find a closing '>')
+     *
+     *    In depth explanation of 2.:
+     *    The text between tags consists mainly of 2 parts:
+     *
+     *    A) a piece of text
+     *    B) some value "between quotes"
+     *
+     *    So everything up to the "quote" is part of a piece of text (A). Then
+     *    if we encounter a "quote" we consider the rest of the text part of the
+     *    value (B) until the value section is closed with a closing "quote".
+     *    (We tend to be rather greedy, so we even swallow '>' along the way
+     *    looking for the closing "quote".)
+     *
+     *    This subpattern is allowed any number of times, until eventually the
+     *    closing '>' is encountered. (Or not if the pattern is incomplete.)
+     *
+     * 3. And consider that 2. is optional, since it could also be that we only
+     *    find plain text, which would all be captured by 1.
+     * </pre>
+     *
+     * <p>The first group matches any piece of text outside of the &lt; and &gt;
+     * brackets that define the start and end of HTML tags.</p>
      */
-    private static final Pattern TEXT_TO_REPLACE_PATTERN =
-        Pattern.compile(
-            ChatHtmlUtils.START_PLAINTEXT_TAG
-                + "(.*?)" +
-                ChatHtmlUtils.END_PLAINTEXT_TAG
-                + "|<a[^>]+>(.+?)</a>",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    static final Pattern TEXT_TO_REPLACE_PATTERN = Pattern.compile(
+        "([^<]*+)(?:<(?:[^>\"]*(?:\"[^\"]*+\"?)*)*+>?)?",
+        Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     /**
      * List for observing text messages.
@@ -137,9 +177,24 @@ public class ChatConversationPanel
     private String currentHref;
 
     /**
+     * The currently shown href, is it an img element.
+     */
+    private boolean isCurrentHrefImg = false;
+
+    /**
      * The copy link item, contained in the right mouse click menu.
      */
     private final JMenuItem copyLinkItem;
+
+    /**
+     * The copy link item, contained in the right mouse click menu.
+     */
+    private final JMenuItem configureReplacementItem;
+
+    /**
+     * The configure replacement item separator.
+     */
+    private final JSeparator configureReplacementSeparator = new JSeparator();
 
     /**
      * The open link item, contained in the right mouse click menu.
@@ -180,8 +235,8 @@ public class ChatConversationPanel
         = new ShowPreviewDialog(ChatConversationPanel.this);
 
     /**
-     * The implementation of the routine which scrolls {@link #chatTextPane} to its
-     * bottom.
+     * The implementation of the routine which scrolls {@link #chatTextPane} to
+     * its bottom.
      */
     private final Runnable scrollToBottomRunnable = new Runnable()
     {
@@ -310,6 +365,30 @@ public class ChatConversationPanel
             GuiActivator.getResources().getI18nMnemonic(
                 "service.gui.COPY_LINK"));
 
+        configureReplacementItem = new JMenuItem(
+            GuiActivator.getResources().getI18NString(
+                "plugin.chatconfig.replacement.CONFIGURE_REPLACEMENT"),
+            GuiActivator.getResources().getImage(
+                "service.gui.icons.CONFIGURE_ICON"));
+
+        configureReplacementItem.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e)
+            {
+                final ConfigurationContainer configContainer
+                    = GuiActivator.getUIService().getConfigurationContainer();
+
+                ConfigurationForm chatConfigForm = getChatConfigForm();
+
+                if (chatConfigForm != null)
+                {
+                    configContainer.setSelected(chatConfigForm);
+
+                    configContainer.setVisible(true);
+                }
+            }
+        });
+
         this.isSimpleTheme = ConfigurationUtils.isChatSimpleThemeEnabled();
 
         /*
@@ -424,15 +503,15 @@ public class ChatConversationPanel
                                     ProtocolProviderService protocolProvider,
                                     String contactAddress)
     {
-        String contentType = chatMessage.getContentType();
-
         // If this is a consecutive message don't go through the initiation
         // and just append it.
         if (isConsecutiveMessage(chatMessage))
         {
-            appendConsecutiveMessage(chatMessage, keyword, contentType);
+            appendConsecutiveMessage(chatMessage, keyword);
             return null;
         }
+
+        String contentType = chatMessage.getContentType();
 
         lastMessageTimestamp = chatMessage.getDate();
 
@@ -468,8 +547,8 @@ public class ChatConversationPanel
                 contactDisplayName,
                 getContactAvatar(protocolProvider, contactAddress),
                 date,
-                formatMessage(message, contentType, keyword),
-                contentType,
+                formatMessageAsHTML(message, contentType, keyword),
+                ChatHtmlUtils.HTML_CONTENT_TYPE,
                 false,
                 isSimpleTheme);
         }
@@ -481,8 +560,8 @@ public class ChatConversationPanel
                 contactDisplayName,
                 getContactAvatar(protocolProvider),
                 date,
-                formatMessage(message, contentType, keyword),
-                contentType,
+                formatMessageAsHTML(message, contentType, keyword),
+                ChatHtmlUtils.HTML_CONTENT_TYPE,
                 false,
                 isSimpleTheme);
         }
@@ -494,8 +573,8 @@ public class ChatConversationPanel
                 contactDisplayName,
                 getContactAvatar(protocolProvider, contactAddress),
                 date,
-                formatMessage(message, contentType, keyword),
-                contentType,
+                formatMessageAsHTML(message, contentType, keyword),
+                ChatHtmlUtils.HTML_CONTENT_TYPE,
                 true,
                 isSimpleTheme);
         }
@@ -507,8 +586,8 @@ public class ChatConversationPanel
                 contactDisplayName,
                 getContactAvatar(protocolProvider),
                 date,
-                formatMessage(message, contentType, keyword),
-                contentType,
+                formatMessageAsHTML(message, contentType, keyword),
+                ChatHtmlUtils.HTML_CONTENT_TYPE,
                 true,
                 isSimpleTheme);
         }
@@ -521,20 +600,22 @@ public class ChatConversationPanel
                 getContactAvatar(protocolProvider, contactAddress),
                 date,
                 ConfigurationUtils.isSmsNotifyTextDisabled() ?
-                    formatMessage(message, contentType, keyword)
-                    : formatMessage("SMS: " + message, contentType, keyword),
-                contentType,
+                    formatMessageAsHTML(message, contentType, keyword)
+                    : formatMessageAsHTML("SMS: " + message, contentType, keyword),
+                ChatHtmlUtils.HTML_CONTENT_TYPE,
                 false,
                 isSimpleTheme);
         }
         else if (messageType.equals(Chat.STATUS_MESSAGE))
         {
-            chatString =    "<h4 id=\"statusMessage\" date=\""
-                            + date + "\">";
+            chatString = "<h4 id=\"statusMessage\" date=\"" + date + "\">";
             endHeaderTag = "</h4>";
 
-            chatString
-                += GuiUtils.formatTime(date) + " " + contactName + " " + message
+            chatString +=
+                GuiUtils.formatTime(date)
+                    + " "
+                    + StringEscapeUtils.escapeHtml4(contactName) + " "
+                    + formatMessageAsHTML(message, contentType, keyword)
                     + endHeaderTag;
         }
         else if (messageType.equals(Chat.ACTION_MESSAGE))
@@ -544,24 +625,20 @@ public class ChatConversationPanel
             endHeaderTag = "</p>";
 
             chatString += "* " + GuiUtils.formatTime(date)
-                + " " + contactName + " "
-                + message
+                + " " + StringEscapeUtils.escapeHtml4(contactName) + " "
+                + formatMessageAsHTML(message, contentType, keyword)
                 + endHeaderTag;
         }
         else if (messageType.equals(Chat.SYSTEM_MESSAGE))
         {
-            String startSystemDivTag
-                = "<DIV id=\"systemMessage\" style=\"color:#627EB7;\">";
+            String startSystemDivTag =
+                "<DIV id=\"systemMessage\" style=\"color:#627EB7;\">";
             String endDivTag = "</DIV>";
-            String startPlainTextTag
-                = ChatHtmlUtils.createStartPlainTextTag(contentType);
-            String endPlainTextTag
-                = ChatHtmlUtils.createEndPlainTextTag(contentType);
 
-            chatString
-                += startSystemDivTag + startPlainTextTag
-                    + formatMessage(message, contentType, keyword)
-                    + endPlainTextTag + endDivTag;
+            chatString +=
+                startSystemDivTag
+                    + formatMessageAsHTML(message, contentType, keyword)
+                    + endDivTag;
         }
         else if (messageType.equals(Chat.ERROR_MESSAGE))
         {
@@ -579,11 +656,20 @@ public class ChatConversationPanel
             // If the message title is null do not show it and show the error
             // icon on the same line as the actual error message.
             if (messageTitle != null)
-                chatString += errorIcon + messageTitle + endHeaderTag
-                                + "<h5>" + message + "</h5>";
+            {
+                chatString +=
+                    errorIcon + StringEscapeUtils.escapeHtml4(messageTitle)
+                        + endHeaderTag + "<h5>"
+                        + formatMessageAsHTML(message, contentType, keyword)
+                        + "</h5>";
+            }
             else
-                chatString += endHeaderTag
-                                + "<h5>" + errorIcon + " " + message + "</h5>";
+            {
+                chatString +=
+                    endHeaderTag + "<h5>" + errorIcon + " "
+                        + formatMessageAsHTML(message, contentType, keyword)
+                        + "</h5>";
+            }
         }
 
         return chatString;
@@ -609,11 +695,10 @@ public class ChatConversationPanel
      * Appends a consecutive message to the document.
      *
      * @param chatMessage the message to append
-     * @return <tt>true</tt> if the append succeeded, <tt>false</tt> - otherwise
+     * @param keyword the keywords to highlight
      */
-    public void appendConsecutiveMessage(   final ChatMessage chatMessage,
-                                            final String keyword,
-                                            final String contentType)
+    public void appendConsecutiveMessage(final ChatMessage chatMessage,
+        final String keyword)
     {
         String previousMessageUID = lastMessageUID;
         lastMessageUID = chatMessage.getMessageUID();
@@ -624,9 +709,7 @@ public class ChatConversationPanel
             {
                 public void run()
                 {
-                    appendConsecutiveMessage(   chatMessage,
-                                                keyword,
-                                                contentType);
+                    appendConsecutiveMessage(chatMessage, keyword);
                 }
             });
             return;
@@ -649,10 +732,11 @@ public class ChatConversationPanel
         String newMessage = ChatHtmlUtils.createMessageTag(
                                     chatMessage.getMessageUID(),
                                     contactAddress,
-                                    formatMessage(chatMessage.getMessage(),
-                                        contentType,
+                                    formatMessageAsHTML(
+                                        chatMessage.getMessage(),
+                                        chatMessage.getContentType(),
                                         keyword),
-                                    contentType,
+                                    ChatHtmlUtils.HTML_CONTENT_TYPE,
                                     chatMessage.getDate(),
                                     false,
                                     isHistory,
@@ -681,7 +765,7 @@ public class ChatConversationPanel
             }
         }
 
-        finishMessageAdd(newMessage, contentType);
+        finishMessageAdd(newMessage);
     }
 
     /**
@@ -734,10 +818,10 @@ public class ChatConversationPanel
         String newMessage = ChatHtmlUtils.createMessageTag(
             chatMessage.getMessageUID(),
             contactAddress,
-            formatMessage(  chatMessage.getMessage(),
+            formatMessageAsHTML(chatMessage.getMessage(),
                             chatMessage.getContentType(),
                             ""),
-            chatMessage.getContentType(),
+            ChatHtmlUtils.HTML_CONTENT_TYPE,
             chatMessage.getDate(),
             true,
             isHistory,
@@ -764,16 +848,21 @@ public class ChatConversationPanel
             }
         }
 
-        finishMessageAdd(newMessage, chatMessage.getContentType());
+        finishMessageAdd(newMessage);
     }
 
     /**
      * Appends the given string at the end of the contained in this panel
      * document.
      *
-     * @param message the message string to append
+     * Note: Currently, it looks like appendMessageToEnd is only called for
+     * messages that are already converted to HTML. So It is quite possible that
+     * we can remove the content type without any issues.
+     *
+     * @param original the message string to append
+     * @param contentType the message's content type
      */
-    public void appendMessageToEnd(final String message,
+    public void appendMessageToEnd(final String original,
                                    final String contentType)
     {
         if (!SwingUtilities.isEventDispatchThread())
@@ -782,14 +871,26 @@ public class ChatConversationPanel
             {
                 public void run()
                 {
-                    appendMessageToEnd(message, contentType);
+                    appendMessageToEnd(original, contentType);
                 }
             });
             return;
         }
 
-        if (message == null)
+        if (original == null)
+        {
             return;
+        }
+
+        final String message;
+        if (ChatHtmlUtils.HTML_CONTENT_TYPE.equalsIgnoreCase(contentType))
+        {
+            message = original;
+        }
+        else
+        {
+            message = StringEscapeUtils.escapeHtml4(original);
+        }
 
         synchronized (scrollToBottomRunnable)
         {
@@ -816,15 +917,14 @@ public class ChatConversationPanel
             {
                 logger.error("Insert in the HTMLDocument failed.", e);
             }
-
         }
 
         String lastElemContent = getElementContent(lastMessageUID, message);
 
         if (lastElemContent != null)
-            finishMessageAdd(
-                getElementContent(lastMessageUID, message),
-                contentType);
+        {
+            finishMessageAdd(lastElemContent);
+        }
     }
 
     /**
@@ -834,7 +934,7 @@ public class ChatConversationPanel
      * @param message the message string
      * @param contentType
      */
-    private void finishMessageAdd(String message, String contentType)
+    private void finishMessageAdd(final String message)
     {
         // If we're not in chat history case we need to be sure the document
         // has not exceeded the required size (number of messages).
@@ -853,9 +953,8 @@ public class ChatConversationPanel
                         ReplacementProperty.getPropertyName("SMILEY"),
                         true))
         {
-            processReplacement( ChatHtmlUtils.MESSAGE_TEXT_ID + lastMessageUID,
-                                message,
-                                contentType);
+            processReplacement(ChatHtmlUtils.MESSAGE_TEXT_ID + lastMessageUID,
+                                message);
         }
     }
 
@@ -866,13 +965,10 @@ public class ChatConversationPanel
     *
     * @param messageID the messageID element.
     * @param chatString the message.
-    * @param contentType
     */
-    void processReplacement(String messageID,
-                            String chatString,
-                            String contentType)
+    void processReplacement(final String messageID, final String chatString)
     {
-        new ReplacementWorker(messageID, chatString, contentType).start();
+        new ReplacementWorker(messageID, chatString).start();
     }
 
     /**
@@ -959,204 +1055,115 @@ public class ChatConversationPanel
     }
 
     /**
-     * Highlights keywords searched in the history.
-     *
-     * @param message the source message
-     * @param contentType the content type
-     * @param keyword the searched keyword
-     * @return the formatted message
-     */
-    private String processKeyword(  String message,
-                                    String contentType,
-                                    String keyword)
-    {
-        if(message == null)
-            return message;
-
-        Matcher m
-            = Pattern.compile(Pattern.quote(keyword), Pattern.CASE_INSENSITIVE)
-                .matcher(message);
-        StringBuffer msgBuffer = new StringBuffer();
-        int prevEnd = 0;
-
-        while (m.find())
-        {
-            msgBuffer.append(message.substring(prevEnd, m.start()));
-            prevEnd = m.end();
-
-            String keywordMatch = m.group().trim();
-
-            msgBuffer.append(ChatHtmlUtils.createEndPlainTextTag(contentType));
-            msgBuffer.append("<b>");
-            msgBuffer.append(keywordMatch);
-            msgBuffer.append("</b>");
-            msgBuffer.append(ChatHtmlUtils.createStartPlainTextTag(contentType));
-        }
-
-        /*
-         * If the keyword didn't match, let the outside world be able to
-         * discover it.
-         */
-        if (prevEnd == 0)
-            return message;
-
-        msgBuffer.append(message.substring(prevEnd));
-        return msgBuffer.toString();
-    }
-
-    /**
      * Formats the given message. Processes all smiley chars, new lines and
-     * links.
+     * links. This method expects <u>only</u> the message's <u>body</u> to be
+     * provided.
      *
      * @param message the message to be formatted
      * @param contentType the content type of the message to be formatted
      * @param keyword the word to be highlighted
      * @return the formatted message
      */
-    private String formatMessage(String message,
-                                 String contentType,
-                                 String keyword)
+    private String formatMessageAsHTML(final String original,
+                                 final String contentType,
+                                 final String keyword)
     {
-        if(message == null)
-            return "";
-        // If the message content type is HTML we won't process links and
-        // new lines, but only the smileys.
-        if (!ChatHtmlUtils.HTML_CONTENT_TYPE.equals(contentType))
+        if (original == null)
         {
-
-            /*
-             * We disallow HTML in plain-text messages. But processKeyword
-             * introduces HTML. So we'll allow HTML if processKeyword has
-             * introduced it in order to not break highlighting.
-             */
-            boolean processHTMLChars;
-
-            if ((keyword != null) && (keyword.length() != 0))
-            {
-                String messageWithProcessedKeyword
-                    = processKeyword(message, contentType, keyword);
-
-                /*
-                 * The same String instance will be returned if there was no
-                 * keyword match. Calling #equals() is expensive so == is
-                 * intentional.
-                 */
-                processHTMLChars = (messageWithProcessedKeyword == message);
-                message = messageWithProcessedKeyword;
-            }
-            else
-                processHTMLChars = true;
-
-            message = processNewLines(processLinksAndHTMLChars(
-                    message, processHTMLChars, contentType), contentType);
+            return "";
         }
-        // If the message content is HTML, we process br and img tags.
+
+        // prepare source message
+        String source;
+        if (ChatHtmlUtils.HTML_CONTENT_TYPE.equals(contentType))
+        {
+            source = original;
+        }
         else
         {
-            if ((keyword != null) && (keyword.length() != 0))
-                message = processKeyword(message, contentType, keyword);
-            message = processImgTags(processBrTags(message));
+            source = StringEscapeUtils.escapeHtml4(original);
         }
 
-        return message;
+        return processReplacers(source,
+            new NewlineReplacer(),
+            new URLReplacer(URL_PATTERN),
+            new KeywordReplacer(keyword),
+            new BrTagReplacer(),
+            new ImgTagReplacer());
     }
 
     /**
-     * Formats all links in a given message and optionally escapes special HTML
-     * characters such as &lt;, &gt;, &amp; and &quot; in order to prevent HTML
-     * injection in plain-text messages such as writing
-     * <code>&lt;/PLAINTEXT&gt;</code>, HTML which is going to be rendered as
-     * such and <code>&lt;PLAINTEXT&gt;</code>. The two procedures are carried
-     * out in one call in order to not break URLs which contain special HTML
-     * characters such as &amp;.
+     * Process provided replacers one by one sequentially. The output of the
+     * first replacer is then fed as input into the second replacer, and so on.
+     * <p>
+     * {@link Replacer}s that expect HTML content (
+     * {@link Replacer#expectsPlainText()}) will typically receive the complete
+     * message as an argument. {@linkplain Replacer}s that expect plain text
+     * content will typically receive small pieces that are found in between
+     * HTML tags. The pieces of plain text content cannot be predicted as
+     * results change when they are processed by other replacers.
+     * </p>
      *
-     * @param message The source message string.
-     * @param processHTMLChars  <tt>true</tt> to escape the special HTML chars;
-     * otherwise, <tt>false</tt>
-     * @param contentType the message content type (html or plain text)
-     * @return The message string with properly formatted links.
+     * @param content the original content to process
+     * @param replacers the replacers to call
+     * @return returns the final result message content after it has been
+     *         processed by all replacers
      */
-    private String processLinksAndHTMLChars(String message,
-                                            boolean processHTMLChars,
-                                            String contentType)
+    private String processReplacers(final String content,
+        final Replacer... replacers)
     {
-        Matcher m = URL_PATTERN.matcher(message);
-        StringBuffer msgBuffer = new StringBuffer();
-        int prevEnd = 0;
-
-        while (m.find())
+        StringBuilder source = new StringBuilder(content);
+        for (final Replacer replacer : replacers)
         {
-            String fromPrevEndToStart = message.substring(prevEnd, m.start());
-
-            if (processHTMLChars)
+            final StringBuilder target = new StringBuilder();
+            if (replacer.expectsPlainText())
             {
-                fromPrevEndToStart =
-                    GuiUtils.escapeHTMLChars(fromPrevEndToStart);
+                int startPos = 0;
+                final Matcher plainTextInHtmlMatcher =
+                    TEXT_TO_REPLACE_PATTERN.matcher(source);
+                while (plainTextInHtmlMatcher.find())
+                {
+                    final String plainTextAsHtml =
+                        plainTextInHtmlMatcher.group(1);
+                    final int startMatchPosition =
+                        plainTextInHtmlMatcher.start(1);
+                    final int endMatchPosition = plainTextInHtmlMatcher.end(1);
+                    target.append(source
+                        .substring(startPos, startMatchPosition));
+                    final String plaintext =
+                        StringEscapeUtils.unescapeHtml4(plainTextAsHtml);
+
+                    // Invoke replacer.
+                    try
+                    {
+                        replacer.replace(target, plaintext);
+                    }
+                    catch (RuntimeException e)
+                    {
+                        logger.error("An error occurred in replacer: "
+                            + replacer.getClass().getName(), e);
+                    }
+
+                    startPos = endMatchPosition;
+                }
+                target.append(source.substring(startPos));
             }
-            msgBuffer.append(fromPrevEndToStart);
-            prevEnd = m.end();
-
-            String url = m.group().trim();
-
-            msgBuffer.append(ChatHtmlUtils.createEndPlainTextTag(contentType));
-            msgBuffer.append("<A href=\"");
-            if (url.startsWith("www"))
-                msgBuffer.append("http://");
-            msgBuffer.append(url);
-            msgBuffer.append("\">");
-            msgBuffer.append(url);
-            msgBuffer.append("</A>");
-            msgBuffer.append(ChatHtmlUtils.createStartPlainTextTag(contentType));
+            else
+            {
+                // Invoke replacer.
+                try
+                {
+                    replacer.replace(target, source.toString());
+                }
+                catch (RuntimeException e)
+                {
+                    logger.error("An error occurred in replacer: "
+                        + replacer.getClass().getName(), e);
+                }
+            }
+            source = target;
         }
-
-        String fromPrevEndToEnd = message.substring(prevEnd);
-
-        if (processHTMLChars)
-            fromPrevEndToEnd = GuiUtils.escapeHTMLChars(fromPrevEndToEnd);
-        msgBuffer.append(fromPrevEndToEnd);
-
-        return msgBuffer.toString();
-    }
-
-    /**
-     * Formats message new lines.
-     *
-     * @param message The source message string.
-     * @param contentType message contentType (html or plain text)
-     * @return The message string with properly formatted new lines.
-     */
-    private String processNewLines(String message, String contentType)
-    {
-
-        /*
-         * <br> tags are needed to visualize a new line in the html format, but
-         * when copied to the clipboard they are exported to the plain text
-         * format as ' ' and not as '\n'.
-         *
-         * See bug N4988885:
-         * http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4988885
-         *
-         * To fix this we need "&#10;" - the HTML-Code for ASCII-Character No.10
-         * (Line feed).
-         */
-        Matcher divMatcher = DIV_PATTERN.matcher(message);
-        String openingTag = "";
-        String closingTag = "";
-        if (divMatcher.find())
-        {
-            openingTag = divMatcher.group(1);
-            message = divMatcher.group(2);
-            closingTag = divMatcher.group(3);
-        }
-        return
-            openingTag +
-            message
-                .replaceAll(
-                    "\n",
-                    ChatHtmlUtils.createEndPlainTextTag(contentType)
-                    + "<BR/>&#10;"
-                    + ChatHtmlUtils.createStartPlainTextTag(contentType))
-            + closingTag;
+        return source.toString();
     }
 
     /**
@@ -1171,11 +1178,14 @@ public class ChatConversationPanel
         {
             String href = e.getDescription();
 
+            this.isCurrentHrefImg
+                = e.getSourceElement().getName().equals("img");
             this.currentHref = href;
         }
         else if (e.getEventType() == HyperlinkEvent.EventType.EXITED)
         {
             this.currentHref = "";
+            this.isCurrentHrefImg = false;
         }
     }
 
@@ -1228,7 +1238,7 @@ public class ChatConversationPanel
             catch (URISyntaxException e1)
             {
                 logger.error("Failed to open hyperlink in chat window. " +
-                		"Error was: Invalid URL - " + currentHref);
+                        "Error was: Invalid URL - " + currentHref);
                 return;
             }
             if("jitsi".equals(uri.getScheme()))
@@ -1261,12 +1271,19 @@ public class ChatConversationPanel
             rightButtonMenu.insert(openLinkItem, 0);
             rightButtonMenu.insert(copyLinkItem, 1);
             rightButtonMenu.insert(copyLinkSeparator, 2);
+            if(isCurrentHrefImg)
+            {
+                rightButtonMenu.insert(configureReplacementItem, 3);
+                rightButtonMenu.insert(configureReplacementSeparator, 4);
+            }
         }
         else
         {
             rightButtonMenu.remove(openLinkItem);
             rightButtonMenu.remove(copyLinkItem);
             rightButtonMenu.remove(copyLinkSeparator);
+            rightButtonMenu.remove(configureReplacementItem);
+            rightButtonMenu.remove(configureReplacementSeparator);
         }
 
         if (chatTextPane.getSelectedText() != null)
@@ -1446,91 +1463,6 @@ public class ChatConversationPanel
     }
 
     /**
-     * Formats HTML tags &lt;br/&gt; to &lt;br&gt; or &lt;BR/&gt; to &lt;BR&gt;.
-     * The reason of this function is that the ChatPanel does not support
-     * &lt;br /&gt; closing tags (XHTML syntax), thus we have to remove every
-     * slash from each &lt;br /&gt; tags.
-     * @param message The source message string.
-     * @return The message string with properly formatted &lt;br&gt; tags.
-     */
-    private String processBrTags(String message)
-    {
-        // The resulting message after being processed by this function.
-        StringBuffer processedMessage = new StringBuffer();
-
-        // Compile the regex to match something like <br .. /> or <BR .. />.
-        // This regex is case sensitive and keeps the style or other
-        // attributes of the <br> tag.
-        Matcher m
-            = Pattern.compile("<\\s*[bB][rR](.*?)(/\\s*>)").matcher(message);
-        int start = 0;
-
-        // while we find some <br /> closing tags with a slash inside.
-        while(m.find())
-        {
-            // First, we have to copy all the message preceding the <br> tag.
-            processedMessage.append(message.substring(start, m.start()));
-            // Then, we find the position of the slash inside the tag.
-            int slash_index = m.group().lastIndexOf("/");
-            // We copy the <br> tag till the slash exclude.
-            processedMessage.append(m.group().substring(0, slash_index));
-            // We copy all the end of the tag following the slash exclude.
-            processedMessage.append(m.group().substring(slash_index+1));
-            start = m.end();
-        }
-        // Finally, we have to add the end of the message following the last
-        // <br> tag, or the whole message if there is no <br> tag.
-        processedMessage.append(message.substring(start));
-
-        return processedMessage.toString();
-    }
-
-    /**
-     * Formats HTML tags &lt;img ... /&gt; to &lt; img ... &gt;&lt;/img&gt; or
-     * &lt;IMG ... /&gt; to &lt;IMG&gt;&lt;/IMG&gt;.
-     * The reason of this function is that the ChatPanel does not support
-     * &lt;img /&gt; tags (XHTML syntax).
-     * Thus, we remove every slash from each &lt;img /&gt; and close it with a
-     * separate closing tag.
-     * @param message The source message string.
-     * @return The message string with properly formatted &lt;img&gt; tags.
-     */
-    private String processImgTags(String message)
-    {
-        // The resulting message after being processed by this function.
-        StringBuffer processedMessage = new StringBuffer();
-
-        // Compile the regex to match something like <img ... /> or
-        // <IMG ... />. This regex is case sensitive and keeps the style,
-        // src or other attributes of the <img> tag.
-        Pattern p = Pattern.compile("<\\s*[iI][mM][gG](.*?)(/\\s*>)");
-        Matcher m = p.matcher(message);
-        int slash_index;
-        int start = 0;
-
-        // while we find some <img /> self-closing tags with a slash inside.
-        while(m.find())
-        {
-            // First, we have to copy all the message preceding the <img> tag.
-            processedMessage.append(message.substring(start, m.start()));
-            // Then, we find the position of the slash inside the tag.
-            slash_index = m.group().lastIndexOf("/");
-            // We copy the <img> tag till the slash exclude.
-            processedMessage.append(m.group().substring(0, slash_index));
-            // We copy all the end of the tag following the slash exclude.
-            processedMessage.append(m.group().substring(slash_index+1));
-            // We close the tag with a separate closing tag.
-            processedMessage.append("</img>");
-            start = m.end();
-        }
-        // Finally, we have to add the end of the message following the last
-        // <img> tag, or the whole message if there is no <img> tag.
-        processedMessage.append(message.substring(start));
-
-        return processedMessage.toString();
-    }
-
-    /**
      * Extend Editor pane to add URL tooltips.
      */
     private class MyTextPane
@@ -1642,20 +1574,6 @@ public class ChatConversationPanel
     }
 
     /**
-     * Highlights the string in multi user chat.
-     *
-     * @param message the message to process
-     * @param contentType the content type of the message
-     * @param keyWord the keyword to highlight
-     * @return the message string with the keyword highlighted
-     */
-    public String processChatRoomHighlight(String message, String contentType,
-        String keyWord)
-    {
-        return processKeyword(message, contentType, keyWord);
-    }
-
-    /**
      * Processes /me command in group chats.
      *
      * @param chatMessage the chat message
@@ -1694,11 +1612,10 @@ public class ChatConversationPanel
                 Pattern.compile(sourcePattern, Pattern.CASE_INSENSITIVE
                     | Pattern.DOTALL);
             Matcher m = p.matcher(chatString);
-            // Surround all smilies with <plaintext> tags.
-            chatString = m.replaceAll(
-                    ChatHtmlUtils.createStartPlainTextTag(contentType)
-                    + "$0"
-                    + ChatHtmlUtils.createEndPlainTextTag(contentType));
+            chatString =
+                m.replaceAll(ChatHtmlUtils.HTML_CONTENT_TYPE
+                    .equalsIgnoreCase(contentType) ? "$0" : StringEscapeUtils
+                    .escapeHtml4("$0"));
         }
         return chatString;
     }
@@ -1957,6 +1874,62 @@ public class ChatConversationPanel
     }
 
     /**
+     * Returns the first available advanced configuration form.
+     *
+     * @return the first available advanced configuration form
+     */
+    public static ConfigurationForm getChatConfigForm()
+    {
+        // General configuration forms only.
+        Collection<ServiceReference<ConfigurationForm>> cfgFormRefs;
+        String osgiFilter
+            = "(" + ConfigurationForm.FORM_TYPE + "="
+                + ConfigurationForm.GENERAL_TYPE + ")";
+
+        try
+        {
+            cfgFormRefs
+                = GuiActivator.bundleContext.getServiceReferences(
+                        ConfigurationForm.class,
+                        osgiFilter);
+        }
+        catch (InvalidSyntaxException ex)
+        {
+            cfgFormRefs = null;
+        }
+
+        if ((cfgFormRefs != null) && !cfgFormRefs.isEmpty())
+        {
+            String chatCfgFormClassName
+                = "net.java.sip.communicator.plugin.chatconfig.ChatConfigPanel";
+
+            for (ServiceReference<ConfigurationForm> cfgFormRef : cfgFormRefs)
+            {
+                ConfigurationForm form
+                    = GuiActivator.bundleContext.getService(cfgFormRef);
+
+                if (form instanceof LazyConfigurationForm)
+                {
+                    LazyConfigurationForm lazyConfigForm
+                        = (LazyConfigurationForm) form;
+
+                    if (chatCfgFormClassName.equals(
+                            lazyConfigForm.getFormClassName()))
+                    {
+                        return form;
+                    }
+                }
+                else if (form.getClass().getName().equals(chatCfgFormClassName))
+                {
+                    return form;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Extends SIPCommHTMLEditorKit to keeps track of created ImageView for
      * the gif images in order to flush them whenever they are no longer visible
      */
@@ -2079,7 +2052,7 @@ public class ChatConversationPanel
     /**
      * Swing worker used by processReplacement.
      */
-    private class ReplacementWorker
+    private final class ReplacementWorker
         extends SwingWorker
     {
         /**
@@ -2091,11 +2064,6 @@ public class ChatConversationPanel
          * The message.
          */
         private final String chatString;
-
-        /**
-         * The content type of the message.
-         */
-        private final String contentType;
 
         /**
          * Counts links while processing. Used to generate unique href.
@@ -2114,16 +2082,15 @@ public class ChatConversationPanel
 
         /**
          * Constructs worker.
+         *
          * @param messageID the messageID element.
          * @param chatString the messages.
-         * @param contentType the message content type.
          */
-        private ReplacementWorker(
-            String messageID, String chatString, String contentType)
+        private ReplacementWorker(final String messageID,
+            final String chatString)
         {
             this.messageID = messageID;
             this.chatString = chatString;
-            this.contentType = contentType;
 
             ConfigurationService cfg = GuiActivator.getConfigurationService();
             isEnabled = cfg.getBoolean(
@@ -2142,11 +2109,21 @@ public class ChatConversationPanel
         @Override
         public void finished()
         {
+            ShowPreviewDialog previewDialog = showPreview;
+            // There is a race between the replacement worker and the
+            // ChatConversationPanel when it is (being) disposed of. Make sure
+            // we have an instance before continuing.
+            if (previewDialog == null)
+            {
+                // Abort if dialog has been disposed of.
+                return;
+            }
+
             String newMessage = (String) get();
 
             if (newMessage != null && !newMessage.equals(chatString))
             {
-                showPreview.getMsgIDToChatString().put(
+                previewDialog.getMsgIDToChatString().put(
                     messageID, newMessage);
                 synchronized (scrollToBottomRunnable)
                 {
@@ -2184,8 +2161,8 @@ public class ChatConversationPanel
             }
 
             StringBuilder msgBuff;
-            for (Map.Entry<String, ReplacementService> entry
-                : GuiActivator.getReplacementSources().entrySet())
+            for (Map.Entry<String, ReplacementService> entry : GuiActivator
+                .getReplacementSources().entrySet())
             {
                 msgBuff = new StringBuilder();
                 processReplacementService(entry.getValue(), msgStore, msgBuff);
@@ -2197,59 +2174,48 @@ public class ChatConversationPanel
 
         /**
          * Process message for a ReplacementService.
+         *
          * @param service the service.
          * @param msg the message.
          * @param buff current accumulated buffer.
          */
-        private void processReplacementService(ReplacementService service,
-                                               String msg,
-                                               StringBuilder buff)
+        private void processReplacementService(final ReplacementService service,
+            final String msg, final StringBuilder buff)
         {
             String sourcePattern = service.getPattern();
-            Pattern pattern
-                = Pattern.compile(
-                    sourcePattern, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            Pattern pattern =
+                Pattern.compile(sourcePattern, Pattern.CASE_INSENSITIVE
+                    | Pattern.DOTALL);
 
             int startPos = 0;
 
-            Matcher plainTextMatcher = TEXT_TO_REPLACE_PATTERN.matcher(msg);
-            while(plainTextMatcher.find())
+            Matcher plainTextInHtmlMatcher =
+                TEXT_TO_REPLACE_PATTERN.matcher(msg);
+            while (plainTextInHtmlMatcher.find())
             {
-                // our match pattern detects plaintexts or links
-                // the first group is when it detects a plaintext nodes
-                // second one is the text inside anchor
-
-                String text = plainTextMatcher.group(1);
-                int startMatchPosition = plainTextMatcher.start(1);
-                int endMatchPosition = plainTextMatcher.end(1);
-                // when processing links content we skip processing smileys
-                // or we will replace stuff like :p in the links
-                boolean skipSmileys = false;
-
-                if(text == null)
-                {
-                    text = plainTextMatcher.group(2);
-                    startMatchPosition = plainTextMatcher.start(2);
-                    endMatchPosition = plainTextMatcher.end(2);
-                    skipSmileys = true;
-                }
+                String plainTextAsHtml = plainTextInHtmlMatcher.group(1);
+                int startMatchPosition = plainTextInHtmlMatcher.start(1);
+                int endMatchPosition = plainTextInHtmlMatcher.end(1);
 
                 // don't process nothing
                 // or don't process already processed links content
-                if(!StringUtils.isNullOrEmpty(text)
-                    && !(skipSmileys && text.startsWith("<I")))
+                if (!StringUtils.isNullOrEmpty(plainTextAsHtml))
                 {
                     // always add from the end of previous match, to current one
                     // or from the start to the first match
-                    buff.append(
-                        msg.substring(startPos, startMatchPosition));
+                    buff.append(msg.substring(startPos, startMatchPosition));
 
-                    processText(
-                        text,
-                        buff,
-                        pattern,
-                        service,
-                        skipSmileys);
+                    final String plaintext =
+                        StringEscapeUtils.unescapeHtml4(plainTextAsHtml);
+
+                    // Test whether this piece of content (exactly) matches a
+                    // URL pattern. We should find at most a full URL text if it
+                    // exists, since links have already been processed, so any
+                    // URL is already wrapped in A-tags.
+                    final boolean isURL =
+                        URL_PATTERN.matcher(plaintext).matches();
+
+                    processText(plaintext, buff, pattern, service, isURL);
 
                     startPos = endMatchPosition;
                 }
@@ -2260,20 +2226,31 @@ public class ChatConversationPanel
         }
 
         /**
-         * Process content between plaintext nodes.
+         * Process plain text content.
+         *
          * @param plainText the nodes text.
          * @param msgBuff the currently accumulated buffer.
-         * @param pattern the pattern for current replacement service,
-         * created earlier so we don't create it for every text we check.
+         * @param pattern the pattern for current replacement service, created
+         *            earlier so we don't create it for every text we check.
          * @param rService the replacement service.
-         * @param skipSmileys whether to skip processing smileys
+         * @param isURL whether this content matches the URL pattern
          */
-        private void processText(String plainText,
-                                 StringBuilder msgBuff,
-                                 Pattern pattern,
-                                 ReplacementService rService,
-                                 boolean skipSmileys)
+        private void processText(final String plainText,
+                                 final StringBuilder msgBuff,
+                                 final Pattern pattern,
+                                 final ReplacementService rService,
+                                 final boolean isURL)
         {
+            final ShowPreviewDialog previewDialog = showPreview;
+            // There is a race between the replacement worker and the
+            // ChatConversationPanel when it is (being) disposed of. Make sure
+            // we have an instance before continuing.
+            if (previewDialog == null)
+            {
+                // Abort if dialog has been disposed of.
+                return;
+            }
+
             Matcher m = pattern.matcher(plainText);
 
             ConfigurationService cfg = GuiActivator.getConfigurationService();
@@ -2289,45 +2266,58 @@ public class ChatConversationPanel
             int startPos = 0;
             while (m.find())
             {
-                msgBuff.append(plainText.substring(startPos, m.start()));
+                msgBuff.append(StringEscapeUtils.escapeHtml4(plainText
+                    .substring(startPos, m.start())));
                 startPos = m.end();
 
                 String group = m.group();
                 String temp = rService.getReplacement(group);
                 String group0 = m.group(0);
 
-                if(!temp.equals(group0) || isDirectImage)
+                if (!temp.equals(group0) || isDirectImage)
                 {
                     if (isSmiley)
                     {
                         if (cfg.getBoolean(ReplacementProperty.
                                 getPropertyName("SMILEY"),
-                            true)
-                            && !skipSmileys)
+                            true) && !isURL)
                         {
-                            msgBuff.append(
-                                ChatHtmlUtils.createEndPlainTextTag(
-                                    contentType));
                             msgBuff.append("<IMG SRC=\"");
                             msgBuff.append(temp);
                             msgBuff.append("\" BORDER=\"0\" ALT=\"");
                             msgBuff.append(group0);
                             msgBuff.append("\"></IMG>");
-                            msgBuff.append(
-                                ChatHtmlUtils.createStartPlainTextTag(
-                                    contentType));
                         }
                         else
                         {
-                            msgBuff.append(group);
+                            msgBuff
+                                .append(StringEscapeUtils.escapeHtml4(group));
                         }
+                    }
+                    else if (isProposalEnabled)
+                    {
+                        msgBuff.append(StringEscapeUtils.escapeHtml4(group));
+                        msgBuff.append("</A> <A href=\"jitsi://"
+                            + previewDialog.getClass().getName()
+                            + "/SHOWPREVIEW?" + messageID
+                            + "#"
+                            + linkCounter
+                            + "\">"
+                            + StringEscapeUtils.escapeHtml4(GuiActivator
+                                .getResources().getI18NString(
+                                    "service.gui.SHOW_PREVIEW")));
+
+                        previewDialog.getMsgIDandPositionToLink()
+                            .put(messageID + "#" + linkCounter++, group);
+                        previewDialog.getLinkToReplacement()
+                            .put(group, temp);
                     }
                     else if (isEnabled && isEnabledForSource)
                     {
                         if (isDirectImage)
                         {
                             DirectImageReplacementService service
-                                = (DirectImageReplacementService)rService;
+                                = (DirectImageReplacementService) rService;
                             if (service.isDirectImage(group)
                                 && service.getImageSize(group) != -1)
                             {
@@ -2341,7 +2331,8 @@ public class ChatConversationPanel
                             }
                             else
                             {
-                                msgBuff.append(group);
+                                msgBuff.append(StringEscapeUtils
+                                    .escapeHtml4(group));
                             }
                         }
                         else
@@ -2355,36 +2346,19 @@ public class ChatConversationPanel
                             msgBuff.append("\"></IMG>");
                         }
                     }
-                    else if (isProposalEnabled)
-                    {
-                        msgBuff.append(group);
-                        msgBuff.append(
-                            "</A> <A href=\"jitsi://"
-                                + showPreview.getClass().getName()
-                                + "/SHOWPREVIEW?" + messageID + "#"
-                                + linkCounter + "\">"
-                                + GuiActivator.getResources().
-                                getI18NString("service.gui.SHOW_PREVIEW"));
-
-                        showPreview.getMsgIDandPositionToLink()
-                            .put(
-                                messageID + "#" + linkCounter++, group);
-                        showPreview.getLinkToReplacement()
-                            .put(
-                                group, temp);
-                    }
                     else
                     {
-                        msgBuff.append(group);
+                        msgBuff.append(StringEscapeUtils.escapeHtml4(group));
                     }
                 }
                 else
                 {
-                    msgBuff.append(group);
+                    msgBuff.append(StringEscapeUtils.escapeHtml4(group));
                 }
             }
 
-            msgBuff.append(plainText.substring(startPos));
+            msgBuff.append(StringEscapeUtils.escapeHtml4(plainText
+                .substring(startPos)));
         }
     }
 }

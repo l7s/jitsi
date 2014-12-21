@@ -93,18 +93,18 @@ public class TestMetaContactList
             = (MockContactGroup)
                 MclSlickFixture.mockPresOpSet.getServerStoredContactListRoot();
 
-        logger.debug("============== Predefined contact List ==============");
+        logger.info("============== Predefined contact List ==============");
 
-        logger.debug("rootGroup="+expectedRoot.getGroupName()
+        logger.info("rootGroup="+expectedRoot.getGroupName()
                 +" rootGroup.childContacts="+expectedRoot.countContacts()
                 + "rootGroup.childGroups="+expectedRoot.countSubgroups()
                 + " Printing rootGroupContents=\n"+expectedRoot.toString());
 
         MetaContactGroup actualRoot = fixture.metaClService.getRoot();
 
-        logger.debug("================ Meta Contact List =================");
+        logger.info("================ Meta Contact List =================");
 
-        logger.debug("rootGroup="+actualRoot.getGroupName()
+        logger.info("rootGroup="+actualRoot.getGroupName()
                      +" rootGroup.childContacts="+actualRoot.countChildContacts()
                      + " rootGroup.childGroups="+actualRoot.countSubgroups()
                      + " Printing rootGroupContents=\n"+actualRoot.toString());
@@ -476,6 +476,13 @@ public class TestMetaContactList
         assertEquals("Source meta contact."
                      , newMetaContact, evt.getSourceMetaContact());
 
+        MclSlickFixture.mockPresOpSet.createVolatileContact(
+            newSubscriptionName + "1");
+        MclSlickFixture.mockPresOpSet.createVolatileContact(
+            newSubscriptionName + "2");
+        // and now clear volatile
+        MclSlickFixture.mockPresOpSet.removeServerStoredContactGroup(
+            MclSlickFixture.mockPresOpSet.getNonPersistentGroup());
     }
 
 

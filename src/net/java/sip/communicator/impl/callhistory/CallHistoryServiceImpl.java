@@ -618,39 +618,25 @@ public class CallHistoryServiceImpl
         // start listening for newly register or removed protocol providers
         bc.addServiceListener(this);
 
-        ServiceReference[] protocolProviderRefs = null;
-
-        try
-        {
-            protocolProviderRefs
-                = bc.getServiceReferences(
-                        ProtocolProviderService.class.getName(),
-                        null);
-        }
-        catch (InvalidSyntaxException ex)
-        {
-            // this shouldn't happen since we're providing no parameter string
-            // but let's log just in case.
-            logger.error("Error while retrieving service refs", ex);
-        }
+        Collection<ServiceReference<ProtocolProviderService>> ppsRefs
+            = ServiceUtils.getServiceReferences(
+                    bc,
+                    ProtocolProviderService.class);
 
         // in case we found any
-        if (protocolProviderRefs != null)
+        if (!ppsRefs.isEmpty())
         {
             if (logger.isDebugEnabled())
             {
                 logger.debug(
-                        "Found "
-                            + protocolProviderRefs.length
+                        "Found " + ppsRefs.size()
                             + " already installed providers.");
             }
-            for (ServiceReference protocolProviderRef : protocolProviderRefs)
+            for (ServiceReference<ProtocolProviderService> ppsRef : ppsRefs)
             {
-                ProtocolProviderService provider
-                    = (ProtocolProviderService)
-                        bc.getService(protocolProviderRef);
+                ProtocolProviderService pps = bc.getService(ppsRef);
 
-                this.handleProviderAdded(provider);
+                handleProviderAdded(pps);
             }
         }
     }
@@ -664,36 +650,22 @@ public class CallHistoryServiceImpl
     {
         bc.removeServiceListener(this);
 
-        ServiceReference[] protocolProviderRefs = null;
-
-        try
-        {
-            protocolProviderRefs
-                = bc.getServiceReferences(
-                        ProtocolProviderService.class.getName(),
-                        null);
-        }
-        catch (InvalidSyntaxException ex)
-        {
-            // this shouldn't happen since we're providing no parameter string
-            // but let's log just in case.
-            logger.error("Error while retrieving service refs", ex);
-        }
+        Collection<ServiceReference<ProtocolProviderService>> ppsRefs
+            = ServiceUtils.getServiceReferences(
+                    bc,
+                    ProtocolProviderService.class);
 
         // in case we found any
-        if (protocolProviderRefs != null)
+        if (!ppsRefs.isEmpty())
         {
-            for (ServiceReference protocolProviderRef : protocolProviderRefs)
+            for (ServiceReference<ProtocolProviderService> ppsRef : ppsRefs)
             {
-                ProtocolProviderService provider
-                    = (ProtocolProviderService)
-                        bc.getService(protocolProviderRef);
+                ProtocolProviderService pps = bc.getService(ppsRef);
 
-                this.handleProviderRemoved(provider);
+                handleProviderRemoved(pps);
             }
         }
     }
-
 
     /**
      * Writes the given record to the history service
@@ -1514,21 +1486,21 @@ public class CallHistoryServiceImpl
      * @return the <tt>ProtocolProviderService</tt> corresponding to the given
      * account identifier
      */
-    private static ProtocolProviderService getProtocolProvider(String accountUID)
+    private static ProtocolProviderService getProtocolProvider(
+            String accountUID)
     {
         for (ProtocolProviderFactory providerFactory
                 : CallHistoryActivator.getProtocolProviderFactories().values())
         {
-            ServiceReference serRef;
-
             for (AccountID accountID : providerFactory.getRegisteredAccounts())
             {
                 if (accountID.getAccountUniqueID().equals(accountUID))
                 {
-                    serRef = providerFactory.getProviderForAccount(accountID);
+                    ServiceReference<ProtocolProviderService> serRef
+                        = providerFactory.getProviderForAccount(accountID);
 
-                    return (ProtocolProviderService) CallHistoryActivator
-                        .bundleContext.getService(serRef);
+                    return
+                        CallHistoryActivator.bundleContext.getService(serRef);
                 }
             }
         }

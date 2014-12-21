@@ -10,8 +10,9 @@ import java.beans.*;
 import java.io.*;
 import java.text.*;
 import java.util.*;
-import java.util.regex.*;
 
+import net.java.sip.communicator.service.contactlist.*;
+import net.java.sip.communicator.service.contactlist.event.*;
 import net.java.sip.communicator.service.contactsource.*;
 import net.java.sip.communicator.service.history.*;
 import net.java.sip.communicator.service.history.records.*;
@@ -23,14 +24,13 @@ import net.java.sip.communicator.service.protocol.event.*;
 import org.jitsi.service.configuration.*;
 import org.jitsi.util.*;
 
-import static net.java.sip.communicator.service.history.HistoryService.DATE_FORMAT;
-
 /**
  * The source contact service. The will show most recent messages.
  *
  * @author Damian Minkov
  */
 public class MessageSourceService
+    extends MetaContactListAdapter
     implements ContactSourceService,
                ContactPresenceStatusListener,
                ContactCapabilitiesListener,
@@ -44,8 +44,7 @@ public class MessageSourceService
     /**
      * The logger for this class.
      */
-    private static Logger logger = Logger
-        .getLogger(MessageSourceService.class);
+    private static Logger logger = Logger.getLogger(MessageSourceService.class);
 
     /**
      * The display name of this contact source.
@@ -125,8 +124,8 @@ public class MessageSourceService
     /**
      * List of recent messages.
      */
-    private List<MessageSourceContact> recentMessages
-        = new LinkedList<MessageSourceContact>();
+    private final List<ComparableEvtObj> recentMessages
+        = new LinkedList<ComparableEvtObj>();
 
     /**
      * Date of the oldest shown message.
@@ -136,7 +135,7 @@ public class MessageSourceService
     /**
      * The last query created.
      */
-    private MessageHistoryContactQuery recentQuery = null;
+    private MessageSourceContactQuery recentQuery = null;
 
     /**
      * The message subtype if any.
@@ -222,19 +221,54 @@ public class MessageSourceService
     public ContactQuery createContactQuery(String queryString)
     {
         recentQuery =
-            (MessageHistoryContactQuery)createContactQuery(
+            (MessageSourceContactQuery)createContactQuery(
                 queryString, numberOfMessages);
 
         return recentQuery;
     }
 
     /**
+     * Updates the contact sources in the recent query if any.
+     * Done here in order to sync with recentMessages instance, and to
+     * check for already existing instances of contact sources.
+     * Normally called from the query.
+     */
+    public void updateRecentMessages()
+    {
+        if(recentQuery == null)
+            return;
+
+        synchronized(recentMessages)
+        {
+            List<SourceContact> currentContactsInQuery
+                = recentQuery.getQueryResults();
+
+            for(ComparableEvtObj evtObj : recentMessages)
+            {
+                // the contains will use the correct equals method of
+                // the object evtObj
+                if(!currentContactsInQuery.contains(evtObj))
+                {
+                    MessageSourceContact newSourceContact =
+                        new MessageSourceContact(
+                            evtObj.getEventObject(),
+                            MessageSourceService.this);
+                    newSourceContact.initDetails(evtObj.getEventObject());
+
+                    recentQuery.addQueryResult(newSourceContact);
+                }
+            }
+        }
+    }
+
+    /**
      * Searches for entries in cached recent messages in history.
      *
-     * @param provider
-     * @return
+     * @param provider the provider which contact messages we will search
+     * @param isStatusChanged is the search because of status changed
+     * @return entries in cached recent messages in history.
      */
-    private List<MessageSourceContact> getSourceContacts(
+    private List<ComparableEvtObj> getCachedRecentMessages(
         ProtocolProviderService provider, boolean isStatusChanged)
     {
         String providerID = provider.getAccountID().getAccountUniqueID();
@@ -243,8 +277,8 @@ public class MessageSourceService
                 recentMessages.size() < numberOfMessages
                     ? null : oldestRecentMessage );
 
-        List<MessageSourceContact> sourceContactsToAdd
-            = new ArrayList<MessageSourceContact>();
+        List<ComparableEvtObj> cachedRecentMessages
+            = new ArrayList<ComparableEvtObj>();
 
         for(String contactID : recentMessagesContactIDs)
         {
@@ -255,10 +289,10 @@ public class MessageSourceService
                     contactID,
                     isSMSEnabled);
 
-            processEventObjects(res, sourceContactsToAdd, isStatusChanged);
+            processEventObjects(res, cachedRecentMessages, isStatusChanged);
         }
 
-        return sourceContactsToAdd;
+        return cachedRecentMessages;
     }
 
     /**
@@ -272,46 +306,46 @@ public class MessageSourceService
      * If nothing found a new contact is created.
      *
      * @param res list of event
-     * @param sourceContactsToAdd list of newly created source contacts
+     * @param cachedRecentMessages list of newly created source contacts
      * or already existed but updated with corresponding event object
      * @param isStatusChanged whether provider status changed
      * and we are processing
      */
     private void processEventObjects(
         Collection<EventObject> res,
-        List<MessageSourceContact> sourceContactsToAdd,
+        List<ComparableEvtObj> cachedRecentMessages,
         boolean isStatusChanged)
     {
         for(EventObject obj : res)
         {
-            MessageSourceContact msc =
-                findMessageSourceContact(obj, recentMessages);
+            ComparableEvtObj oldMsg = findRecentMessage(obj, recentMessages);
 
-            if(msc != null)
+            if(oldMsg != null)
             {
-                msc.update(obj);// update
+                oldMsg.update(obj);// update
 
-                if(isStatusChanged)
-                    msc.initDetails(obj);// update capabilities
+                if(isStatusChanged && recentQuery != null)
+                    recentQuery.updateCapabilities(oldMsg, obj);
 
-                // we still add it to sourceContactsToAdd
+                // we still add it to cachedRecentMessages
                 // later we will find it is duplicate and will fire
                 // update event
-                if(!sourceContactsToAdd.contains(msc))
-                    sourceContactsToAdd.add(msc);
+                if(!cachedRecentMessages.contains(oldMsg))
+                    cachedRecentMessages.add(oldMsg);
 
                 continue;
             }
 
-            msc = findMessageSourceContact(obj, sourceContactsToAdd);
+            oldMsg = findRecentMessage(obj, cachedRecentMessages);
 
-            if(msc == null)
+            if(oldMsg == null)
             {
-                msc = new MessageSourceContact(
-                    obj, MessageSourceService.this);
-                if(isStatusChanged)
-                    msc.initDetails(obj);
-                sourceContactsToAdd.add(msc);
+                oldMsg = new ComparableEvtObj(obj);
+
+                if(isStatusChanged && recentQuery != null)
+                    recentQuery.updateCapabilities(oldMsg, obj);
+
+                cachedRecentMessages.add(oldMsg);
             }
         }
     }
@@ -326,64 +360,52 @@ public class MessageSourceService
     }
 
     /**
-     * Add the source contacts, newly added will fire new,
+     * Add the ComparableEvtObj, newly added will fire new,
      * for existing fire update and when trimming the list to desired length
      * fire remove for those that were removed
      * @param contactsToAdd
      */
-    private void addNewRecentMessages(List<MessageSourceContact> contactsToAdd)
+    private void addNewRecentMessages(
+        List<ComparableEvtObj> contactsToAdd)
     {
         // now find object to fire new, and object to fire remove
         // let us find duplicates and fire update
-        List<MessageSourceContact> duplicates
-            = new ArrayList<MessageSourceContact>();
-        for(MessageSourceContact msc : recentMessages)
+        List<ComparableEvtObj> duplicates = new ArrayList<ComparableEvtObj>();
+        for(ComparableEvtObj msgToAdd : contactsToAdd)
         {
-            for(MessageSourceContact mscToAdd : contactsToAdd)
+            if(recentMessages.contains(msgToAdd))
             {
-                if(mscToAdd.equals(msc))
-                {
-                    duplicates.add(msc);
+                duplicates.add(msgToAdd);
 
-                    // update currently used instance
-                    //msc.update(mscToAdd);
-                    // it was already updated
-
-                    // save update
-                    updateRecentMessageToHistory(msc);
-                }
+                // save update
+                updateRecentMessageToHistory(msgToAdd);
             }
         }
+        recentMessages.removeAll(duplicates);
 
-        if(!duplicates.isEmpty())
+        // now contacts to add has no duplicates, add them all
+        boolean changed = recentMessages.addAll(contactsToAdd);
+
+        if(changed)
         {
-            contactsToAdd.removeAll(duplicates);
-
             Collections.sort(recentMessages);
 
             if(recentQuery != null)
             {
-                for(MessageSourceContact msc : duplicates)
-                    recentQuery.fireContactChanged(msc);
+                for(ComparableEvtObj obj : duplicates)
+                    recentQuery.updateContact(obj, obj.getEventObject());
             }
-
-            return;
         }
-
-        // now contacts to add has no duplicates, add them all
-        recentMessages.addAll(contactsToAdd);
-
-        Collections.sort(recentMessages);
 
         if(!recentMessages.isEmpty())
             oldestRecentMessage
                 = recentMessages.get(recentMessages.size() - 1).getTimestamp();
 
         // trim
-        List<MessageSourceContact> removedItems = null;
+        List<ComparableEvtObj> removedItems = null;
         if(recentMessages.size() > numberOfMessages)
         {
-            removedItems = new ArrayList<MessageSourceContact>(
+            removedItems = new ArrayList<ComparableEvtObj>(
                 recentMessages.subList(numberOfMessages, recentMessages.size()));
 
             recentMessages.removeAll(removedItems);
@@ -395,7 +417,7 @@ public class MessageSourceService
             // and now are removed after trim
             if(removedItems != null)
             {
-                for(MessageSourceContact msc : removedItems)
+                for(ComparableEvtObj msc : removedItems)
                 {
                     if(!contactsToAdd.contains(msc))
                         recentQuery.fireContactRemoved(msc);
@@ -403,12 +425,28 @@ public class MessageSourceService
             }
 
             // fire new for all that were added, and not removed after trim
-            for(MessageSourceContact msc : contactsToAdd)
+            for(ComparableEvtObj msc : contactsToAdd)
             {
-                if(removedItems == null
+                if((removedItems == null
                         || !removedItems.contains(msc))
-                    recentQuery.fireContactReceived(msc);
+                    && !duplicates.contains(msc))
+                {
+                    MessageSourceContact newSourceContact =
+                        new MessageSourceContact(
+                                msc.getEventObject(),
+                                MessageSourceService.this);
+                    newSourceContact.initDetails(msc.getEventObject());
+
+                    recentQuery.addQueryResult(newSourceContact);
+                }
             }
+
+            // if recent messages were changed, indexes have change lets
+            // fire event for the last element which will reorder the whole
+            // group if needed.
+            if(changed)
+                recentQuery.fireContactChanged(
+                    recentMessages.get(recentMessages.size() - 1));
         }
     }
 
@@ -445,10 +483,10 @@ public class MessageSourceService
 
         synchronized(recentMessages)
         {
-            List<MessageSourceContact> sourceContactsToAdd
-                = getSourceContacts(provider, isStatusChanged);
+            List<ComparableEvtObj> cachedRecentMessages
+                = getCachedRecentMessages(provider, isStatusChanged);
 
-            if(sourceContactsToAdd.isEmpty())
+            if(cachedRecentMessages.isEmpty())
             {
                 // maybe there is no cached history for this
                 // let's check
@@ -460,33 +498,32 @@ public class MessageSourceService
                         null,
                         isSMSEnabled);
 
-                List<MessageSourceContact> newMsc
-                    = new ArrayList<MessageSourceContact>();
+                List<ComparableEvtObj> newMsc
+                    = new ArrayList<ComparableEvtObj>();
 
                 processEventObjects(res, newMsc, isStatusChanged);
 
                 addNewRecentMessages(newMsc);
 
-                for(MessageSourceContact msc : newMsc)
+                for(ComparableEvtObj msc : newMsc)
                 {
                     saveRecentMessageToHistory(msc);
                 }
-
             }
             else
-                addNewRecentMessages(sourceContactsToAdd);
+                addNewRecentMessages(cachedRecentMessages);
         }
     }
 
     /**
      * Tries to match the event object to already existing
-     * MessageSourceContact in the supplied list.
+     * ComparableEvtObj in the supplied list.
      * @param obj the object that we will try to match.
      * @param list the list we will search in.
-     * @return the found source contact
+     * @return the found ComparableEvtObj
      */
-    private static MessageSourceContact findMessageSourceContact(
-        EventObject obj, List<MessageSourceContact> list)
+    private static ComparableEvtObj findRecentMessage(
+        EventObject obj, List<ComparableEvtObj> list)
     {
         Contact contact = null;
         ChatRoom chatRoom = null;
@@ -508,13 +545,13 @@ public class MessageSourceService
             chatRoom = ((ChatRoomMessageReceivedEvent)obj).getSourceChatRoom();
         }
 
-        for(MessageSourceContact msc : list)
+        for(ComparableEvtObj evt : list)
         {
             if((contact != null
-                && contact.equals(msc.getContact()))
+                && contact.equals(evt.getContact()))
                 || (chatRoom != null
-                    && chatRoom.equals(msc.getRoom())))
-                return msc;
+                && chatRoom.equals(evt.getRoom())))
+                return evt;
         }
 
         return null;
@@ -533,9 +570,9 @@ public class MessageSourceService
         {
             if(provider != null)
             {
-                List<MessageSourceContact> removedItems
-                    = new ArrayList<MessageSourceContact>();
-                for(MessageSourceContact msc : recentMessages)
+                List<ComparableEvtObj> removedItems
+                    = new ArrayList<ComparableEvtObj>();
+                for(ComparableEvtObj msc : recentMessages)
                 {
                     if(msc.getProtocolProviderService().equals(provider))
                         removedItems.add(msc);
@@ -551,7 +588,7 @@ public class MessageSourceService
 
                 if(recentQuery != null)
                 {
-                    for(MessageSourceContact msc : removedItems)
+                    for(ComparableEvtObj msc : removedItems)
                     {
                         recentQuery.fireContactRemoved(msc);
                     }
@@ -560,12 +597,12 @@ public class MessageSourceService
 
             // lets do the same as we enable provider
             // for all registered providers and finally fire events
-            List<MessageSourceContact> contactsToAdd
-                = new ArrayList<MessageSourceContact>();
+            List<ComparableEvtObj> contactsToAdd
+                = new ArrayList<ComparableEvtObj>();
             for (ProtocolProviderService pps
                     : messageHistoryService.getCurrentlyAvailableProviders())
             {
-                contactsToAdd.addAll(getSourceContacts(pps, true));
+                contactsToAdd.addAll(getCachedRecentMessages(pps, true));
             }
 
             addNewRecentMessages(contactsToAdd);
@@ -590,7 +627,9 @@ public class MessageSourceService
             {
                 Iterator<HistoryRecord> recs
                     = history.getReader().findLast(NUMBER_OF_MSGS_IN_HISTORY);
-                SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+                SimpleDateFormat sdf
+                    = new SimpleDateFormat(HistoryService.DATE_FORMAT);
+
                 while(recs.hasNext())
                 {
                     HistoryRecord hr = recs.next();
@@ -714,7 +753,11 @@ public class MessageSourceService
     {
         synchronized(recentMessages)
         {
-            return recentMessages.indexOf(messageSourceContact);
+            for (int i = 0; i < recentMessages.size(); i++)
+                if(recentMessages.get(i).equals(messageSourceContact))
+                    return i;
+
+            return -1;
         }
     }
 
@@ -730,7 +773,8 @@ public class MessageSourceService
         if(!StringUtils.isNullOrEmpty(queryString))
             return null;
 
-        recentQuery = new MessageHistoryContactQuery(numberOfMessages);
+        recentQuery = new MessageSourceContactQuery(
+            MessageSourceService.this);
 
         return recentQuery;
     }
@@ -740,20 +784,20 @@ public class MessageSourceService
      * @param evt the ContactPresenceStatusChangeEvent describing the status
      */
     @Override
-    public void contactPresenceStatusChanged(ContactPresenceStatusChangeEvent evt)
+    public void contactPresenceStatusChanged(
+        ContactPresenceStatusChangeEvent evt)
     {
         if(recentQuery == null)
             return;
 
         synchronized(recentMessages)
         {
-            for(MessageSourceContact msgSC : recentMessages)
+            for(ComparableEvtObj msg : recentMessages)
             {
-                if(msgSC.getContact() != null
-                    && msgSC.getContact().equals(evt.getSourceContact()))
+                if(msg.getContact() != null
+                    && msg.getContact().equals(evt.getSourceContact()))
                 {
-                    msgSC.setStatus(evt.getNewStatus());
-                    recentQuery.fireContactChanged(msgSC);
+                    recentQuery.updateContactStatus(msg, evt.getNewStatus());
                 }
             }
         }
@@ -779,11 +823,11 @@ public class MessageSourceService
         if(recentQuery == null)
             return;
 
-        MessageSourceContact srcContact = null;
+        ComparableEvtObj srcContact = null;
 
         synchronized(recentMessages)
         {
-            for(MessageSourceContact msg : recentMessages)
+            for(ComparableEvtObj msg : recentMessages)
             {
                 if(msg.getRoom() != null
                     && msg.getRoom().equals(evt.getChatRoom()))
@@ -802,8 +846,9 @@ public class MessageSourceService
         if (LocalUserChatRoomPresenceChangeEvent
             .LOCAL_USER_JOINED.equals(eventType))
         {
-            srcContact.setStatus(ChatRoomPresenceStatus.CHAT_ROOM_ONLINE);
-            recentQuery.fireContactChanged(srcContact);
+            recentQuery.updateContactStatus(
+                srcContact,
+                ChatRoomPresenceStatus.CHAT_ROOM_ONLINE);
         }
         else if ((LocalUserChatRoomPresenceChangeEvent
             .LOCAL_USER_LEFT.equals(eventType)
@@ -813,8 +858,9 @@ public class MessageSourceService
             .LOCAL_USER_DROPPED.equals(eventType))
             )
         {
-            srcContact.setStatus(ChatRoomPresenceStatus.CHAT_ROOM_OFFLINE);
-            recentQuery.fireContactChanged(srcContact);
+            recentQuery.updateContactStatus(
+                srcContact,
+                ChatRoomPresenceStatus.CHAT_ROOM_OFFLINE);
         }
     }
 
@@ -832,8 +878,8 @@ public class MessageSourceService
         // check if provider - contact exist update message content
         synchronized(recentMessages)
         {
-            MessageSourceContact existingMsc = null;
-            for(MessageSourceContact msc : recentMessages)
+            ComparableEvtObj existingMsc = null;
+            for(ComparableEvtObj msc : recentMessages)
             {
                 if(msc.getProtocolProviderService().equals(provider)
                     && msc.getContactAddress().equals(id))
@@ -853,7 +899,11 @@ public class MessageSourceService
                     .get(recentMessages.size() - 1).getTimestamp();
 
                 if(recentQuery != null)
+                {
+                    recentQuery.updateContact(
+                        existingMsc, existingMsc.getEventObject());
                     recentQuery.fireContactChanged(existingMsc);
+                }
 
                 return;
             }
@@ -864,17 +914,18 @@ public class MessageSourceService
                 new MessageSourceContact(obj, MessageSourceService.this);
             newSourceContact.initDetails(obj);
             // we have already checked for duplicate
-            recentMessages.add(newSourceContact);
+            ComparableEvtObj newMsg = new ComparableEvtObj(obj);
+            recentMessages.add(newMsg);
 
             Collections.sort(recentMessages);
             oldestRecentMessage
                 = recentMessages.get(recentMessages.size() - 1).getTimestamp();
 
             // trim
-            List<MessageSourceContact> removedItems = null;
+            List<ComparableEvtObj> removedItems = null;
             if(recentMessages.size() > numberOfMessages)
             {
-                removedItems = new ArrayList<MessageSourceContact>(
+                removedItems = new ArrayList<ComparableEvtObj>(
                     recentMessages.subList(
                         numberOfMessages, recentMessages.size()));
 
@@ -882,7 +933,7 @@ public class MessageSourceService
             }
 
             // save
-            saveRecentMessageToHistory(newSourceContact);
+            saveRecentMessageToHistory(newMsg);
 
             // no query nothing to fire
             if(recentQuery == null)
@@ -891,20 +942,20 @@ public class MessageSourceService
             // now fire
             if(removedItems != null)
             {
-                for(MessageSourceContact msc : removedItems)
+                for(ComparableEvtObj msc : removedItems)
                 {
                     recentQuery.fireContactRemoved(msc);
                 }
             }
 
-            recentQuery.fireContactReceived(newSourceContact);
+            recentQuery.addQueryResult(newSourceContact);
         }
     }
 
     /**
      * Adds recent message in history.
      */
-    private void saveRecentMessageToHistory(MessageSourceContact msc)
+    private void saveRecentMessageToHistory(ComparableEvtObj msc)
     {
         synchronized(historyID)
         {
@@ -912,23 +963,21 @@ public class MessageSourceService
             try
             {
                 History history = getHistory();
-
                 HistoryWriter writer = history.getWriter();
 
-                synchronized(recentMessages)
-                {
-                    SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
-                    writer.addRecord(
-                        new String[]
-                            {
-                                msc.getProtocolProviderService()
-                                    .getAccountID().getAccountUniqueID(),
-                                msc.getContactAddress(),
-                                sdf.format(msc.getTimestamp()),
-                                RECENT_MSGS_VER
-                            },
-                        NUMBER_OF_MSGS_IN_HISTORY);
-                }
+                SimpleDateFormat sdf
+                    = new SimpleDateFormat(HistoryService.DATE_FORMAT);
+
+                writer.addRecord(
+                    new String[]
+                        {
+                            msc.getProtocolProviderService()
+                                .getAccountID().getAccountUniqueID(),
+                            msc.getContactAddress(),
+                            sdf.format(msc.getTimestamp()),
+                            RECENT_MSGS_VER
+                        },
+                    NUMBER_OF_MSGS_IN_HISTORY);
             }
             catch(IOException ex)
             {
@@ -941,7 +990,7 @@ public class MessageSourceService
     /**
      * Updates recent message in history.
      */
-    private void updateRecentMessageToHistory(final MessageSourceContact msc)
+    private void updateRecentMessageToHistory(final ComparableEvtObj msg)
     {
         synchronized(historyID)
         {
@@ -952,90 +1001,91 @@ public class MessageSourceService
 
                 HistoryWriter writer = history.getWriter();
 
-                synchronized(recentMessages)
-                {
-                    writer.updateRecord(
-                        new HistoryWriter.HistoryRecordUpdater()
+                writer.updateRecord(
+                    new HistoryWriter.HistoryRecordUpdater()
+                    {
+                        HistoryRecord hr;
+
+                        @Override
+                        public void setHistoryRecord(
+                            HistoryRecord historyRecord)
                         {
-                            HistoryRecord hr;
+                            this.hr = historyRecord;
+                        }
 
-                            @Override
-                            public void setHistoryRecord(
-                                HistoryRecord historyRecord)
+                        @Override
+                        public boolean isMatching()
+                        {
+                            boolean providerFound = false;
+                            boolean contactFound = false;
+                            for(int i = 0;
+                                i < hr.getPropertyNames().length;
+                                i++)
                             {
-                                this.hr = historyRecord;
-                            }
+                                String propName = hr.getPropertyNames()[i];
 
-                            @Override
-                            public boolean isMatching()
-                            {
-                                boolean providerFound = false;
-                                boolean contactFound = false;
-                                for(int i = 0; i < hr.getPropertyNames().length; i++)
+                                if(propName.equals(STRUCTURE_NAMES[0]))
                                 {
-                                    String propName = hr.getPropertyNames()[i];
-
-                                    if(propName.equals(STRUCTURE_NAMES[0]))
+                                    if(msg.getProtocolProviderService()
+                                        .getAccountID().getAccountUniqueID()
+                                        .equals(hr.getPropertyValues()[i]))
                                     {
-                                        if(msc.getProtocolProviderService()
-                                            .getAccountID().getAccountUniqueID()
-                                            .equals(hr.getPropertyValues()[i]))
-                                        {
-                                            providerFound = true;
-                                        }
-                                    }
-                                    else if(propName.equals(STRUCTURE_NAMES[1]))
-                                    {
-                                        if(msc.getContactAddress()
-                                            .equals(hr.getPropertyValues()[i]))
-                                        {
-                                            contactFound = true;
-                                        }
+                                        providerFound = true;
                                     }
                                 }
-
-
-                                return contactFound && providerFound;
-                            }
-
-                            @Override
-                            public Map<String, String> getUpdateChanges()
-                            {
-                                HashMap<String, String> map
-                                    = new HashMap<String, String>();
-                                SimpleDateFormat sdf
-                                    = new SimpleDateFormat(DATE_FORMAT);
-                                for(int i = 0;
-                                    i < hr.getPropertyNames().length;
-                                    i++)
+                                else if(propName.equals(STRUCTURE_NAMES[1]))
                                 {
-                                    String propName = hr.getPropertyNames()[i];
-
-                                    if(propName.equals(STRUCTURE_NAMES[0]))
+                                    if(msg.getContactAddress()
+                                        .equals(hr.getPropertyValues()[i]))
                                     {
-                                        map.put(
-                                            propName,
-                                            msc.getProtocolProviderService()
-                                                .getAccountID()
-                                                .getAccountUniqueID());
+                                        contactFound = true;
                                     }
-                                    else if(propName.equals(STRUCTURE_NAMES[1]))
-                                    {
-                                        map.put(propName, msc.getContactAddress());
-                                    }
-                                    else if(propName.equals(STRUCTURE_NAMES[2]))
-                                    {
-                                        map.put(propName,
-                                            sdf.format(msc.getTimestamp()));
-                                    }
-                                    else if(propName.equals(STRUCTURE_NAMES[3]))
-                                        map.put(propName, RECENT_MSGS_VER);
                                 }
-
-                                return map;
                             }
-                        });
-                }
+
+
+                            return contactFound && providerFound;
+                        }
+
+                        @Override
+                        public Map<String, String> getUpdateChanges()
+                        {
+                            HashMap<String, String> map
+                                = new HashMap<String, String>();
+                            SimpleDateFormat sdf
+                                = new SimpleDateFormat(
+                                        HistoryService.DATE_FORMAT);
+
+                            for(int i = 0;
+                                i < hr.getPropertyNames().length;
+                                i++)
+                            {
+                                String propName = hr.getPropertyNames()[i];
+
+                                if(propName.equals(STRUCTURE_NAMES[0]))
+                                {
+                                    map.put(
+                                        propName,
+                                        msg.getProtocolProviderService()
+                                            .getAccountID()
+                                            .getAccountUniqueID());
+                                }
+                                else if(propName.equals(STRUCTURE_NAMES[1]))
+                                {
+                                    map.put(propName, msg.getContactAddress());
+                                }
+                                else if(propName.equals(STRUCTURE_NAMES[2]))
+                                {
+                                    map.put(propName,
+                                        sdf.format(msg.getTimestamp()));
+                                }
+                                else if(propName.equals(STRUCTURE_NAMES[3]))
+                                    map.put(propName, RECENT_MSGS_VER);
+                            }
+
+                            return map;
+                        }
+                    });
             }
             catch(IOException ex)
             {
@@ -1174,19 +1224,36 @@ public class MessageSourceService
         if(contact == null)
             return;
 
-        for(MessageSourceContact msc : recentMessages)
+        for(ComparableEvtObj msc : recentMessages)
         {
             if(contact.equals(msc.getContact()))
             {
-                msc.setDisplayName(contact.getDisplayName());
-
                 if(recentQuery != null)
-                    recentQuery.fireContactChanged(msc);
+                    recentQuery.updateContactDisplayName(
+                        msc,
+                        contact.getDisplayName());
 
                 return;
             }
         }
+    }
 
+    /**
+     * Indicates that a MetaContact has been modified.
+     * @param evt the MetaContactListEvent containing the corresponding contact
+     */
+    public void metaContactRenamed(MetaContactRenamedEvent evt)
+    {
+        for(ComparableEvtObj msc : recentMessages)
+        {
+            if(evt.getSourceMetaContact().containsContact(msc.getContact()))
+            {
+                if(recentQuery != null)
+                    recentQuery.updateContactDisplayName(
+                        msc,
+                        evt.getNewDisplayName());
+            }
+        }
     }
 
     @Override
@@ -1197,14 +1264,12 @@ public class MessageSourceService
         if(contact == null)
             return;
 
-        for(MessageSourceContact msc : recentMessages)
+        for(ComparableEvtObj msc : recentMessages)
         {
             if(contact.equals(msc.getContact()))
             {
-                msc.initDetails(false, contact);
-
                 if(recentQuery != null)
-                    recentQuery.fireContactChanged(msc);
+                    recentQuery.updateCapabilities(msc, contact);
 
                 return;
             }
@@ -1212,86 +1277,321 @@ public class MessageSourceService
     }
 
     /**
-     * The contact query implementation.
+     * Permanently removes all locally stored message history,
+     * remove recent contacts.
      */
-    private class MessageHistoryContactQuery
-        extends AsyncContactQuery<MessageSourceService>
+    public void eraseLocallyStoredHistory()
+        throws IOException
     {
-        MessageHistoryContactQuery(int contactCount)
+        List<ComparableEvtObj> toRemove = null;
+        synchronized(recentMessages)
         {
-            super(MessageSourceService.this,
-                Pattern.compile("",
-                    Pattern.CASE_INSENSITIVE | Pattern.LITERAL),
-                false);
+            toRemove = new ArrayList<ComparableEvtObj>(recentMessages);
+
+            recentMessages.clear();
         }
 
-        @Override
-        public void run()
+        if(recentQuery != null)
         {
-            synchronized(recentMessages)
+            for(ComparableEvtObj msc : toRemove)
             {
-                for(MessageSourceContact rm : recentMessages)
+                recentQuery.fireContactRemoved(msc);
+            }
+        }
+    }
+
+    /**
+     * Permanently removes locally stored message history for the metacontact,
+     * remove any recent contacts if any.
+     */
+    public void eraseLocallyStoredHistory(MetaContact contact)
+        throws IOException
+    {
+        List<ComparableEvtObj> toRemove = null;
+        synchronized(recentMessages)
+        {
+            toRemove = new ArrayList<ComparableEvtObj>();
+            Iterator<Contact> iter = contact.getContacts();
+            while(iter.hasNext())
+            {
+                Contact item = iter.next();
+                String id = item.getAddress();
+                ProtocolProviderService provider = item.getProtocolProvider();
+
+                for(ComparableEvtObj msc : recentMessages)
                 {
-                    addQueryResult(rm);
+                    if(msc.getProtocolProviderService().equals(provider)
+                        && msc.getContactAddress().equals(id))
+                    {
+                        toRemove.add(msc);
+                    }
                 }
+            }
+
+            recentMessages.removeAll(toRemove);
+        }
+        if(recentQuery != null)
+        {
+            for(ComparableEvtObj msc : toRemove)
+            {
+                recentQuery.fireContactRemoved(msc);
+            }
+        }
+    }
+
+    /**
+     * Permanently removes locally stored message history for the chatroom,
+     * remove any recent contacts if any.
+     */
+    public void eraseLocallyStoredHistory(ChatRoom room)
+    {
+        ComparableEvtObj toRemove = null;
+        synchronized(recentMessages)
+        {
+            for(ComparableEvtObj msg : recentMessages)
+            {
+                if(msg.getRoom() != null
+                    && msg.getRoom().equals(room))
+                {
+                    toRemove = msg;
+                    break;
+                }
+            }
+
+            if(toRemove == null)
+                return;
+
+            recentMessages.remove(toRemove);
+        }
+
+        if(recentQuery != null)
+            recentQuery.fireContactRemoved(toRemove);
+    }
+
+    /**
+     * Object used to cache recent messages.
+     */
+    private class ComparableEvtObj
+        implements Comparable<ComparableEvtObj>
+    {
+        private EventObject eventObject;
+
+        /**
+         * The protocol provider.
+         */
+        private ProtocolProviderService ppService = null;
+
+        /**
+         * The address.
+         */
+        private String address = null;
+
+        /**
+         * The timestamp.
+         */
+        private Date timestamp = null;
+
+        /**
+         * The contact instance.
+         */
+        private Contact contact = null;
+
+        /**
+         * The room instance.
+         */
+        private ChatRoom room = null;
+
+        /**
+         * Constructs.
+         * @param source used to extract initial values.
+         */
+        ComparableEvtObj(EventObject source)
+        {
+            update(source);
+        }
+
+        /**
+         * Extract values from <tt>EventObject</tt>.
+         * @param source
+         */
+        public void update(EventObject source)
+        {
+            this.eventObject = source;
+
+            if(source instanceof MessageDeliveredEvent)
+            {
+                MessageDeliveredEvent e = (MessageDeliveredEvent)source;
+
+                this.contact = e.getDestinationContact();
+
+                this.address = contact.getAddress();
+                this.ppService = contact.getProtocolProvider();
+                this.timestamp = e.getTimestamp();
+            }
+            else if(source instanceof MessageReceivedEvent)
+            {
+                MessageReceivedEvent e = (MessageReceivedEvent)source;
+
+                this.contact = e.getSourceContact();
+
+                this.address = contact.getAddress();
+                this.ppService = contact.getProtocolProvider();
+                this.timestamp = e.getTimestamp();
+            }
+            else if(source instanceof ChatRoomMessageDeliveredEvent)
+            {
+                ChatRoomMessageDeliveredEvent e
+                    = (ChatRoomMessageDeliveredEvent)source;
+
+                this.room = e.getSourceChatRoom();
+
+                this.address = room.getIdentifier();
+                this.ppService = room.getParentProvider();
+                this.timestamp = e.getTimestamp();
+            }
+            else if(source instanceof ChatRoomMessageReceivedEvent)
+            {
+                ChatRoomMessageReceivedEvent e
+                    = (ChatRoomMessageReceivedEvent)source;
+
+                this.room = e.getSourceChatRoom();
+
+                this.address = room.getIdentifier();
+                this.ppService = room.getParentProvider();
+                this.timestamp = e.getTimestamp();
             }
         }
 
-        /**
-         * Notifies the <tt>ContactQueryListener</tt>s registered with this
-         * <tt>ContactQuery</tt> that a new <tt>SourceContact</tt> has been
-         * received.
-         *
-         * @param contact the <tt>SourceContact</tt> which has been received and
-         * which the registered <tt>ContactQueryListener</tt>s are to be notified
-         * about
-         */
-        public void fireContactReceived(SourceContact contact)
+        @Override
+        public String toString()
         {
-            fireContactReceived(contact, false);
+            return "ComparableEvtObj{" +
+                "address='" + address + '\'' +
+                ", ppService=" + ppService +
+                '}';
         }
 
         /**
-         * Notifies the <tt>ContactQueryListener</tt>s registered with this
-         * <tt>ContactQuery</tt> that a <tt>SourceContact</tt> has been
-         * changed.
-         *
-         * @param contact the <tt>SourceContact</tt> which has been changed and
-         * which the registered <tt>ContactQueryListener</tt>s are to be notified
-         * about
+         * The timestamp of the message.
+         * @return the timestamp of the message.
          */
-        public void fireContactChanged(SourceContact contact)
+        public Date getTimestamp()
         {
-            super.fireContactChanged(contact);
+            return timestamp;
         }
 
         /**
-         * Notifies the <tt>ContactQueryListener</tt>s registered with this
-         * <tt>ContactQuery</tt> that a <tt>SourceContact</tt> has been
-         * removed.
-         *
-         * @param contact the <tt>SourceContact</tt> which has been removed and
-         * which the registered <tt>ContactQueryListener</tt>s are to be notified
-         * about
+         * The contact.
+         * @return the contact.
          */
-        public void fireContactRemoved(SourceContact contact)
+        public Contact getContact()
         {
-            super.fireContactRemoved(contact);
+            return contact;
         }
 
         /**
-         * Adds a specific <tt>SourceContact</tt> to the list of
-         * <tt>SourceContact</tt>s to be returned by this <tt>ContactQuery</tt> in
-         * response to {@link #getQueryResults()}.
-         *
-         * @param sourceContact the <tt>SourceContact</tt> to be added to the
-         * <tt>queryResults</tt> of this <tt>ContactQuery</tt>
-         * @return <tt>true</tt> if the <tt>queryResults</tt> of this
-         * <tt>ContactQuery</tt> has changed in response to the call
+         * The room.
+         * @return the room.
          */
-        public boolean addQueryResult(SourceContact sourceContact)
+        public ChatRoom getRoom()
         {
-            return super.addQueryResult(sourceContact);
+            return room;
+        }
+
+        /**
+         * The protocol provider.
+         * @return the protocol provider.
+         */
+        public ProtocolProviderService getProtocolProviderService()
+        {
+            return ppService;
+        }
+
+        /**
+         * The address.
+         * @return the address.
+         */
+        public String getContactAddress()
+        {
+            if(this.address != null)
+                return this.address;
+
+            return null;
+        }
+
+        /**
+         * The event object.
+         * @return the event object.
+         */
+        public EventObject getEventObject()
+        {
+            return eventObject;
+        }
+
+        /**
+         * Compares two ComparableEvtObj.
+         * @param o the object to compare with
+         * @return 0, less than zero, greater than zero, if equals,
+         * less or greater.
+         */
+        @Override
+        public int compareTo(ComparableEvtObj o)
+        {
+            if(o == null
+                || o.getTimestamp() == null)
+                return 1;
+
+            return o.getTimestamp()
+                .compareTo(getTimestamp());
+        }
+
+        /**
+         * Checks if equals, and if this event object is used to create
+         * a MessageSourceContact, if the supplied <tt>Object</tt> is instance
+         * of MessageSourceContact.
+         * @param o the object to check.
+         * @return <tt>true</tt> if equals.
+         */
+        @Override
+        public boolean equals(Object o)
+        {
+            if(this == o)
+                return true;
+            if(o == null
+                || (!(o instanceof MessageSourceContact)
+                        && getClass() != o.getClass()))
+                return false;
+
+            if(o instanceof ComparableEvtObj)
+            {
+                ComparableEvtObj that = (ComparableEvtObj) o;
+
+                if(!address.equals(that.address))
+                    return false;
+                if(!ppService.equals(that.ppService))
+                    return false;
+            }
+            else if(o instanceof MessageSourceContact)
+            {
+                MessageSourceContact that = (MessageSourceContact)o;
+
+                if(!address.equals(that.getContactAddress()))
+                    return false;
+                if(!ppService.equals(that.getProtocolProviderService()))
+                    return false;
+            }
+            else
+                return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            int result = address.hashCode();
+            result = 31 * result + ppService.hashCode();
+            return result;
         }
     }
 }
