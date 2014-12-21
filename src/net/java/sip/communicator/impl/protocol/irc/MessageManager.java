@@ -6,7 +6,6 @@
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
-import net.java.sip.communicator.impl.protocol.irc.command.*;
 import net.java.sip.communicator.impl.protocol.irc.exception.*;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.event.*;
@@ -34,24 +33,15 @@ public class MessageManager
     private static final Logger LOGGER = Logger.getLogger(MessageManager.class);
 
     /**
+     * Index for the start of the command in a command message.
+     */
+    private static final int START_OF_COMMAND_INDEX = 1;
+
+    /**
      * Maximum message size for IRC messages given the spec specifies a buffer
      * of 512 bytes. The command ending (CRLF) takes up 2 bytes.
      */
     private static final int IRC_PROTOCOL_MAXIMUM_MESSAGE_SIZE = 510;
-
-    /**
-     * Register some basic commands immediately so that these are guaranteed to
-     * be available.
-     */
-    static
-    {
-        CommandFactory.registerCommand("me", Me.class);
-        CommandFactory.registerCommand("msg", Msg.class);
-        CommandFactory.registerCommand("join", Join.class);
-        CommandFactory.registerCommand("nick", Nick.class);
-        CommandFactory.registerCommand("mode",
-                net.java.sip.communicator.impl.protocol.irc.command.Mode.class);
-    }
 
     /**
      * IrcConnection instance.
@@ -136,9 +126,17 @@ public class MessageManager
      * @param chatroom the chat room
      * @param message the command message
      * @throws UnsupportedCommandException for unknown or unsupported commands
+     * @throws BadCommandException in case of incompatible command or bad
+     *             implementation
+     * @throws BadCommandInvocationException in case of bad usage of the
+     *             command. An exception will be thrown that contains the root
+     *             cause and optionally a help text containing usage information
+     *             for that particular command.
      */
     public void command(final ChatRoomIrcImpl chatroom, final String message)
-            throws UnsupportedCommandException
+        throws UnsupportedCommandException,
+        BadCommandException,
+        BadCommandInvocationException
     {
         if (!this.connectionState.isConnected())
         {
@@ -153,9 +151,16 @@ public class MessageManager
      * @param contact the chat room
      * @param message the command message
      * @throws UnsupportedCommandException for unknown or unsupported commands
+     * @throws BadCommandException in case of a bad command implementation
+     * @throws BadCommandInvocationException in case of bad usage of the
+     *             command. An exception will be thrown that contains the root
+     *             cause and optionally a help text containing usage information
+     *             for that particular command.
      */
     public void command(final Contact contact, final MessageIrcImpl message)
-            throws UnsupportedCommandException
+        throws UnsupportedCommandException,
+        BadCommandException,
+        BadCommandInvocationException
     {
         if (!this.connectionState.isConnected())
         {
@@ -169,23 +174,54 @@ public class MessageManager
      *
      * @param source Source contact or chat room from which the message is sent.
      * @param message Command message
+     * @throws UnsupportedCommandException in case a suitable command could not
+     *             be found
+     * @throws BadCommandException in case of an incompatible command or a bad
+     *             implementation
+     * @throws BadCommandInvocationException in case of bad usage of the
+     *             command. An exception will be thrown that contains the root
+     *             cause and optionally a help text containing usage
+     *             information for that particular command.
      */
     private void command(final String source, final String message)
-            throws UnsupportedCommandException
+        throws UnsupportedCommandException,
+        BadCommandException,
+        BadCommandInvocationException
     {
         final String msg = message.toLowerCase();
         final int end = msg.indexOf(' ');
         final String command;
         if (end == -1)
         {
-            command = msg;
+            command = msg.substring(START_OF_COMMAND_INDEX);
         }
         else
         {
-            command = message.substring(1, end);
+            command = message.substring(START_OF_COMMAND_INDEX, end);
         }
         final Command cmd = this.commandFactory.createCommand(command);
-        cmd.execute(source, msg);
+        try
+        {
+            cmd.execute(source, msg);
+        }
+        catch (IllegalArgumentException e)
+        {
+            // IRC command called incorrectly.
+            final String help = cmd.help();
+            throw new BadCommandInvocationException(msg, help, e);
+        }
+        catch (IllegalStateException e)
+        {
+            // IRC command called at wrong moment/state.
+            final String help = cmd.help();
+            throw new BadCommandInvocationException(msg, help, e);
+        }
+        catch (RuntimeException e)
+        {
+            LOGGER.error(
+                "Failed to execute command '" + command + "': "
+                    + e.getMessage(), e);
+        }
     }
 
     /**

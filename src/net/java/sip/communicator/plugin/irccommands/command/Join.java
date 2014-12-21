@@ -4,7 +4,7 @@
  * Distributable under LGPL license.
  * See terms of license at gnu.org.
  */
-package net.java.sip.communicator.impl.protocol.irc.command;
+package net.java.sip.communicator.plugin.irccommands.command;
 
 import net.java.sip.communicator.impl.protocol.irc.*;
 
@@ -24,7 +24,7 @@ public class Join implements Command
     /**
      * Instance of the IRC connection.
      */
-    private IrcConnection connection;
+    private final IrcConnection connection;
 
     /**
      * Initialization of the /join command. Join a channel.
@@ -32,9 +32,8 @@ public class Join implements Command
      * @param provider the provider instance
      * @param connection the IRC connection instance
      */
-    @Override
-    public void init(final ProtocolProviderServiceIrcImpl provider,
-            final IrcConnection connection)
+    public Join(final ProtocolProviderServiceIrcImpl provider,
+        final IrcConnection connection)
     {
         if (connection == null)
         {
@@ -54,7 +53,7 @@ public class Join implements Command
     {
         if (line.length() < END_OF_COMMAND_PREFIX)
         {
-            return;
+            throw new IllegalArgumentException("Missing channel to join.");
         }
         final String part = line.substring(END_OF_COMMAND_PREFIX);
         final String channel;
@@ -76,5 +75,14 @@ public class Join implements Command
                 "Invalid chat room name specified.");
         }
         this.connection.getClient().joinChannel(channel, password);
+    }
+
+    /**
+     * Command usage instructions.
+     */
+    @Override
+    public String help()
+    {
+        return "Usage: /join <channel> [password]";
     }
 }

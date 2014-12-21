@@ -4,7 +4,7 @@
  * Distributable under LGPL license.
  * See terms of license at gnu.org.
  */
-package net.java.sip.communicator.impl.protocol.irc.command;
+package net.java.sip.communicator.plugin.irccommands.command;
 
 import net.java.sip.communicator.impl.protocol.irc.*;
 
@@ -31,8 +31,7 @@ public class Msg implements Command
      * @param provider the provider instance
      * @param connection the connection instance
      */
-    @Override
-    public void init(final ProtocolProviderServiceIrcImpl provider,
+    public Msg(final ProtocolProviderServiceIrcImpl provider,
             final IrcConnection connection)
     {
         if (connection == null)
@@ -54,7 +53,8 @@ public class Msg implements Command
     {
         if (line.length() < END_OF_MSG_COMMAND_PREFIX)
         {
-            return;
+            throw new IllegalArgumentException(
+                "Both target nick and message are missing.");
         }
         final String part = line.substring(5);
         int endOfNick = part.indexOf(' ');
@@ -79,5 +79,14 @@ public class Msg implements Command
                 + "sent.");
         }
         this.connection.getClient().message(target, message);
+    }
+
+    /**
+     * Usage instructions.
+     */
+    @Override
+    public String help()
+    {
+        return "Usage: /msg <user> <message>";
     }
 }

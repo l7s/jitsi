@@ -4,7 +4,7 @@
  * Distributable under LGPL license.
  * See terms of license at gnu.org.
  */
-package net.java.sip.communicator.impl.protocol.irc.command;
+package net.java.sip.communicator.plugin.irccommands.command;
 
 import net.java.sip.communicator.impl.protocol.irc.*;
 
@@ -15,6 +15,7 @@ import net.java.sip.communicator.impl.protocol.irc.*;
  */
 public class Nick implements Command
 {
+    private static final int END_OF_COMMAND_PREFIX_INDEX = 6;
     /**
      * Instance of the IRC connection.
      */
@@ -26,8 +27,7 @@ public class Nick implements Command
      * @param provider the provider instance
      * @param connection the connection instance
      */
-    @Override
-    public void init(final ProtocolProviderServiceIrcImpl provider,
+    public Nick(final ProtocolProviderServiceIrcImpl provider,
             final IrcConnection connection)
     {
         if (connection == null)
@@ -46,12 +46,12 @@ public class Nick implements Command
     @Override
     public void execute(final String source, final String line)
     {
-        if (line.length() <= 5)
+        if (line.length() <= END_OF_COMMAND_PREFIX_INDEX)
         {
             // no name parameter available, so nothing to do here
-            return;
+            throw new IllegalArgumentException("New nick name is missing.");
         }
-        final String part = line.substring(6);
+        final String part = line.substring(END_OF_COMMAND_PREFIX_INDEX);
         final String newNick;
         int indexOfSep = part.indexOf(' ');
         if (indexOfSep == -1)
@@ -66,5 +66,14 @@ public class Nick implements Command
         {
             this.connection.getIdentityManager().setNick(newNick);
         }
+    }
+
+    /**
+     * Usage instructions.
+     */
+    @Override
+    public String help()
+    {
+        return "Usage: /nick <new-nick>";
     }
 }

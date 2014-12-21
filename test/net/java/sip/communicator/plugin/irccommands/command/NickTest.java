@@ -4,7 +4,7 @@
  * Distributable under LGPL license.
  * See terms of license at gnu.org.
  */
-package net.java.sip.communicator.impl.protocol.irc.command;
+package net.java.sip.communicator.plugin.irccommands.command;
 
 import junit.framework.*;
 import net.java.sip.communicator.impl.protocol.irc.*;
@@ -23,18 +23,12 @@ public class NickTest
         super(testName);
     }
 
-    public void testConstruction()
-    {
-        new Nick();
-    }
-
     public void testNullProviderInit()
     {
         IrcConnection connection = EasyMock.createMock(IrcConnection.class);
         EasyMock.replay(connection);
 
-        Nick nick = new Nick();
-        nick.init(null, connection);
+        new Nick(null, connection);
     }
 
     public void testNullConnectionInit()
@@ -43,10 +37,9 @@ public class NickTest
             EasyMock.createMock(ProtocolProviderServiceIrcImpl.class);
         EasyMock.replay(provider);
 
-        Nick nick = new Nick();
         try
         {
-            nick.init(provider, null);
+            new Nick(provider, null);
             Assert.fail("Should not reach this as we expected an IAE for null"
                 + " connection.");
         }
@@ -63,9 +56,15 @@ public class NickTest
         IrcConnection connection = EasyMock.createMock(IrcConnection.class);
         EasyMock.replay(provider, connection);
 
-        Nick nick = new Nick();
-        nick.init(provider, connection);
-        nick.execute("#test", "/nick");
+        Nick nick = new Nick(provider, connection);
+        try
+        {
+            nick.execute("#test", "/nick");
+            Assert.fail();
+        }
+        catch (IllegalArgumentException e)
+        {
+        }
     }
 
     public void testEmptyNickCommandWithSpace()
@@ -75,9 +74,15 @@ public class NickTest
         IrcConnection connection = EasyMock.createMock(IrcConnection.class);
         EasyMock.replay(provider, connection);
 
-        Nick nick = new Nick();
-        nick.init(provider, connection);
-        nick.execute("#test", "/nick ");
+        Nick nick = new Nick(provider, connection);
+        try
+        {
+            nick.execute("#test", "/nick ");
+            Assert.fail();
+        }
+        catch (IllegalArgumentException e)
+        {
+        }
     }
 
     public void testEmptyNickCommandWithDoubleSpace()
@@ -87,8 +92,7 @@ public class NickTest
         IrcConnection connection = EasyMock.createMock(IrcConnection.class);
         EasyMock.replay(provider, connection);
 
-        Nick nick = new Nick();
-        nick.init(provider, connection);
+        Nick nick = new Nick(provider, connection);
         nick.execute("#test", "/nick  ");
     }
 
@@ -104,8 +108,7 @@ public class NickTest
         EasyMock.expectLastCall();
         EasyMock.replay(provider, connection, idmgr);
 
-        Nick nick = new Nick();
-        nick.init(provider, connection);
+        Nick nick = new Nick(provider, connection);
         nick.execute("#test", "/nick myNewN1ck ");
     }
 }

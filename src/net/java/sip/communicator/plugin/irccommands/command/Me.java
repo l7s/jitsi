@@ -4,7 +4,7 @@
  * Distributable under LGPL license.
  * See terms of license at gnu.org.
  */
-package net.java.sip.communicator.impl.protocol.irc.command;
+package net.java.sip.communicator.plugin.irccommands.command;
 
 import net.java.sip.communicator.impl.protocol.irc.*;
 
@@ -15,7 +15,7 @@ import net.java.sip.communicator.impl.protocol.irc.*;
  * @author Danny van Heumen
  */
 public class Me
-        implements Command
+    implements Command
 {
     /**
      * Me command prefix index.
@@ -25,7 +25,7 @@ public class Me
     /**
      * IRC connection instance.
      */
-    private IrcConnection connection;
+    private final IrcConnection connection;
 
     /**
      * Initialization of the /me command.
@@ -33,8 +33,7 @@ public class Me
      * @param provider the provider instance
      * @param connection the connection instance
      */
-    @Override
-    public void init(final ProtocolProviderServiceIrcImpl provider,
+    public Me(final ProtocolProviderServiceIrcImpl provider,
             final IrcConnection connection)
     {
         if (connection == null)
@@ -55,7 +54,7 @@ public class Me
     {
         if (line.length() < END_OF_ME_COMMAND_PREFIX)
         {
-            return;
+            throw new IllegalArgumentException("The message is missing.");
         }
         final String message = line.substring(4);
         if (message.isEmpty())
@@ -64,5 +63,14 @@ public class Me
                 "Invalid /me command: message cannot be empty.");
         }
         this.connection.getClient().act(source, message);
+    }
+
+    /**
+     * Command usage instructions.
+     */
+    @Override
+    public String help()
+    {
+        return "Usage: /me <message>";
     }
 }

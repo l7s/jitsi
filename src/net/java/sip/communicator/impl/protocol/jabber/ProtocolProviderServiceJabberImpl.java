@@ -6,7 +6,6 @@
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
-import java.io.*;
 import java.math.*;
 import java.net.*;
 import java.security.*;
@@ -20,8 +19,8 @@ import net.java.sip.communicator.impl.protocol.jabber.debugger.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.caps.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.carbon.*;
-import net.java.sip.communicator.impl.protocol.jabber.extensions.colibri.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.coin.*;
+import net.java.sip.communicator.impl.protocol.jabber.extensions.colibri.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.inputevt.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingle.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingleinfo.*;
@@ -42,11 +41,10 @@ import org.jitsi.util.*;
 import org.jivesoftware.smack.*;
 import org.jivesoftware.smack.packet.*;
 import org.jivesoftware.smack.provider.*;
+import org.jivesoftware.smack.util.*;
 import org.jivesoftware.smack.util.StringUtils;
-import org.jivesoftware.smack.util.TLSUtils;
 import org.jivesoftware.smackx.*;
 import org.jivesoftware.smackx.packet.*;
-import org.osgi.framework.*;
 import org.xmlpull.v1.*;
 import org.xmpp.jnodes.smack.*;
 
@@ -460,13 +458,10 @@ public class ProtocolProviderServiceJabberImpl
     {
         if(guiVerification == null)
         {
-            ServiceReference guiVerifyReference
-                = JabberActivator.getBundleContext().getServiceReference(
-                    CertificateService.class.getName());
-            if(guiVerifyReference != null)
-                guiVerification = (CertificateService)
-                    JabberActivator.getBundleContext().getService(
-                        guiVerifyReference);
+            guiVerification
+                = ServiceUtils.getService(
+                        JabberActivator.getBundleContext(),
+                        CertificateService.class);
         }
 
         return guiVerification;
@@ -1411,6 +1406,7 @@ public class ProtocolProviderServiceJabberImpl
         discoveryManager
             = new ScServiceDiscoveryManager(
                     this,
+                    connection,
                     new String[] { "http://jabber.org/protocol/commands"},
                     // Add features Jitsi supports in addition to smack.
                     supportedFeatures.toArray(
@@ -1717,6 +1713,10 @@ public class ProtocolProviderServiceJabberImpl
             addSupportedOperationSet(
                 OperationSetMultiUserChat.class,
                 new OperationSetMultiUserChatJabberImpl(this));
+
+            addSupportedOperationSet(
+                OperationSetJitsiMeetTools.class,
+                new OperationSetJitsiMeetToolsJabberImpl(this));
 
             addSupportedOperationSet(
                 OperationSetServerStoredContactInfo.class,
@@ -3019,88 +3019,4 @@ public class ProtocolProviderServiceJabberImpl
         }
         return result;
     }
-
-    /**
-     * A {@link SSLSocketFactory} which uses an existing {@link SSLSocketFactory} to delegate its operations to and overrides the
-     * {@link javax.net.ssl.SSLSocket#getEnabledProtocols() enabled protocols} to the protocols that were passed to its
-     * {@link #ProtocolOverridingSSLSocketFactory(javax.net.ssl.SSLSocketFactory, String[]) constructor}
-     *
-     * @author Jaikiran Pai
-     */
-    public class ProtocolOverridingSSLSocketFactory extends SSLSocketFactory {
-
-        private final SSLSocketFactory underlyingSSLSocketFactory;
-        private final String[] enabledProtocols;
-
-        public ProtocolOverridingSSLSocketFactory(final SSLSocketFactory delegate, final String[] enabledProtocols) {
-            this.underlyingSSLSocketFactory = delegate;
-            this.enabledProtocols = enabledProtocols;
-        }
-
-        @Override
-        public String[] getDefaultCipherSuites() {
-            return underlyingSSLSocketFactory.getDefaultCipherSuites();
-        }
-
-        @Override
-        public String[] getSupportedCipherSuites() {
-            return underlyingSSLSocketFactory.getSupportedCipherSuites();
-        }
-
-        @Override
-        public Socket createSocket(final Socket socket, final String host, final int port, final boolean autoClose) throws IOException {
-            final Socket underlyingSocket = underlyingSSLSocketFactory.createSocket(socket, host, port, autoClose);
-            return overrideProtocol(underlyingSocket);
-        }
-
-        @Override
-        public Socket createSocket(final String host, final int port) throws IOException, UnknownHostException {
-            final Socket underlyingSocket = underlyingSSLSocketFactory.createSocket(host, port);
-            return overrideProtocol(underlyingSocket);
-        }
-
-        @Override
-        public Socket createSocket(final String host, final int port, final InetAddress localAddress, final int localPort) throws IOException, UnknownHostException {
-            final Socket underlyingSocket = underlyingSSLSocketFactory.createSocket(host, port, localAddress, localPort);
-            return overrideProtocol(underlyingSocket);
-        }
-
-        @Override
-        public Socket createSocket(final InetAddress host, final int port) throws IOException {
-            final Socket underlyingSocket = underlyingSSLSocketFactory.createSocket(host, port);
-            return overrideProtocol(underlyingSocket);
-        }
-
-        @Override
-        public Socket createSocket(final InetAddress host, final int port, final InetAddress localAddress, final int localPort) throws
-            IOException
-        {
-            final Socket underlyingSocket = underlyingSSLSocketFactory.createSocket(host, port, localAddress, localPort);
-            return overrideProtocol(underlyingSocket);
-        }
-
-        /**
-         * Set the {@link javax.net.ssl.SSLSocket#getEnabledProtocols() enabled protocols} to {@link #enabledProtocols} if the <code>socket</code> is a
-         * {@link SSLSocket}
-         *
-         * @param socket The Socket
-         * @return
-         */
-        private Socket overrideProtocol(final Socket socket) {
-            if (socket instanceof SSLSocket) {
-                if (enabledProtocols != null && enabledProtocols.length > 0) {
-//                    System.err.println("oooooooooooo "
-//                        + );
-                    for(String s : ((SSLSocket) socket).getEnabledProtocols())
-                        System.err.println("ooo " + s);
-//                    ((SSLSocket) socket).setEnabledProtocols(enabledProtocols);
-                }
-            }
-            return socket;
-        }
-
-
-    }
-
-
 }

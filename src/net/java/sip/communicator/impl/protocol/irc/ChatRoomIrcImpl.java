@@ -1012,6 +1012,38 @@ public class ChatRoomIrcImpl
                             .UNSUPPORTED_OPERATION,
                         e.getMessage(), new Date(), message);
                 }
+                catch (BadCommandException e)
+                {
+                    LOGGER.error("An error occurred while constructing "
+                        + "the command. This is most likely due to a bug "
+                        + "in the implementation of the command. Message: "
+                        + message + "'", e);
+                    this.fireMessageDeliveryFailedEvent(
+                        ChatRoomMessageDeliveryFailedEvent.INTERNAL_ERROR,
+                        "Command cannot be executed. This is most likely due "
+                            + "to a bug in the implementation.", new Date(),
+                        message);
+                }
+                catch (BadCommandInvocationException e)
+                {
+                    StringBuilder helpText = new StringBuilder();
+                    if (e.getCause() != null) {
+                        helpText.append(e.getCause().getMessage());
+                        helpText.append('\n');
+                    }
+                    helpText.append(e.getHelp());
+                    MessageIrcImpl helpMessage =
+                        new MessageIrcImpl(
+                            helpText.toString(),
+                            OperationSetBasicInstantMessaging
+                                .DEFAULT_MIME_TYPE,
+                            OperationSetBasicInstantMessaging
+                                .DEFAULT_MIME_ENCODING,
+                            "Command usage:");
+                    this.fireMessageReceivedEvent(helpMessage, this.user,
+                        new Date(),
+                        MessageReceivedEvent.SYSTEM_MESSAGE_RECEIVED);
+                }
             }
             else
             {

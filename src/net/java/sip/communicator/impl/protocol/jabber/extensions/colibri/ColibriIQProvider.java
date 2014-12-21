@@ -58,6 +58,46 @@ public class ColibriIQProvider
                 ParameterPacketExtension.ELEMENT_NAME,
                 SourcePacketExtension.NAMESPACE,
                 parameterProvider);
+        // Shutdown IQ
+        providerManager.addIQProvider(
+                GracefulShutdownIQ.ELEMENT_NAME,
+                GracefulShutdownIQ.NAMESPACE,
+                this);
+        // Shutdown extension
+        PacketExtensionProvider shutdownProvider
+            = new DefaultPacketExtensionProvider
+                    <ColibriConferenceIQ.GracefulShutdown>(
+                            ColibriConferenceIQ.GracefulShutdown.class);
+
+        providerManager.addExtensionProvider(
+            ColibriConferenceIQ.GracefulShutdown.ELEMENT_NAME,
+            ColibriConferenceIQ.GracefulShutdown.NAMESPACE,
+            shutdownProvider);
+
+        // ColibriStatsIQ
+        providerManager.addIQProvider(
+            ColibriStatsIQ.ELEMENT_NAME,
+            ColibriStatsIQ.NAMESPACE,
+            this);
+
+        // ColibriStatsExtension
+        PacketExtensionProvider statsProvider
+            = new DefaultPacketExtensionProvider<ColibriStatsExtension>(
+                    ColibriStatsExtension.class);
+
+        providerManager.addExtensionProvider(
+            ColibriStatsExtension.ELEMENT_NAME,
+            ColibriStatsExtension.NAMESPACE,
+            statsProvider);
+        // ColibriStatsExtension.Stat
+        PacketExtensionProvider statProvider
+            = new DefaultPacketExtensionProvider<ColibriStatsExtension.Stat>(
+                    ColibriStatsExtension.Stat.class);
+
+        providerManager.addExtensionProvider(
+            ColibriStatsExtension.Stat.ELEMENT_NAME,
+            ColibriStatsExtension.NAMESPACE,
+            statProvider);
     }
 
     private void addChildExtension(
@@ -191,6 +231,7 @@ public class ColibriIQProvider
             ColibriConferenceIQ.Recording recording = null;
             ColibriConferenceIQ.Endpoint conferenceEndpoint = null;
             StringBuilder ssrc = null;
+            SourcePacketExtension ssrcPe = null;
 
             while (!done)
             {
@@ -256,6 +297,15 @@ public class ColibriIQProvider
                         }
                         ssrc = null;
                     }
+                    else if (SourcePacketExtension.ELEMENT_NAME.equals(name))
+                    {
+                        if (channel != null && ssrcPe != null)
+                        {
+                            channel.addSource(ssrcPe);
+                        }
+
+                        ssrcPe = null;
+                    }
                     else if (ColibriConferenceIQ.Content.ELEMENT_NAME.equals(
                             name))
                     {
@@ -274,6 +324,11 @@ public class ColibriIQProvider
                     {
                         conference.setRecording(recording);
                         recording = null;
+                    }
+                    else if (ColibriConferenceIQ.GracefulShutdown.ELEMENT_NAME
+                        .equals(name))
+                    {
+                        conference.setGracefulShutdown(true);
                     }
                     break;
                 }
@@ -375,16 +430,6 @@ public class ColibriIQProvider
                             channel.setAdaptiveLastN(
                                     Boolean.parseBoolean(adaptiveLastN));
 
-                        String adaptiveSimulcast
-                                = parser.getAttributeValue(
-                                "",
-                                ColibriConferenceIQ.Channel
-                                        .ADAPTIVE_SIMULCAST_ATTR_NAME);
-
-                        if (!StringUtils.isNullOrEmpty(adaptiveSimulcast))
-                            channel.setAdaptiveSimulcast(
-                                    Boolean.parseBoolean(adaptiveSimulcast));
-
                         // receiving simulcast layer
                         String receivingSimulcastLayer
                                 = parser.getAttributeValue(
@@ -467,6 +512,20 @@ public class ColibriIQProvider
                             .equals(name))
                     {
                         ssrc = new StringBuilder();
+                    }
+                    else if (SourcePacketExtension.ELEMENT_NAME.equals(name))
+                    {
+                        ssrcPe = new SourcePacketExtension();
+
+                        String ssrcStr
+                            = parser.getAttributeValue(
+                                    "",
+                                    SourcePacketExtension.SSRC_ATTR_NAME);
+
+                        if (!StringUtils.isNullOrEmpty(ssrcStr))
+                        {
+                            ssrcPe.setSSRC(Long.parseLong(ssrcStr));
+                        }
                     }
                     else if (ColibriConferenceIQ.Content.ELEMENT_NAME.equals(
                             name))
@@ -675,6 +734,104 @@ public class ColibriIQProvider
             }
 
             iq = conference;
+        }
+        else if (GracefulShutdownIQ.ELEMENT_NAME.equals(parser.getName())
+                    && GracefulShutdownIQ.NAMESPACE.equals(namespace))
+        {
+            String rootElement = parser.getName();
+
+            iq = new GracefulShutdownIQ();
+
+            boolean done = false;
+
+            while (!done)
+            {
+                switch (parser.next())
+                {
+                    case XmlPullParser.END_TAG:
+                    {
+                        String name = parser.getName();
+
+                        if (rootElement.equals(name))
+                        {
+                            done = true;
+                        }
+                        break;
+                    }
+
+                    case XmlPullParser.TEXT:
+                    {
+                        // Parse some text here
+                        break;
+                    }
+                }
+            }
+        }
+        else if (ColibriStatsIQ.ELEMENT_NAME.equals(parser.getName())
+            && ColibriStatsIQ.NAMESPACE.equals(namespace))
+        {
+            String rootElement = parser.getName();
+
+            ColibriStatsIQ statsIQ = new ColibriStatsIQ();
+            iq = statsIQ;
+            ColibriStatsExtension.Stat stat = null;
+
+            boolean done = false;
+
+            while (!done)
+            {
+                switch (parser.next())
+                {
+                    case XmlPullParser.START_TAG:
+                    {
+                        String name = parser.getName();
+
+                        if (ColibriStatsExtension.Stat
+                                    .ELEMENT_NAME.equals(name))
+                        {
+                            stat = new ColibriStatsExtension.Stat();
+
+                            String statName
+                                = parser.getAttributeValue(
+                                    "",
+                                    ColibriStatsExtension.Stat.NAME_ATTR_NAME);
+                            stat.setName(statName);
+
+                            String statValue
+                                = parser.getAttributeValue(
+                                    "",
+                                    ColibriStatsExtension.Stat.VALUE_ATTR_NAME);
+                            stat.setValue(statValue);
+                        }
+                        break;
+                    }
+                    case XmlPullParser.END_TAG:
+                    {
+                        String name = parser.getName();
+
+                        if (rootElement.equals(name))
+                        {
+                            done = true;
+                        }
+                        else if (ColibriStatsExtension.Stat.ELEMENT_NAME
+                            .equals(name))
+                        {
+                            if (stat != null)
+                            {
+                                statsIQ.addStat(stat);
+                                stat = null;
+                            }
+                        }
+                        break;
+                    }
+
+                    case XmlPullParser.TEXT:
+                    {
+                        // Parse some text here
+                        break;
+                    }
+                }
+            }
         }
         else
             iq = null;

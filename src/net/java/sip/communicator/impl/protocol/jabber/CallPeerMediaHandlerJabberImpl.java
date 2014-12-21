@@ -1468,8 +1468,7 @@ public class CallPeerMediaHandlerJabberImpl
     {
         RtpDescriptionPacketExtension description
             = JingleUtils.getRtpDescription(content);
-        MediaType mediaType
-            = MediaType.parseString(description.getMedia());
+        MediaType mediaType = JingleUtils.getMediaType(content);
 
         //stream target
         TransportManagerJabberImpl transportManager = getTransportManager();
@@ -1666,7 +1665,7 @@ public class CallPeerMediaHandlerJabberImpl
             RtpDescriptionPacketExtension description
                 = JingleUtils.getRtpDescription(content);
             MediaType mediaType
-                = MediaType.parseString( description.getMedia() );
+                = JingleUtils.getMediaType(content);
 
             List<MediaFormat> remoteFormats
                 = JingleUtils.extractFormats(

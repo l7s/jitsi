@@ -4,7 +4,7 @@
  * Distributable under LGPL license.
  * See terms of license at gnu.org.
  */
-package net.java.sip.communicator.impl.protocol.irc.command;
+package net.java.sip.communicator.plugin.irccommands.command;
 
 import net.java.sip.communicator.impl.protocol.irc.*;
 
@@ -31,8 +31,7 @@ public class Mode implements Command
      * @param provider the provider instance
      * @param connection the connection instance
      */
-    @Override
-    public void init(final ProtocolProviderServiceIrcImpl provider,
+    public Mode(final ProtocolProviderServiceIrcImpl provider,
             final IrcConnection connection)
     {
         if (connection == null)
@@ -56,7 +55,7 @@ public class Mode implements Command
         {
             // does not currently support requesting (and displaying) mode query
             // results.
-            return;
+            throw new IllegalArgumentException("Mode parameters are missing.");
         }
         final String rawModeString =
             line.substring(END_OF_MODE_COMMAND_PREFIX);
@@ -66,5 +65,14 @@ public class Mode implements Command
                 "The mode command needs mode parameters to function.");
         }
         this.connection.getClient().changeMode(source + " " + rawModeString);
+    }
+
+    /**
+     * Usage instructions.
+     */
+    @Override
+    public String help()
+    {
+        return "Usage: /mode <mode> [params ...]";
     }
 }
