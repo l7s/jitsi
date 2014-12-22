@@ -1096,7 +1096,7 @@
         bundle-demuxcontactsource, bundle-muc,
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
-        bundle-plugin-propertieseditor,bundle-plugin-accountinfo,
+        bundle-plugin-propertieseditor,
         bundle-plugin-connectioninfo,
         bundle-guava,bundle-hsql,bundle-slf4j"/>
 
