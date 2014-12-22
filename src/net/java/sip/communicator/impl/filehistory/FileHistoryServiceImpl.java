@@ -6,8 +6,7 @@
  */
 package net.java.sip.communicator.impl.filehistory;
 
-import static
-    net.java.sip.communicator.service.history.HistoryService.DATE_FORMAT;
+import static net.java.sip.communicator.service.history.HistoryService.*;
 
 import java.io.*;
 import java.text.*;
@@ -77,35 +76,25 @@ public class FileHistoryServiceImpl
         // start listening for newly register or removed protocol providers
         bc.addServiceListener(this);
 
-        ServiceReference[] protocolProviderRefs = null;
-        try
-        {
-            protocolProviderRefs = bc.getServiceReferences(
-                ProtocolProviderService.class.getName(),
-                null);
-        }
-        catch (InvalidSyntaxException ex)
-        {
-            // this shouldn't happen since we're providing no parameter string
-            // but let's log just in case.
-            logger.error(
-                "Error while retrieving service refs", ex);
-            return;
-        }
+        Collection<ServiceReference<ProtocolProviderService>> ppsRefs
+            = ServiceUtils.getServiceReferences(
+                    bc,
+                    ProtocolProviderService.class);
 
         // in case we found any
-        if (protocolProviderRefs != null)
+        if (!ppsRefs.isEmpty())
         {
             if (logger.isDebugEnabled())
-                logger.debug("Found "
-                         + protocolProviderRefs.length
-                         + " already installed providers.");
-            for (int i = 0; i < protocolProviderRefs.length; i++)
             {
-                ProtocolProviderService provider = (ProtocolProviderService) bc
-                    .getService(protocolProviderRefs[i]);
+                logger.debug(
+                        "Found " + ppsRefs.size()
+                            + " already installed providers.");
+            }
+            for (ServiceReference<ProtocolProviderService> ppsRef : ppsRefs)
+            {
+                ProtocolProviderService pps = bc.getService(ppsRef);
 
-                this.handleProviderAdded(provider);
+                handleProviderAdded(pps);
             }
         }
     }
@@ -119,30 +108,19 @@ public class FileHistoryServiceImpl
     {
         bc.removeServiceListener(this);
 
-        ServiceReference[] protocolProviderRefs = null;
-        try
-        {
-            protocolProviderRefs = bc.getServiceReferences(
-                ProtocolProviderService.class.getName(),
-                null);
-        }
-        catch (InvalidSyntaxException ex)
-        {
-            // this shouldn't happen since we're providing no parameter string
-            // but let's log just in case.
-            logger.error("Error while retrieving service refs", ex);
-            return;
-        }
+        Collection<ServiceReference<ProtocolProviderService>> ppsRefs
+            = ServiceUtils.getServiceReferences(
+                    bc,
+                    ProtocolProviderService.class);
 
         // in case we found any
-        if (protocolProviderRefs != null)
+        if (!ppsRefs.isEmpty())
         {
-            for (int i = 0; i < protocolProviderRefs.length; i++)
+            for (ServiceReference<ProtocolProviderService> ppsRef : ppsRefs)
             {
-                ProtocolProviderService provider = (ProtocolProviderService) bc
-                    .getService(protocolProviderRefs[i]);
+                ProtocolProviderService pps = bc.getService(ppsRef);
 
-                this.handleProviderRemoved(provider);
+                handleProviderRemoved(pps);
             }
         }
     }
@@ -207,7 +185,8 @@ public class FileHistoryServiceImpl
      */
     private Map<Contact, HistoryReader> getHistoryReaders(MetaContact contact)
     {
-        Map<Contact, HistoryReader> readers = new Hashtable<Contact, HistoryReader>();
+        Map<Contact, HistoryReader> readers
+            = new Hashtable<Contact, HistoryReader>();
         Iterator<Contact> iter = contact.getContacts();
         while (iter.hasNext())
         {
@@ -660,8 +639,6 @@ public class FileHistoryServiceImpl
     private History getHistory(Contact localContact, Contact remoteContact)
             throws IOException
     {
-        History retVal = null;
-
         String localId = localContact == null ? "default" : localContact
                 .getAddress();
         String remoteId = remoteContact == null ? "default" : remoteContact
@@ -678,16 +655,7 @@ public class FileHistoryServiceImpl
                             account,
                             remoteId });
 
-        if (this.historyService.isHistoryExisting(historyId))
-        {
-            retVal = this.historyService.getHistory(historyId);
-        } else
-        {
-            retVal = this.historyService.createHistory(historyId,
-                    recordStructure);
-        }
-
-        return retVal;
+        return this.historyService.createHistory(historyId, recordStructure);
     }
 
     /**

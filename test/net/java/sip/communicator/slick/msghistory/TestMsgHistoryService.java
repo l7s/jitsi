@@ -86,17 +86,11 @@ public class TestMsgHistoryService
     {
         TestSuite suite = new TestSuite();
         suite.addTest(
-            new TestMsgHistoryService("setupContact"));
-        suite.addTest(
-            new TestMsgHistoryService("writeRecords"));
-        suite.addTest(
             new TestMsgHistoryService("readRecords"));
         suite.addTest(
-            new TestMsgHistoryService("writeRecordsToMultiChat"));
+            new TestMsgHistoryService("specialChars"));
         suite.addTest(
-            new TestMsgHistoryService("readRecordsFromMultiChat"));
-        suite.addTest(
-            new TestMsgHistoryService("testPurgeLocalContactListCopy"));
+            new TestMsgHistoryService("insertRecords"));
 
         return suite;
     }
@@ -104,11 +98,16 @@ public class TestMsgHistoryService
     @Override
     protected void setUp() throws Exception
     {
+        setupContact();
+        msgHistoryService.eraseLocallyStoredHistory();
+        historyService.purgeLocallyCachedHistories();
+        writeRecords();
     }
 
     @Override
     protected void tearDown() throws Exception
     {
+        metaClService.purgeLocallyStoredContactListCopy();
     }
 
     public void setupContact()
@@ -194,7 +193,8 @@ public class TestMsgHistoryService
                 mockBImOpSet.createMessage("test message word3" + Math.random()),
                 mockBImOpSet.createMessage("test message word4" + Math.random()),
                 mockBImOpSet.createMessage("test message word5" + Math.random()),
-                mockBImOpSet.createMessage("Hello \u0002World\u0002!")
+                mockBImOpSet.createMessage("Hello \u0002World\u0002!"),
+                mockBImOpSet.createMessage("less than < this, greater than > and an ampersand &")
             };
     }
 
@@ -242,7 +242,7 @@ public class TestMsgHistoryService
     public void readRecords()
     {
         /**
-         * This matches all written messages, they are minimum 5
+         * This matches all written messages, they are minimum 3
          */
         Collection<EventObject> rs
             = msgHistoryService.findByKeyword(testMetaContact, "test");
@@ -251,7 +251,7 @@ public class TestMsgHistoryService
 
         List<String> msgs = getMessages(rs);
 
-        assertTrue("Messages too few - findByKeyword", msgs.size() >= 5);
+        assertTrue("Messages too few - findByKeyword", msgs.size() >= 3);
 
         /**
          * Will test case sensitive and insensitive search
@@ -264,7 +264,7 @@ public class TestMsgHistoryService
 
         msgs = getMessages(rs);
 
-        assertTrue("Messages too few - findByKeyword", msgs.size() >= 5);
+        assertTrue("Messages too few - findByKeyword", msgs.size() >= 3);
 
         rs = msgHistoryService.findByKeyword(testMetaContact, "Test", true);
 
@@ -310,7 +310,7 @@ public class TestMsgHistoryService
         rs = msgHistoryService.findByPeriod(
             testMetaContact, controlDate1, controlDate2);
 
-        assertTrue("Nothing found findByPeriod", !rs.isEmpty());
+        assertFalse("Nothing found findByPeriod", rs.isEmpty());
 
         msgs = getMessages(rs);
 
@@ -400,30 +400,46 @@ public class TestMsgHistoryService
     public void specialChars()
     {
         mockBImOpSet.deliverMessage(TEST_CONTACT_NAME_1, messagesToSend[5]);
-
         waitWrite(500);
 
-        historyService.purgeLocallyCachedHistories();
+        mockBImOpSet.deliverMessage(TEST_CONTACT_NAME_1, messagesToSend[6]);
+        waitWrite(500);
 
-        /**
-         * Must return exactly the last 3 messages
-         */
+        // Must return exactly the last 2 messages
         Collection<EventObject> rs
-            = msgHistoryService.findLast(testMetaContact, 3);
+            = msgHistoryService.findLast(testMetaContact, 2);
 
-        assertTrue("Nothing found 8", !rs.isEmpty());
         List<String> msgs = getMessages(rs);
-        assertEquals("Messages must be 3", 3, msgs.size());
-        assertTrue("Message no found",
-            msgs.contains(messagesToSend[3].getContent()));
-        assertTrue("Message no found",
-            msgs.contains(messagesToSend[4].getContent()));
+        assertEquals("Sent messages must be available", 2, msgs.size());
 
         // For now we are stripping in history the special content chars
         // in order to avoid breaking the history records in the xml
-        assertTrue("Message no found",
+        assertTrue("Message " + messagesToSend[5].getContent() + " not found",
             msgs.contains(XmlEscapers.xmlContentEscaper().escape(
                           messagesToSend[5].getContent())));
+
+        assertTrue("Message " + messagesToSend[6].getContent() + " not found",
+            msgs.contains(messagesToSend[6].getContent()));
+    }
+
+    /**
+     * Inserts a message between the control dates and queries to check
+     * of the expected number of messages.
+     */
+    public void insertRecords()
+    {
+        if(!(msgHistoryService instanceof MessageHistoryAdvancedService))
+            return;
+
+        ((MessageHistoryAdvancedService)msgHistoryService).insertMessage(
+            "out", null, testContact, messagesToSend[1],
+            new Date(controlDate1.getTime() + 50), false);
+
+        Collection<EventObject> rs
+            = msgHistoryService.findByPeriod(
+                testMetaContact, controlDate1, controlDate2);
+        List<String> msgs = getMessages(rs);
+        assertEquals("Messages must be found", 3, msgs.size());
     }
 
     private static void waitWrite(long timeout)
@@ -439,233 +455,6 @@ public class TestMsgHistoryService
             {
             }
         }
-    }
-
-    public void writeRecordsToMultiChat()
-    {
-        try
-        {
-            ChatRoom room = mockMultiChat.createChatRoom("test_room", null);
-            room.join();
-
-//            ChatRoom room = mockMultiChat.findRoom(TEST_ROOM_NAME);
-//            room.joinAs(TEST_CONTACT_NAME);
-
-            // First deliver message, so they are stored by the message history service
-            room.sendMessage(messagesToSend[0]);
-
-            waitWrite(100);
-
-            TestMsgHistoryService.controlDate1 = new Date();
-            logger.info("controlDate1:" + controlDate1.getTime());
-
-            waitWrite(100);
-
-            room.sendMessage(messagesToSend[1]);
-
-            waitWrite(100);
-
-            room.sendMessage(messagesToSend[2]);
-
-            waitWrite(100);
-
-            TestMsgHistoryService.controlDate2 = new Date();
-            logger.info("controlDate2:" + controlDate2.getTime());
-
-            waitWrite(100);
-
-            room.sendMessage(messagesToSend[3]);
-
-            waitWrite(100);
-
-            room.sendMessage(messagesToSend[4]);
-
-            waitWrite(100);
-        }
-        catch(OperationFailedException ex)
-        {
-            fail("Failed to create room : " + ex.getMessage());
-            logger.error("Failed to create room", ex);
-        }
-        catch(OperationNotSupportedException ex)
-        {
-            fail("Failed to create room : " + ex.getMessage());
-            logger.error("Failed to create room", ex);
-        }
-    }
-
-    /**
-     * tests all read methods (finders)
-     */
-    public void readRecordsFromMultiChat()
-    {
-        ChatRoom room = null;
-
-        try
-        {
-            room = mockMultiChat.findRoom(TEST_ROOM_NAME);
-
-        }catch(Exception ex)
-        {
-            fail("Cannot find room!" + ex.getMessage());
-        }
-
-        /**
-         * This matches all written messages, they are minimum 5
-         */
-        Collection<EventObject> rs
-            = msgHistoryService.findByKeyword(room, "test");
-
-        assertTrue("Nothing found findByKeyword ", !rs.isEmpty());
-
-        List<String> msgs = getChatMessages(rs);
-
-        assertTrue("Messages too few - findByKeyword", msgs.size() >= 5);
-
-        /**
-         * Will test case sensitive and insensitive search
-         */
-        rs = msgHistoryService.findByKeyword(room, "Test", false);
-
-        assertTrue("Nothing found findByKeyword caseINsensitive search", !rs.isEmpty());
-
-        msgs = getChatMessages(rs);
-
-        assertTrue("Messages too few - findByKeyword", msgs.size() >= 5);
-
-        rs = msgHistoryService.findByKeyword(room, "Test", true);
-
-        assertFalse("Something found by findByKeyword casesensitive search", !rs.isEmpty());
-
-        /**
-         * This must match also many messages, as tests are run many times
-         * but the minimum is 3
-         */
-        rs = msgHistoryService.findByEndDate(room, controlDate2);
-
-        assertTrue("Nothing found findByEndDate", !rs.isEmpty());
-
-        msgs = getChatMessages(rs);
-
-        assertTrue("Messages too few - findByEndDate", msgs.size() >= 3);
-
-        /**
-         * This must find also many messages but atleast one
-         */
-        rs = msgHistoryService.findByKeywords(
-            room,
-            new String[]{"test", "word2"});
-
-        assertTrue("Nothing found findByKeywords", !rs.isEmpty());
-        msgs = getChatMessages(rs);
-        assertTrue("Messages too few - findByKeywords", msgs.size() >= 1);
-
-        /**
-         * Nothing to be found
-         */
-        rs = msgHistoryService.findByKeywords(
-            room,
-            new String[]{"test1", "word2"});
-
-        assertFalse("Something found findByKeywords", !rs.isEmpty());
-
-        /**
-         * must find 2 messages
-         */
-        rs = msgHistoryService.findByPeriod(
-            room, controlDate1, controlDate2);
-
-        assertTrue("Nothing found findByPeriod", !rs.isEmpty());
-
-        msgs = getChatMessages(rs);
-
-        assertEquals("Messages must be 2",  2, msgs.size());
-
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[1].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[2].getContent()));
-
-        /**
-         * must find 1 record
-         */
-        rs = msgHistoryService.findByPeriod(
-            room, controlDate1, controlDate2, new String[]{"word2"});
-
-        assertTrue("Nothing found findByPeriod", !rs.isEmpty());
-
-        msgs = getChatMessages(rs);
-
-        assertEquals("Messages must be 1", 1, msgs.size());
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[1].getContent()));
-
-        /**
-         * must find 2 records
-         */
-        rs = msgHistoryService.findByStartDate(room, controlDate2);
-
-        assertTrue("Nothing found findByStartDate", !rs.isEmpty());
-        msgs = getChatMessages(rs);
-        assertEquals("Messages must be 2", 2, msgs.size());
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[3].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[4].getContent()));
-
-        /**
-         * Must return exactly the last 3 messages
-         */
-        rs = msgHistoryService.findLast(room, 3);
-
-        assertTrue("Nothing found 8", !rs.isEmpty());
-        msgs = getChatMessages(rs);
-        assertEquals("Messages must be 3", 3, msgs.size());
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[2].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[3].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[4].getContent()));
-
-        /**
-         * Must return exactly the 3 messages after controlDate1
-         */
-        rs = msgHistoryService.findFirstMessagesAfter(room, controlDate1, 3);
-
-        assertTrue("Nothing found 9", !rs.isEmpty());
-        msgs = getChatMessages(rs);
-        assertEquals("Messages must be 3", 3, msgs.size());
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[1].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[2].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[3].getContent()));
-
-        /**
-         * Must return exactly the 3 messages before controlDate2
-         */
-        rs = msgHistoryService.findLastMessagesBefore(room, controlDate2, 3);
-
-        assertTrue("Nothing found 10", !rs.isEmpty());
-        msgs = getChatMessages(rs);
-        assertEquals("Messages must be 3", 3, msgs.size());
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[0].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[1].getContent()));
-        assertTrue("Message no found",
-                   msgs.contains(messagesToSend[2].getContent()));
-    }
-
-    /**
-     * Removes the locally stored contact list copy. The purpose of this is to
-     * leave the local list empty for a next round of testing.
-     */
-    public void testPurgeLocalContactListCopy()
-    {
-        metaClService.purgeLocallyStoredContactListCopy();
     }
 
     private List<String> getMessages(Collection<EventObject> rs)

@@ -17,6 +17,7 @@ import net.java.sip.communicator.util.Logger;
 
 import org.jitsi.service.configuration.*;
 import org.jitsi.service.neomedia.*;
+import org.jitsi.service.neomedia.recording.*;
 import org.jitsi.service.resources.*;
 import org.jitsi.util.*;
 
@@ -441,8 +442,14 @@ public class RecordButton
                                     0,
                                     callFilename.lastIndexOf('.'));
                         }
+                        String configuredFormat
+                            = configuration.getString(Recorder.FORMAT);
                         callFormat
-                            = SoundFileUtils.DEFAULT_CALL_RECORDING_FORMAT;
+                            = (configuredFormat != null
+                                && configuredFormat.length() != 0)
+                            ? configuredFormat
+                            : SoundFileUtils.DEFAULT_CALL_RECORDING_FORMAT;
+
                         callFilename += '.' + callFormat;
                     }
                     configuration.setProperty(Recorder.FORMAT, callFormat);

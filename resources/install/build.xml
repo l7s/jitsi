@@ -327,33 +327,63 @@
                 <include name="bin/javaws.exe" />
                 <include name="lib/javaws.jar" />
                 <include name="lib/javaws/**" />
+                <include name="lib/jfr/**" />
+                <include name="lib/jfr.jar" />
+
                 <include name="bin/javacpl.exe" />
                 <include name="bin/jucheck.exe" />
                 <include name="bin/jusched.exe" />
+                <include name="bin/dtplugin/**" />
+                <include name="bin/jabswitch.exe" />
+                <include name="bin/JavaAccessBridge-32.dll" />
+                <include name="bin/JavaAccessBridge.dll" />
+                <include name="bin/JAWTAccessBridge-32.dll" />
+                <include name="bin/JAWTAccessBridge.dll" />
+                <include name="bin/WindowsAccessBridge-32.dll" />
+                <include name="bin/WindowsAccessBridge.dll" />
                 <include name="bin/wsdetect.dll" />
-                <include name="bin/npjpi*.dll" />
-                <include name="bin/npjava11.dll" />
-                <include name="bin/npjava12.dll" />
-                <include name="bin/npjava13.dll" />
-                <include name="bin/npjava14.dll" />
-                <include name="bin/npjava32.dll" />
-                <include name="bin/npoji610.dll" />
-                <include name="bin/regutils.dll" />
-                <include name="bin/axbridge.dll" />
+                <include name="bin/plugin2/**" />
                 <include name="bin/deploy.dll" />
-                <include name="bin/jpicom.dll" />
+                <include name="bin/jfr.dll" />
                 <include name="bin/javacpl.cpl" />
-                <include name="bin/jpiexp.dll" />
-                <include name="bin/jpinscp.dll" />
-                <include name="bin/jpioji.dll" />
-                <include name="bin/jpishare.dll" />
-                <include name="lib/deploy.jar" />
-                <include name="lib/plugin.jar" />
-
-                <include name="bin/new_plugin/**" />
-                <include name="bin/jp2*.exe" />
+                <include name="bin/deploy.jar" />
+                <include name="bin/plugin.jar" />
                 <include name="lib/deploy/**" />
-                <include name="bin/jqs*.exe" />
+
+                <include name="bin/decora-sse.dll" />
+                <include name="bin/fxplugins.dll" />
+                <include name="bin/glass.dll" />
+                <include name="bin/glib-lite.dll" />
+                <include name="bin/gstreamer-lite.dll" />
+                <include name="bin/javafx-font.dll" />
+                <include name="bin/javafx_font_t2k.dll" />
+                <include name="bin/javafx-iio.dll" />
+                <include name="bin/jfxmedia.dll" />
+                <include name="bin/jfxwebkit.dll" />
+                <include name="bin/prism_common.dll" />
+                <include name="bin/prism-d3d.dll" />
+                <include name="bin/prism_es2.dll" />
+                <include name="bin/prism_sw.dll" />
+
+                <include name="bin/jp2*.exe" />
+
+                <include name="lib/javafx.properties" />
+                <include name="lib/jfxswt.jar" />
+                <include name="bin/decora-sse.dll" />
+                <include name="bin/fxplugins.dll" />
+                <include name="bin/glass.dll" />
+                <include name="bin/glib-lite.dll" />
+                <include name="bin/gstreamer-lite.dll" />
+                <include name="bin/javafx-font.dll" />
+                <include name="bin/javafx_font_t2k.dll" />
+                <include name="bin/javafx-iio.dll" />
+                <include name="bin/jfxmedia.dll" />
+                <include name="bin/jfxwebkit.dll" />
+                <include name="bin/prism_common.dll" />
+                <include name="bin/prism-d3d.dll" />
+                <include name="bin/prism_es2.dll" />
+                <include name="bin/prism_sw.dll" />
+
             </fileset>
         </delete>
     </target>
@@ -587,6 +617,7 @@
             <filterchain>
                 <tokenfilter>
                     <replacestring from="@@lib" to="${wix.heat.jitsi.lib.dir}" />
+                    <replacestring from="@APP_NAME@" to="${application.name}" />
                 </tokenfilter>
             </filterchain>
         </copy>
@@ -1049,7 +1080,7 @@
         <delete failonerror="false" file="${macosx.resrc.dir}/logging.properties"/>
         <delete failonerror="false" file="${macosx.resrc.dir}/felix.client.run.properties"/>
         <symlink action="delete" failonerror="false"
-                 link="${macosx.app.dir}/${application.name}.app/Contents/Resources/Java/libAEGetURLEventHandlerAgent.jnilib"/>
+                 link="${macosx.app.dir}/${application.name}.app/Contents/Resources/Java/libAEGetURLEventHandlerAgent.dylib"/>
 
         <symlink action="delete" failonerror="false"
                  link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Growl.framework/Headers"/>
@@ -1059,15 +1090,6 @@
                  link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Growl.framework/Growl"/>
         <symlink action="delete" failonerror="false"
                  link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Growl.framework/Versions/Current"/>
-
-        <symlink action="delete" failonerror="false"
-                 link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Headers"/>
-        <symlink action="delete" failonerror="false"
-                 link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Resources"/>
-        <symlink action="delete" failonerror="false"
-                 link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Growl"/>
-        <symlink action="delete" failonerror="false"
-                 link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Versions/Current"/>
 
         <symlink action="delete" failonerror="false"
                  link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/Sparkle.framework/Headers"/>
@@ -1148,7 +1170,7 @@
                   signature="sipc"
                   mainclass="net.java.sip.communicator.launcher.SIPCommunicator"
                   icon="resources/images/logo/sc_logo_128x128.icns"
-                  jvmversion="1.6*"
+                  jvmversion="1.7+"
                   version="${sip-communicator.version}"
                   build="${sparkle.build}"
                   infostring="${application.name}"
@@ -1156,8 +1178,7 @@
                   stubfile="${macosx.app.dir}/tmp/${macosx.stub.filename}"
                   extraclasspath="/System/Library/Java,$JAVAROOT"
                   workingdirectory="$APP_PACKAGE/Contents/Resources/Java"
-                  splashfile="$JAVAROOT/splash.gif"
-                  vmoptions="-agentlib:AEGetURLEventHandlerAgent ${jvmarg}">
+                  vmoptions="-agentlib:AEGetURLEventHandlerAgent -splash:splash.gif ${jvmarg}">
 
         <javaproperty name="apple.laf.useScreenMenuBar" value="true"/>
         <javaproperty name="apple.awt.brushMetalRounded" value="true"/>
@@ -1235,15 +1256,6 @@
       <symlink link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Growl.framework/Growl"
                resource="./Versions/Current/Growl"/>
 
-      <symlink link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Versions/Current"
-               resource="./A"/>
-      <symlink link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Headers"
-               resource="./Versions/Current/Headers"/>
-      <symlink link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Resources"
-               resource="./Versions/Current/Resources"/>
-      <symlink link="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Legacy/Growl.framework/Growl"
-               resource="./Versions/Current/Growl"/>
-
       <!-- Add the url types in the Info.plist file -->
       <replace file="${macosx.app.dir}/${application.name}.app/Contents/Info.plist">
         <replacetoken><![CDATA[<key>CFBundleName</key>]]></replacetoken>
@@ -1268,6 +1280,13 @@
       </array>
       <key>CFBundleName</key>]]></replacevalue>
       </replace>
+
+      <!-- Rename Java dict to Javax to prevent OSX asking for the old Apple JVM -->
+        <replace file="${macosx.app.dir}/${application.name}.app/Contents/Info.plist">
+          <replacetoken><![CDATA[<key>Java</key>]]></replacetoken>
+          <replacevalue><![CDATA[<key>Javax</key>]]></replacevalue>
+      </replace>
+
       <!-- Add property for high resolution displays -->
       <replace file="${macosx.app.dir}/${application.name}.app/Contents/Info.plist">
         <replacetoken><![CDATA[<key>CFBundleName</key>]]></replacetoken>
@@ -1275,12 +1294,8 @@
       <true/>
       <key>CFBundleName</key>]]></replacevalue>
       </replace>
-      <symlink resource="lib/native/mac/libAEGetURLEventHandlerAgent.jnilib"
-               link="${macosx.app.dir}/${application.name}.app/Contents/Resources/Java/libAEGetURLEventHandlerAgent.jnilib"/>
-      <symlink resource="lib/native/mac/libAEGetURLEventHandlerAgent.jnilib"
+      <symlink resource="lib/native/mac/libAEGetURLEventHandlerAgent.dylib"
                link="${macosx.app.dir}/${application.name}.app/Contents/Resources/Java/libAEGetURLEventHandlerAgent.dylib"/>
-      <symlink resource="libAEGetURLEventHandlerAgent.jnilib"
-               link="${macosx.app.dir}/${application.name}.app/Contents/Resources/Java/lib/native/mac/libAEGetURLEventHandlerAgent.dylib"/>
 
       <copy file="${macosx.resrc.dir}/libgrowl4j.dylib"
             todir="${macosx.app.dir}/${application.name}.app/Contents/Resources/Java/lib/native/mac/"/>
@@ -1312,14 +1327,47 @@
                   <include name="${jre.folder.name}/Contents/Info.plist"/>
                   <include name="${jre.folder.name}/Contents/Home/jre/"/>
                   <exclude name="${jre.folder.name}/Contents/Home/bin/"/>
-                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/"/>
+
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/rmid"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/rmiregistry"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/tnameserv"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/keytool"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/kinit"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/klist"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/ktab"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/policytool"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/orbd"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/servertool"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/javaws"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/bin/java"/>
+
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/javaws.jar"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/jfr/"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/jfr.jar"/>
                   <exclude name="${jre.folder.name}/Contents/Home/jre/lib/deploy/"/>
                   <exclude name="${jre.folder.name}/Contents/Home/jre/lib/deploy.jar"/>
-                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/javaws.jar"/>
-                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libdeploy.dylib"/>
-                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libnpjp2.dylib"/>
                   <exclude name="${jre.folder.name}/Contents/Home/jre/lib/plugin.jar"/>
-                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/security/javaws.policy"/>
+
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libdeploy.dylib"/>
+
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/javafx.properties"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/jfxswt.jar"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/fxplugins.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libdecora_sse.so"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libdecora-sse.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libfxplugins.so"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libglass.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libglib-lite.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libgstreamer-lite.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libjavafx_font_t2k.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libjavafx-font.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libjavafx-iio.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libjfxmedia.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libjfxwebkit.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libprism_common.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libprism_sw.dylib"/>
+                  <exclude name="${jre.folder.name}/Contents/Home/jre/lib/libprism-es2.dylib"/>
+
               </fileset>
         </copy>
 
@@ -1514,11 +1562,24 @@
               quiet="yes" failonerror="false"/>
     </target>
 
+    <!-- Signs the specified path in param path-to-sign, using force -->
+    <target name="-codesign-path">
+        <exec executable="/usr/bin/codesign" os="Mac OS X" failonerror="true">
+            <arg value="--force"/>
+            <arg value="-s"/>
+            <arg value="${macosx.sign.certid}"/>
+            <arg value="--keychain"/>
+            <arg value="${macosx.sign.keychain}"/>
+            <arg value="${path-to-sign}"/>
+        </exec>
+    </target>
+
     <!--
         If there is a property enabling the keychain name
         we can sign.
      -->
-    <target name="macosx-sign-app" if="macosx.sign.keychain">
+    <target name="macosx-sign-app" if="macosx.sign.keychain"
+            depends="define-ant-contrib-task">
         <echo message="Signing application!"/>
 
         <!-- unlocking the keychain -->
@@ -1529,8 +1590,34 @@
             <arg value="${macosx.sign.keychain}"/>
         </exec>
 
+        <!-- force codesigning of growl framework as it has reosource 1
+        signiture and will cause Jitsi.app to fail verifying
+        Also sign the other frameworks and plugins (jre if exists).
+         -->
+        <delete dir="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Growl.framework/Versions/A/_CodeSignature"
+                quiet="yes" failonerror="false"/>
+        <antcall target="-codesign-path">
+            <param name="path-to-sign"
+                   value="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/GrowlFramework/Growl.framework/Versions/A"/>
+        </antcall>
+        <antcall target="-codesign-path">
+            <param name="path-to-sign"
+                   value="${macosx.app.dir}/${application.name}.app/Contents/Frameworks/Sparkle.framework/Versions/A"/>
+        </antcall>
+
+        <foreach param="path-to-sign" target="-codesign-path"
+                 inheritall="true" inheritrefs="true">
+            <path>
+                <dirset
+                    dir="${macosx.app.dir}/${application.name}.app/Contents">
+                        <include name="PlugIns/*"/>
+                </dirset>
+            </path>
+        </foreach>
+
         <!-- signing -->
         <exec executable="/usr/bin/codesign" os="Mac OS X" failonerror="true">
+            <arg value="--deep"/>
             <arg value="-s"/>
             <arg value="${macosx.sign.certid}"/>
             <arg value="--keychain"/>
@@ -1545,8 +1632,14 @@
 
         <!-- just print sign info
             To test is sign accepted do $ sudo spctl -a -v -->
-        <exec executable="/usr/bin/codesign" os="Mac OS X" failonerror="true">
+        <exec executable="/usr/bin/codesign" os="Mac OS X" failonerror="false">
             <arg value="-dvvv"/>
+            <arg value="${macosx.app.dir}/${application.name}.app"/>
+        </exec>
+        <exec executable="/usr/bin/codesign" os="Mac OS X" failonerror="false">
+            <arg value="--verify"/>
+            <arg value="--deep"/>
+            <arg value="-v"/>
             <arg value="${macosx.app.dir}/${application.name}.app"/>
         </exec>
 
@@ -1954,6 +2047,8 @@
             <replacevalue></replacevalue>
         </replace>
 
+        <antcall target="-deb-felix.client.run-for-src"/>
+
         <copy file="${lib}/jitsi-defaults.properties"
               tofile="${debianize.dir}/../lib/jitsi-defaults.properties"
               overwrite="true"
@@ -2115,6 +2210,16 @@
         </copy>
     </target>
 
+    <target name="-deb-felix.client.run-for-src"
+            if="debianize.src.pkg">
+        <replace file="${debianize.dir}/../lib/felix.client.run.properties"
+                 token=" reference:file:sc-bundles/httpclient.jar \${line.separator}">
+            <replacevalue> reference:file:sc-bundles/httpclient.jar \
+ reference:file:sc-bundles/httpmime.jar \
+            </replacevalue>
+        </replace>
+    </target>
+
     <target name="-deb-manage-jitsi-default-overrides"
             if="${jitsi-default-overrides.exists}">
         <copy file="${lib}/jitsi-default-overrides.properties"
@@ -2222,7 +2327,7 @@
                  token="override_dh_install-arch:"
                  value="override_dh_install:"/>
         <replace file="${debianize.dir}/rules"
-                 token="lib$(PACKAGE_NAME)-jni"
+                 token="$(PACKAGE_NAME)-jni"
                  value="$(PACKAGE_NAME)"/>
         <replace file="${debianize.dir}/rules"
                  token=" usr/lib/jni/"
@@ -2290,8 +2395,11 @@
                  token="/usr/share/java/org.apache.felix.framework.jar:/usr/share/java/org.apache.felix.main.jar"
                  value="$LIBPATH/felix.jar"/>
         <replace file="${debianize.dir}/sh/${package.name}"
-                 token="$SCDIR/sc-bundles/util.jar/launchutils.jar"
-                 value="$SCDIR/sc-bundles/util.jar"/>
+                 token="-common"
+                 value="/sc-bundles"/>
+        <replace file="${debianize.dir}/sh/${package.name}"
+                 token="util.jar/launchutils.jar"
+                 value="util.jar"/>
         <replace file="${debianize.dir}/sh/${package.name}"
                  token="/usr/lib/jni"
                  value="$SCDIR/lib/native"/>
@@ -2364,10 +2472,9 @@
             <fileset dir="${src}">
                 <include name="**/*"/>
                 <exclude name="**/growlnotification/**"/>
+                <exclude name="${extra.exclude}"/>
                 <exclude name="**/dict/**"/>
                 <exclude name="**/dictaccregwizz/**"/>
-                <exclude name="**/irc/**"/>
-                <exclude name="**/ircaccregwizz/**"/>
                 <exclude name="**/ssh/**"/>
                 <exclude name="**/sshaccregwizz/**"/>
                 <exclude name="**/profiler4j/**"/>
@@ -2425,6 +2532,7 @@
 
         <antcall target="deb-copy-jitsi">
             <param name="target.dir" value="${debian.src.dir}"/>
+            <param name="extra.exclude" value="**/impl/googlecontacts/**"/>
         </antcall>
 
         <property name="debianize.dir" value="${debian.src.dir}/debian" />
@@ -2450,47 +2558,6 @@
         <!-- here we suppose jitsi is in the same folder with libjitsi
             and libsrc
         -->
-        <!-- Libjitsi -->
-        <mkdir dir="${debian.src.dir}/lib/src/libjitsi/lib"/>
-        <copy todir="${debian.src.dir}/lib/src/libjitsi">
-            <fileset dir="${sc.basedir}/../libjitsi">
-                <include name="src/**"/>
-                <include name="build.xml"/>
-                <exclude name="**/macosx/**"/>
-                <exclude name="**/windows/**"/>
-            </fileset>
-        </copy>
-
-        <!-- weupnp -->
-        <unzip src="${sc.basedir}/../libsrc/weupnp.zip"
-               dest="${debian.src.dir}/lib/src"/>
-
-        <!-- ice4j -->
-        <unzip src="${sc.basedir}/../libsrc/ice4j.zip"
-               dest="${debian.src.dir}/lib/src">
-            <patternset>
-                <exclude name="**/.svn/**"/>
-                <exclude name="**/*.jar"/>
-            </patternset>
-        </unzip>
-        <delete dir="${debian.src.dir}/lib/src/ice4j/lib" includes="*"/>
-
-        <!-- sdes -->
-        <unzip src="${sc.basedir}/../libsrc/sdes4j.zip"
-               dest="${debian.src.dir}/lib/src">
-            <patternset>
-                <exclude name="**/.svn"/>
-            </patternset>
-        </unzip>
-
-        <!-- jsip -->
-        <unzip src="${sc.basedir}/../libsrc/jsip.zip"
-               dest="${debian.src.dir}/lib/src/">
-            <patternset>
-                <exclude name="**/.svn/**"/>
-                <exclude name="**/*.jar"/>
-            </patternset>
-        </unzip>
 
         <!-- jdic_misc -->
         <unzip src="${sc.basedir}/../libsrc/jdic_misc.zip"
@@ -2499,22 +2566,6 @@
                 <exclude name="**/.svn/**"/>
             </patternset>
         </unzip>
-
-        <!-- fmj -->
-        <unzip src="${sc.basedir}/../libsrc/fmj.zip"
-               dest="${debian.src.dir}/lib/src">
-            <patternset>
-                <exclude name="**/macosx/**"/>
-                <exclude name="**/windows/**"/>
-                <exclude name="**/lib/**"/>
-                <exclude name="**/*.so"/>
-                <exclude name="**/*.dll"/>
-            </patternset>
-        </unzip>
-
-        <!-- zrtp4j -->
-        <unzip src="${sc.basedir}/../libsrc/zrtp4j-src-3.2.0.zip"
-               dest="${debian.src.dir}/lib/src"/>
 
         <!-- joscar -->
         <unzip src="${sc.basedir}/../libsrc/joscar.zip"
@@ -2528,15 +2579,6 @@
                dest="${debian.src.dir}/lib/src/joscar/lib/annotations"/>
         <unzip src="${sc.basedir}/../libsrc/jsocks.zip"
                dest="${debian.src.dir}/lib/src"/>
-
-        <!-- bccontrib -->
-        <unzip src="${sc.basedir}/../libsrc/bccontrib.zip"
-               dest="${debian.src.dir}/lib/src/">
-            <patternset>
-                <exclude name="**/*.jar"/>
-                <exclude name="**/*.class"/>
-            </patternset>
-        </unzip>
 
         <!-- OrangeExtensions -->
         <unzip src="${sc.basedir}/../libsrc/OrangeExtensions.zip"
@@ -2580,6 +2622,14 @@
             </fileset>
         </copy>
 
+        <!-- irc-api -->
+        <copy todir="${debian.src.dir}/lib/src/irc-api">
+            <fileset dir="${sc.basedir}/../irc-api">
+                <include name="src/main/**"/>
+                <exclude name="**/.svn/**"/>
+            </fileset>
+        </copy>
+
         <!-- myspell-->
         <unzip src="${sc.basedir}/../libsrc/jmyspell-core-src.zip"
                dest="${debian.src.dir}/lib/src/jmyspell"/>
@@ -2588,14 +2638,14 @@
         <unzip src="${sc.basedir}/../libsrc/jfontchooser-src.zip"
                        dest="${debian.src.dir}/lib/src/jfontchooser"/>
 
-        <!-- gdata -->
+        <!-- gdata
         <unzip src="${sc.basedir}/../libsrc/gdata-src.java-1.43.0.zip"
                dest="${debian.src.dir}/lib/src">
                 <patternset>
                     <exclude name="**/*.orig"/>
                     <exclude name="**/*.jar"/>
                 </patternset>
-        </unzip>
+        </unzip>-->
 
         <!-- jmork -->
         <unzip src="${sc.basedir}/../libsrc/jmork-1.0.5-SNAPSHOT-sources.jar"
@@ -2605,58 +2655,16 @@
         <mkdir dir="${debian.src.dir}/lib/native/linux"/>
         <mkdir dir="${debian.src.dir}/lib/native/linux-64"/>
 
-        <!-- portaudio -->
-        <unzip src="${sc.basedir}/../libsrc/portaudio.zip"
-               dest="${debian.src.dir}/lib/src/">
-            <patternset>
-                <exclude name="**/*.log"/>
-                <exclude name="**/*.orig"/>
-                <exclude name="**/bindings/**"/>
-                <exclude name="**/macosx/**"/>
-                <exclude name="**/windows/**"/>
-            </patternset>
-        </unzip>
-        <exec   dir="${debian.src.dir}/lib/src/portaudio"
-                executable="make"
-                failonerror="true">
-            <arg value="distclean" />
-        </exec>
-
         <!-- pack as original sources -->
         <tar destfile="${debian.dir}/${package.name}_${sip-communicator.version}.orig.tar.gz"
              compression="gzip"
-             basedir="${debian.src.dir}"/>
+             basedir="${debian.tmp.dir}"/>
         <delete dir="${debian.tmp.dir}"/>
     </target>
 
     <!-- clean for debuild -->
     <target name="clean-debuild" depends="load-properties">
         <property name="debian.src.dir" value="." />
-
-        <!-- libjitsi clean -->
-        <ant dir="${debian.src.dir}/lib/src/weupnp"
-             inheritAll="false"
-             target="clean"/>
-        <ant dir="${debian.src.dir}/lib/src/ice4j"
-             inheritAll="false"
-             target="clean"/>
-        <ant dir="${debian.src.dir}/lib/src/sdes4j"
-             inheritAll="false"
-             target="clean"/>
-        <ant dir="${debian.src.dir}/lib/src/jsip"
-             inheritAll="false"
-             target="clean"/>
-        <delete dir="${debian.src.dir}/lib/src/bccontrib/target"
-            failonerror="false"/>
-        <ant dir="${debian.src.dir}/lib/src/fmj"
-             inheritAll="false"
-             target="clean"/>
-        <ant dir="${debian.src.dir}/lib/src/zrtp4j"
-             inheritAll="false"
-             target="clean"/>
-        <ant dir="${debian.src.dir}/lib/src/libjitsi"
-             inheritAll="false"
-             target="clean"/>
 
         <!-- main build of jitsi -->
         <ant dir="${debian.src.dir}/lib/src/swingworker"
@@ -2697,14 +2705,14 @@
                 failonerror="false"/>
         <delete dir="${debian.src.dir}/lib/src/OrangeExtensions/classes"
                 failonerror="false"/>
-        <ant dir="${debian.src.dir}/lib/src/gdata-java-client/java"
+        <!--ant dir="${debian.src.dir}/lib/src/gdata-java-client/java"
             inheritAll="false"
             target="clean"
             antfile="build-src.xml"/>
         <delete dir="${debian.src.dir}/lib/src/gdata-java-client/java/classes"
                 failonerror="false"/>
         <delete dir="${debian.src.dir}/lib/src/gdata-java-client/java/genfiles"
-                failonerror="false"/>
+                failonerror="false"/-->
         <delete dir="${debian.src.dir}/lib/src/jmork/classes"
                 failonerror="false"/>
 
@@ -2731,210 +2739,16 @@
 
     </target>
 
-    <!-- this target is dependent of deb-src-rebuild and
-     both are normally invoked while building debian source package -->
-    <target name="deb-src-build-libjitsi" depends="load-properties">
+    <target name="-pre-deb-src-rebuild" depends="load-properties">
 
         <dirname property="current.basedir" file="${ant.file.jitsi}"/>
         <property name="debian.src.dir" value="${current.basedir}" />
 
-        <mkdir dir="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
-        <!-- weupnp -->
-        <ant dir="${debian.src.dir}/lib/src/weupnp"
-             inheritAll="false"
-             target="jar"/>
-        <symlink resource="../src/weupnp/weupnp.jar"
-             overwrite="true"
-             link="${debian.src.dir}/lib/installer-exclude/weupnp-0.1.2-SNAPSHOT.jar"/>
-        <symlink resource="../../weupnp/weupnp.jar"
-             overwrite="true"
-             link="${debian.src.dir}/lib/src/ice4j/lib/weupnp-0.1.2-SNAPSHOT.jar"/>
-
-        <!-- sdes -->
-        <mkdir dir="${debian.src.dir}/lib/src/sdes4j/lib"/>
-        <symlink resource="/usr/share/java/commons-codec.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/sdes4j/lib/commons-codec.jar"/>
-        <mkdir dir="${debian.src.dir}/lib/src/sdes4j/lib"/>
-        <ant dir="${debian.src.dir}/lib/src/sdes4j"
-             inheritAll="false"
-             target="jar">
-        </ant>
-        <symlink resource="../../sdes4j/build/SDES4J-1.0.1.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
-        <symlink resource="/usr/share/java/org.apache.felix.framework.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib/felix.jar"/>
-        <symlink resource="/usr/share/java/json_simple.jar"
-             overwrite="true"
-             link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
         <symlink resource="/usr/share/java/org.apache.felix.framework.jar"
                  overwrite="true"
                  link="${debian.src.dir}/lib/felix.jar"/>
-        <symlink resource="/usr/share/java/org.apache.felix.main.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/installer-exclude/"/>
 
-        <!-- jsip -->
-        <symlink resource="/usr/share/java/log4j-1.2.jar"
-             overwrite="true"
-             link="${debian.src.dir}/lib/src/jsip/lib/log4j-1.2.15.jar"/>
-        <ant dir="${debian.src.dir}/lib/src/jsip"
-             inheritAll="false"
-             target="dist">
-        </ant>
-        <symlink resource="../../jsip/jain-sip-sdp-1.2.159.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib/jain-sdp.jar"/>
-         <symlink resource="../../jsip/jain-sip-sdp-1.2.159.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/ice4j/lib/jain-sdp.jar"/>  
-                 
-        <!-- ice4j -->
-        <ant dir="${debian.src.dir}/lib/src/ice4j"
-             inheritAll="false"
-             target="jar">
-            <property name="src2" value="src"/>
-        </ant>
-        <symlink resource="../../ice4j/ice4j.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
-        <!-- compile and pack bccontrib -->
-        <mkdir dir="${debian.src.dir}/lib/src/bccontrib/target/classes"/>
-        <javac debug="false" optimize="true"
-            destdir="${debian.src.dir}/lib/src/bccontrib/target/classes"
-            nowarn="false"
-            source="1.5" target="1.5" fork="true">
-            <src path="${debian.src.dir}/lib/src/bccontrib/src/main/java"/>
-            <classpath>
-                <pathelement location="/usr/share/java/bcprov.jar"/>
-            </classpath>
-        </javac>
-        <jar compress="true"
-             destfile="${debian.src.dir}/lib/src/bccontrib/target/bccontrib-1.0-SNAPSHOT.jar">
-            <fileset dir="${debian.src.dir}/lib/src/bccontrib/target/classes"/>
-            <manifest>
-                <attribute name="Bundle-Name" value="bccontrib"/>
-                <attribute name="Bundle-SymbolicName"
-                           value="org.jitsi.bccontrib"/>
-                <attribute name="Bundle-Version" value="1.0.5.SNAPSHOT"/>
-
-                <attribute name="Import-Package"
-                    value="org.bouncycastle.crypto,
-org.bouncycastle.crypto.digests,
-org.bouncycastle.crypto.engines,
-org.bouncycastle.crypto.params,
-org.bouncycastle.crypto.prng"/>
-                <attribute name="Export-Package"
-                    value="org.jitsi.bccontrib.digests,
-org.jitsi.bccontrib.engines,
-org.jitsi.bccontrib.macs,
-org.jitsi.bccontrib.params,
-org.jitsi.bccontrib.prng,
-org.jitsi.bccontrib.util"/>
-            </manifest>
-        </jar>
-        <symlink resource="../../bccontrib/target/bccontrib-1.0-SNAPSHOT.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
-        <!-- compile and pack fmj -->
-        <property name="fmj.src.folder" value="${debian.src.dir}/lib/src/fmj"/>
-        <mkdir dir="${fmj.src.folder}/build/classes" />
-        <javac debug="false" optimize="true"
-            destdir="${fmj.src.folder}/build/classes"
-            nowarn="false"
-            source="1.5" target="1.5" fork="true">
-            <src path="${fmj.src.folder}/src"/>
-            <src path="${fmj.src.folder}/src.capture"/>
-            <src path="${fmj.src.folder}/src.ejmf"/>
-            <src path="${fmj.src.folder}/src.apps"/>
-            <src path="${fmj.src.folder}/src.ffmpeg-java"/>
-            <src path="${fmj.src.folder}/src.fmjstudio"/>
-            <src path="${fmj.src.folder}/src.gst"/>
-            <src path="${fmj.src.folder}/src.rtp"/>
-            <src path="${fmj.src.folder}/src.sip-communicator"/>
-            <src path="${fmj.src.folder}/src.stubs"/>
-            <src path="${fmj.src.folder}/src.sunibm.base"/>
-            <src path="${fmj.src.folder}/src.sunibm.replace"/>
-            <src path="${fmj.src.folder}/src.t4l"/>
-            <src path="${fmj.src.folder}/src.theora-java"/>
-            <src path="${fmj.src.folder}/src.utils"/>
-
-            <exclude name="**/civil/**" />
-            <exclude name="net/sf/fmj/media/cdp/GlobalCaptureDevicePlugger.java" />
-            <exclude name="net/sf/fmj/ejmf/toolkit/gui/**"/>
-            <exclude name="net/java/**" />
-            <exclude name="net/sf/fmj/apps/**" />
-            <exclude name="net/sf/fmj/capture/**" />
-            <exclude name="net/sf/fmj/ds/**" />
-            <exclude name="net/sf/fmj/ffmpeg_java/**" />
-            <exclude name="net/sf/fmj/gst/**" />
-            <exclude name="net/sf/fmj/gui/**" />
-            <exclude name="net/sf/fmj/test/**" />
-            <exclude name="net/sf/fmj/theora_java/**" />
-            <exclude name="net/sf/fmj/qt/**" />
-            <exclude name="net/sf/fmj/ui/**" />
-            <exclude name="net/sf/jdshow/**" />
-            <exclude name="fi/iki/elonen/nanohttpd/**" />
-
-        </javac>
-        <jar compress="true" destfile="${fmj.src.folder}/fmj.jar">
-            <fileset dir="${fmj.src.folder}/build/classes">
-                <exclude name="net/sf/fmj/test/*" />
-            </fileset>
-        </jar>
-        <symlink resource="../../fmj/fmj.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib/fmj.jar"/>
-
-        <!-- zrtp -->
-        <mkdir dir="${debian.src.dir}/lib/src/zrtp4j/lib"/>
-        <symlink resource="../../bccontrib/target/bccontrib-1.0-SNAPSHOT.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/zrtp4j/lib"/>
-        <symlink resource="/usr/share/java/bcprov.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/zrtp4j/lib/bcprov-jdk15on-148.jar"/>
-        <!-- its not error zrtp build expects jmf.jar -->
-        <symlink resource="../../fmj/fmj.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/zrtp4j/lib/jmf.jar"/>
-        <symlink resource="/usr/share/java/junit.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/zrtp4j/lib/junit.jar"/>
-        <ant dir="${debian.src.dir}/lib/src/zrtp4j"
-             inheritAll="false"
-             target="jar">
-        </ant>
-
-        <!-- libjitsi -->
-        <symlink resource="../../zrtp4j/dist/zrtp4j-light.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-        <symlink resource="../../bccontrib/target/bccontrib-1.0-SNAPSHOT.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-        <symlink resource="/usr/share/java/bcprov.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-        <symlink resource="/usr/share/java/bcpkix.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
-        <symlink resource="/usr/share/java/jna.jar"
-                 link="${debian.src.dir}/lib/src/libjitsi/lib"/>
-
-        <ant dir="${debian.src.dir}/lib/src/libjitsi"
-             inheritAll="false"
-             target="jar">
-        </ant>
-        <symlink resource="../src/libjitsi/libjitsi.jar"
+        <symlink resource="/usr/share/libjitsi/libjitsi.jar"
                  overwrite="true"
                  link="${debian.src.dir}/lib/installer-exclude"/>
 
@@ -2945,10 +2759,22 @@ org.jitsi.bccontrib.util"/>
 
     <!-- Normally this target is invoked by debian source package -->
     <target name="deb-src-rebuild"
-            depends="init,deb-src-build-libjitsi,version">
+            depends="init,-pre-deb-src-rebuild,version">
 
         <property name="debian.src.dir"
             value="${debian.tmp.dir}/${package.name}-${sip-communicator.version}" />
+
+        <symlink resource="/usr/share/java/libphonenumber.jar"
+                 overwrite="true"
+                 link="${debian.src.dir}/lib/installer-exclude/libphonenumber-5.9.jar"/>
+
+        <symlink resource="/usr/share/java/org.apache.felix.main.jar"
+                 overwrite="true"
+                 link="${debian.src.dir}/lib/installer-exclude/"/>
+
+        <symlink resource="/usr/share/java/weupnp.jar"
+             overwrite="true"
+             link="${debian.src.dir}/lib/installer-exclude/weupnp-0.1.2-SNAPSHOT.jar"/>
 
         <!-- swingworker -->
         <ant dir="${debian.src.dir}/lib/src/swingworker"
@@ -3116,7 +2942,7 @@ org.jitsi.bccontrib.util"/>
               tofile="${debian.src.dir}/lib/native/linux/libjdic_misc.so"/>
 
         <!-- json -->
-        <symlink resource="/usr/share/java/json_simple.jar"
+        <symlink resource="/usr/share/java/json-simple.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude/json-simple-1.1.1.jar"/>
 
@@ -3159,7 +2985,8 @@ org.jitsi.bccontrib.util"/>
             <fileset dir="${debian.src.dir}/lib/src/otr4j/lib" includes="**/*.jar" />
         </path>
         <mkdir dir="${debian.src.dir}/lib/src/otr4j/bin/classes" />
-        <javac target="1.6" srcdir="${debian.src.dir}/lib/src/otr4j/src"
+        <javac target="1.6" source="1.6"
+               srcdir="${debian.src.dir}/lib/src/otr4j/src"
                destdir="${debian.src.dir}/lib/src/otr4j/bin/classes"
                classpathref="otr4j-classpath"
                debug="On" />
@@ -3168,6 +2995,69 @@ org.jitsi.bccontrib.util"/>
         <symlink resource="../src/otr4j/bin/otr4j.jar"
                  overwrite="true"
                  link="${debian.src.dir}/lib/installer-exclude"/>
+
+        <!-- irc-api -->
+        <path id="irc-api-classpath">
+            <fileset dir="/usr/share/java" includes="slf4j-api.jar" />
+        </path>
+        <mkdir dir="${debian.src.dir}/lib/src/irc-api/classes" />
+        <javac target="1.6" source="1.6"
+               srcdir="${debian.src.dir}/lib/src/irc-api/src"
+               destdir="${debian.src.dir}/lib/src/irc-api/classes"
+               classpathref="irc-api-classpath"
+               debug="On" />
+        <jar destfile="${debian.src.dir}/lib/src/irc-api/irc-api-1.0.jar"
+             basedir="${debian.src.dir}/lib/src/irc-api/classes">
+            <manifest>
+                <attribute name="Bundle-Name" value="IRC API"/>
+                <attribute name="Bundle-Description"
+                           value="A Java implementation of the irc api"/>
+                <attribute name="Bundle-SymbolicName"
+                           value="com.ircclouds.irc.api"/>
+                <attribute name="Bundle-ManifestVersion" value="2"/>
+                <attribute name="Bundle-Version" value="1.0.0.0015-SNAPSHOT"/>
+
+                <attribute name="Import-Package"
+                           value="javax.net.ssl,org.slf4j"/>
+                <attribute name="Export-Package"
+                           value="com.ircclouds.irc.api;uses:=&quot;com.ircclouds.irc.api.commands,
+com.ircclouds.irc.api.comms,com.ircclouds.irc.api.ctcp,com.ircclouds.irc.api.domain,
+com.ircclouds.irc.api.domain.messages.interfaces,com.ircclouds.irc.api.filters,
+com.ircclouds.irc.api.listeners,com.ircclouds.irc.api.state&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.commands;uses:=&quot;com.ircclouds.irc.api,
+com.ircclouds.irc.api.domain.messages&quot;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.comms;uses:=&quot;javax.net.ssl&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.ctcp;uses:=&quot;com.ircclouds.irc.api&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.domain;uses:=&quot;com.ircclouds.irc.api.domain.messages.interfaces,
+javax.net.ssl&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.domain.messages;uses:=&quot;com.ircclouds.irc.api.domain,
+com.ircclouds.irc.api.domain.messages.interfaces&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.domain.messages.interfaces;uses:=&quot;com.ircclouds.irc.api.domain&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.filters;uses:=&quot;com.ircclouds.irc.api.domain.messages.interfaces,
+com.ircclouds.irc.api.listeners&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.listeners;uses:=&quot;com.ircclouds.irc.api,
+com.ircclouds.irc.api.domain,com.ircclouds.irc.api.domain.messages,
+com.ircclouds.irc.api.domain.messages.interfaces,
+com.ircclouds.irc.api.state&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.om;uses:=&quot;com.ircclouds.irc.api.domain,
+com.ircclouds.irc.api.domain.messages,
+com.ircclouds.irc.api.domain.messages.interfaces&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.state;uses:=&quot;com.ircclouds.irc.api.domain,
+com.ircclouds.irc.api.domain.messages,
+com.ircclouds.irc.api.listeners&quot;;version=&quot;1.0.0&quot;,
+com.ircclouds.irc.api.utils;uses:=&quot;com.ircclouds.irc.api.domain,
+com.ircclouds.irc.api.domain.messages.interfaces&quot;;version=&quot;1.0.0&quot;"/>
+            </manifest>
+        </jar>
+        <symlink resource="../src/irc-api/irc-api-1.0.jar"
+                 overwrite="true"
+                 link="${debian.src.dir}/lib/installer-exclude"/>
+        <symlink resource="/usr/share/java/slf4j-api.jar"
+                 overwrite="true"
+                 link="${debian.src.dir}/lib/installer-exclude/slf4j-api-1.7.5.jar"/>
+        <symlink resource="/usr/share/java/slf4j-jdk14.jar"
+                 overwrite="true"
+                 link="${debian.src.dir}/lib/installer-exclude/slf4j-jdk14-1.7.5.jar"/>
 
         <!-- jmyspell -->
         <mkdir dir="${debian.src.dir}/lib/src/jmyspell/classes"/>
@@ -3228,22 +3118,22 @@ org.jitsi.bccontrib.util"/>
                  overwrite="true"
                  link="${debian.src.dir}/lib/os-specific/mac/"/>
 
-        <symlink resource="../src/bccontrib/target/bccontrib-1.0-SNAPSHOT.jar"
+        <symlink resource="/usr/share/libjitsi/lib/bccontrib.jar"
                  overwrite="true"
-                 link="${debian.src.dir}/lib/installer-exclude"/>
+                 link="${debian.src.dir}/lib/installer-exclude/bccontrib-1.0-SNAPSHOT.jar"/>
         <symlink resource="/usr/share/java/bcprov.jar"
                  overwrite="true"
-                 link="${debian.src.dir}/lib/installer-exclude/bcprov-jdk15on-150.jar"/>
+                 link="${debian.src.dir}/lib/installer-exclude/bcprov-jdk15on-151.jar"/>
         <symlink resource="/usr/share/java/bcpkix.jar"
                  overwrite="true"
-                 link="${debian.src.dir}/lib/installer-exclude/bcpkix-jdk15on-150.jar"/>
+                 link="${debian.src.dir}/lib/installer-exclude/bcpkix-jdk15on-151.jar"/>
 
         <!-- liblaf-widget-java -->
         <symlink resource="/usr/share/java/laf-widget.jar"
                  overwrite="true"
                  link="${debian.src.dir}/lib/installer-exclude"/>
 
-        <!-- gdata -->
+        <!-- gdata
         <ant dir="${debian.src.dir}/lib/src/gdata-java-client/java"
              inheritAll="false"
              target="build"
@@ -3277,7 +3167,7 @@ org.jitsi.bccontrib.util"/>
         <symlink
              resource="../src/gdata-java-client/java/lib/gdata-core-1.0.jar"
              overwrite="true"
-             link="${debian.src.dir}/lib/installer-exclude/"/>
+             link="${debian.src.dir}/lib/installer-exclude/"/>-->
         <symlink
              resource="/usr/share/java/guava.jar"
              overwrite="true"
@@ -3338,19 +3228,19 @@ org.jitsi.bccontrib.util"/>
                  overwrite="true"
                  link="${debian.src.dir}/lib/installer-exclude/"/>
         <!-- ice4j -->
-        <symlink resource="../src/ice4j/ice4j.jar"
+        <symlink resource="/usr/share/libjitsi/lib/ice4j.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude"/>
         <!-- fmj -->
-        <symlink resource="../src/fmj/fmj.jar"
+        <symlink resource="/usr/share/libjitsi/lib/fmj.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude"/>
         <!-- zrtp -->
-        <symlink resource="../src/zrtp4j/dist/zrtp4j-light.jar"
+        <symlink resource="/usr/share/libjitsi/lib/zrtp4j-light.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude"/>
         <!-- sdes -->
-        <symlink resource="../src/sdes4j/build/SDES4J-1.0.1.jar"
+        <symlink resource="/usr/share/libjitsi/lib/sdes4j.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude/sdes4j.jar"/>
 
@@ -3366,13 +3256,13 @@ org.jitsi.bccontrib.util"/>
              link="${debian.src.dir}/lib/installer-exclude/httpmime-4.1.2.jar"/>
 
         <!-- jsip -->
-        <symlink resource="../src/jsip/jain-sdp-1.0.159.jar"
+        <symlink resource="/usr/share/libjitsi/lib/jain-sdp.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude/jain-sdp.jar"/>
-        <symlink resource="../src/jsip/jain-sip-api-1.2.jar"
+        <symlink resource="/usr/share/libjitsi/lib/jain-sip-api.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude/jain-sip-api.jar"/>
-        <symlink resource="../src/jsip/jain-sip-ri-1.2.159.jar"
+        <symlink resource="/usr/share/libjitsi/lib/jain-sip-ri.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude/jain-sip-ri.jar"/>
 
@@ -3413,92 +3303,6 @@ org.jitsi.bccontrib.util"/>
         <antcall target="unbound"/>
         <antcall target="hwaddressretriever"/>
 
-        <mkdir dir="${debian.src.dir}/lib/src/libjitsi/lib/installer-exclude"/>
-        <mkdir dir="${debian.src.dir}/lib/src/libjitsi/lib/native/linux"/>
-        <mkdir dir="${debian.src.dir}/lib/src/libjitsi/lib/native/linux-64"/>
-        <symlink resource="/usr/share/java/ant-contrib-cpptasks.jar"
-             overwrite="true"
-             link="${debian.src.dir}/lib/src/libjitsi/lib/installer-exclude/cpptasks.jar"/>
-
-        <antcall target="g722"/>
-
-        <!-- opus -->
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="opus">
-            <property name="opus" value=""/>
-        </ant>
-
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="screencapture"/>
-
-        <!-- jnspeex -->
-        <antcall target="speex">
-            <param name="speex.dynamic" value="true"/>
-        </antcall>
-
-        <chmod file="${debian.src.dir}/lib/src/portaudio/configure" perm="+x"/>
-        <exec   dir="${debian.src.dir}/lib/src/portaudio"
-                executable="configure"
-                resolveexecutable="true"
-                failonerror="true">
-            <arg value="--disable-shared" />
-            <arg value="--enable-static" />
-            <arg value="--with-pic" />
-            <arg value="--with-jack=no" />
-        </exec>
-        <exec   dir="${debian.src.dir}/lib/src/portaudio"
-                executable="make"
-                failonerror="true"/>
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="portaudio">
-            <property name="portaudio" value="${debian.src.dir}/lib/src/portaudio"/>
-            <property name="speex.dynamic" value="true"/>
-        </ant>
-
-        <!-- ffmpeg -->
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="ffmpeg">
-            <property name="ffmpeg" value=""/>
-            <property name="x264" value=""/>
-            <property name="lame" value=""/>
-            <property name="libvpx" value=""/>
-            <property name="LIBAV" value=""/>
-        </ant>
-
-        <!-- video4linux -->
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="video4linux2"/>
-
-        <!-- awtrenderer -->
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="jawtrenderer"/>
-
-        <!--pulseaudio-->
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="pulseaudio"/>
-
-        <!-- now copy the compiled native libs -->
-        <copy todir="${debian.src.dir}/lib/native/linux">
-            <fileset dir="${debian.src.dir}/lib/src/libjitsi/lib/native/linux">
-                <include name="*.so"/>
-            </fileset>
-        </copy>
-        <copy todir="${debian.src.dir}/lib/native/linux-64">
-            <fileset dir="${debian.src.dir}/lib/src/libjitsi/lib/native/linux-64">
-                <include name="*.so"/>
-            </fileset>
-        </copy>
-
-        <!-- clean the native objects (no binaries in src package)-->
-        <ant dir="${debian.src.dir}/lib/src/libjitsi" inheritAll="false"
-             target="clean-native"/>
-        <antcall target="clean-native"/>
-        <!-- clean portaudio configure logs give warnings -->
-        <exec   dir="${debian.src.dir}/lib/src/portaudio"
-                executable="make"
-                failonerror="true">
-            <arg value="distclean" />
-        </exec>
     </target>
 
     <!-- target to rebuild the jna bundle reusing debian package -->
@@ -3513,9 +3317,9 @@ org.jitsi.bccontrib.util"/>
         </unzip>
         <delete file="${debian.bundles.dest}/jnalib.jar"/>
         <mkdir dir="${debian.bundles.dest}/jnalib.jar/META-INF"/>
-        <symlink resource="../../../../share/java/jna.jar"
+        <symlink resource="/usr/share/java/jna.jar"
              link="${debian.bundles.dest}/jnalib.jar/jna.jar"/>
-        <symlink resource="../../../../share/java/jna-platform.jar"
+        <symlink resource="/usr/share/java/jna-platform.jar"
              link="${debian.bundles.dest}/jnalib.jar/jna-platform.jar"/>
 
         <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
@@ -3546,8 +3350,8 @@ org.jitsi.bccontrib.util"/>
         </unzip>
         <delete file="${debian.bundles.dest}/json.jar"/>
         <mkdir dir="${debian.bundles.dest}/json.jar/META-INF"/>
-        <symlink resource="../../../../share/java/json_simple.jar"
-             link="${debian.bundles.dest}/json.jar/json_simple.jar"/>
+        <symlink resource="/usr/share/java/json-simple.jar"
+             link="${debian.bundles.dest}/json.jar/json-simple.jar"/>
         <manifest
                 file="${debian.bundles.dest}/json.jar/META-INF/MANIFEST.MF">
             <attribute name="Bundle-Name" value="JSON.simple"/>
@@ -3559,7 +3363,7 @@ org.jitsi.bccontrib.util"/>
             <attribute name="System-Bundle" value="yes"/>
             <attribute name="Export-Package"
                        value="org.json.simple,org.json.simple.parser"/>
-            <attribute name="Bundle-ClassPath" value=".,json_simple.jar"/>
+            <attribute name="Bundle-ClassPath" value=".,json-simple.jar"/>
         </manifest>
         <delete dir="${debian.bundles.dest}/META-INF"/>
     </target>
@@ -3585,13 +3389,13 @@ org.jitsi.bccontrib.util"/>
           </patternset>
         </unzip>
         <delete file="${debian.bundles.dest}/util.jar"/>
-        <mkdir dir="${debian.bundles.dest}/util.jar/META-INF"/>
-        <symlink resource="../../../../share/java/dnsjava.jar"
-                 link="${debian.bundles.dest}/util.jar/dnsjava.jar"/>
+        <mkdir dir="${debian.bundles.common.dest}/util.jar/META-INF"/>
+        <symlink resource="/usr/share/java/dnsjava.jar"
+                 link="${debian.bundles.common.dest}/util.jar/dnsjava.jar"/>
 
         <!-- Create the util.jar-->
         <jar compress="false"
-             destfile="${debian.bundles.dest}/util.jar/util.jar">
+             destfile="${debian.bundles.common.dest}/util.jar/util.jar">
             <zipfileset dir="${dest}/net/java/sip/communicator/util"
                 prefix="net/java/sip/communicator/util">
                 <exclude name="dns/**"/>
@@ -3599,7 +3403,7 @@ org.jitsi.bccontrib.util"/>
         </jar>
         <!-- Create the launchutils.jar-->
         <jar compress="false"
-             destfile="${debian.bundles.dest}/util.jar/launchutils.jar">
+             destfile="${debian.bundles.common.dest}/util.jar/launchutils.jar">
             <zipfileset
                 dir="${dest}/net/java/sip/communicator/util/launchutils"
                 prefix="net/java/sip/communicator/util/launchutils"/>
@@ -3612,16 +3416,17 @@ org.jitsi.bccontrib.util"/>
             </zipfileset>
         </jar>
         <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
-              todir="${debian.bundles.dest}/util.jar/META-INF"/>
+              todir="${debian.bundles.common.dest}/util.jar/META-INF"/>
         <delete dir="${debian.bundles.dest}/META-INF"/>
+        <delete dir="${debian.bundles.dest}/util.jar"/>
         <!-- Removes the last empty line -->
         <replaceregexp
-            file="${debian.bundles.dest}/util.jar/META-INF/MANIFEST.MF"
+            file="${debian.bundles.common.dest}/util.jar/META-INF/MANIFEST.MF"
             match="^\r\n$"
             flags="m"
             replace=""/>
         <concat
-            destfile="${debian.bundles.dest}/util.jar/META-INF/MANIFEST.MF"
+            destfile="${debian.bundles.common.dest}/util.jar/META-INF/MANIFEST.MF"
             append="true"
             eol="crlf"
             fixlastline="true">Bundle-ClassPath: .,util.jar,dnsjava.jar&#013;&#010;&#013;&#010;</concat>
@@ -3630,6 +3435,11 @@ org.jitsi.bccontrib.util"/>
         <echo file="${debian.bundles.dest}/../lib/felix.client.run.properties"
             append="true">felix.auto.start.14= reference:file:/usr/share/java/dnsjava.jar
         </echo>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/util.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/util.jar</replacevalue>
+        </replace>
+
     </target>
 
     <!-- target to rebuild the util bundle reusing debian package -->
@@ -3642,7 +3452,7 @@ org.jitsi.bccontrib.util"/>
         </unzip>
         <delete file="${debian.bundles.dest}/desktoputil.jar"/>
         <mkdir dir="${debian.bundles.dest}/desktoputil.jar/META-INF"/>
-        <symlink resource="../../../../share/java/laf-widget.jar"
+        <symlink resource="/usr/share/java/laf-widget.jar"
              link="${debian.bundles.dest}/desktoputil.jar/laf-widget.jar"/>
 
         <!-- Create the desktoputil.jar-->
@@ -3681,11 +3491,11 @@ org.jitsi.bccontrib.util"/>
         </unzip>
         <delete file="${debian.bundles.dest}/sysactivitynotifications.jar"/>
         <mkdir dir="${debian.bundles.dest}/sysactivitynotifications.jar/META-INF"/>
-        <symlink resource="../../../../share/java/dbus.jar"
+        <symlink resource="/usr/share/java/dbus.jar"
              link="${debian.bundles.dest}/sysactivitynotifications.jar/dbus.jar"/>
-        <symlink resource="../../../../share/java/unix.jar"
+        <symlink resource="/usr/share/java/unix.jar"
              link="${debian.bundles.dest}/sysactivitynotifications.jar/unix.jar"/>
-        <symlink resource="../../../../share/java/hexdump.jar"
+        <symlink resource="/usr/share/java/hexdump.jar"
              link="${debian.bundles.dest}/sysactivitynotifications.jar/hexdump.jar"/>
 
         <!-- Create the sys .jar-->
@@ -3725,9 +3535,9 @@ org.jitsi.bccontrib.util"/>
         </unzip>
         <delete file="${debian.bundles.dest}/swing-ui.jar"/>
         <mkdir dir="${debian.bundles.dest}/swing-ui.jar/META-INF"/>
-        <symlink resource="../../../../share/java/forms.jar"
+        <symlink resource="/usr/share/java/forms.jar"
              link="${debian.bundles.dest}/swing-ui.jar/forms.jar"/>
-        <symlink resource="../../../../share/java/mac_widgets.jar"
+        <symlink resource="/usr/share/java/mac_widgets.jar"
              link="${debian.bundles.dest}/swing-ui.jar/"/>
 
         <!-- Create the sys .jar-->
@@ -3754,47 +3564,6 @@ org.jitsi.bccontrib.util"/>
             fixlastline="true">Bundle-ClassPath: .,swing-ui.jar,mac_widgets.jar,forms.jar&#013;&#010;&#013;&#010;</concat>
     </target>
 
-    <!-- target to rebuild the httputil bundle reusing debian package -->
-    <target name="deb-bundle-httputil">
-
-        <unzip src="${debian.bundles.dest}/httputil.jar"
-               dest="${debian.bundles.dest}">
-          <patternset>
-            <include name="META-INF/MANIFEST.MF"/>
-          </patternset>
-        </unzip>
-        <delete file="${debian.bundles.dest}/httputil.jar"/>
-        <mkdir dir="${debian.bundles.dest}/httputil.jar/META-INF"/>
-        <symlink resource="../../../../share/java/httpclient.jar"
-             link="${debian.bundles.dest}/httputil.jar/httpclient.jar"/>
-        <symlink resource="../../../../share/java/httpcore.jar"
-             link="${debian.bundles.dest}/httputil.jar/httpcore.jar"/>
-        <symlink resource="../../../../share/java/httpmime.jar"
-             link="${debian.bundles.dest}/httputil.jar/httpmime.jar"/>
-
-        <!-- Create the sys .jar-->
-        <jar compress="false"
-             destfile="${debian.bundles.dest}/httputil.jar/httputil.jar">
-            <zipfileset dir="${dest}/net/java/sip/communicator/service/httputil"
-                        prefix="net/java/sip/communicator/service/httputil"/>
-        </jar>
-        <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
-              todir="${debian.bundles.dest}/httputil.jar/META-INF"/>
-        <delete dir="${debian.bundles.dest}/META-INF"/>
-
-        <!-- Removes the last empty line -->
-        <replaceregexp
-            file="${debian.bundles.dest}/httputil.jar/META-INF/MANIFEST.MF"
-            match="^\r\n$"
-            flags="m"
-            replace=""/>
-        <concat
-            destfile="${debian.bundles.dest}/httputil.jar/META-INF/MANIFEST.MF"
-            append="true"
-            eol="crlf"
-            fixlastline="true">Bundle-ClassPath: .,httputil.jar,httpclient.jar,httpcore.jar,httpmime.&#013;&#010; jar&#013;&#010;&#013;&#010;</concat>
-    </target>
-
     <!-- target to rebuild the smacklib bundle reusing debian package -->
     <target name="deb-bundle-smacklib">
 
@@ -3805,16 +3574,16 @@ org.jitsi.bccontrib.util"/>
           </patternset>
         </unzip>
         <delete file="${debian.bundles.dest}/smacklib.jar"/>
-        <mkdir dir="${debian.bundles.dest}/smacklib.jar/META-INF"/>
+        <mkdir dir="${debian.bundles.common.dest}/smacklib.jar/META-INF"/>
 
-        <symlink resource="../../../../share/java/xpp3-min.jar"
-             link="${debian.bundles.dest}/smacklib.jar/xpp3.jar"/>
-        <symlink resource="../../../../share/java/jzlib.jar"
-             link="${debian.bundles.dest}/smacklib.jar/jzlib.jar"/>
+        <symlink resource="/usr/share/java/xpp3-min.jar"
+             link="${debian.bundles.common.dest}/smacklib.jar/xpp3.jar"/>
+        <symlink resource="/usr/share/java/jzlib.jar"
+             link="${debian.bundles.common.dest}/smacklib.jar/jzlib.jar"/>
 
         <!-- Create the smacklib .jar-->
         <jar compress="false"
-            destfile="${debian.bundles.dest}/smacklib.jar/smacklib.jar"
+            destfile="${debian.bundles.common.dest}/smacklib.jar/smacklib.jar"
             manifest="lib/installer-exclude/smack.manifest.mf">
             <zipfileset src="lib/installer-exclude/smackx-debug.jar" prefix=""/>
             <zipfileset src="lib/installer-exclude/smack.jar" prefix=""/>
@@ -3822,19 +3591,25 @@ org.jitsi.bccontrib.util"/>
             <zipfileset src="lib/installer-exclude/jnsapi.jar" prefix=""/>
         </jar>
         <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
-              todir="${debian.bundles.dest}/smacklib.jar/META-INF"/>
+              todir="${debian.bundles.common.dest}/smacklib.jar/META-INF"/>
         <delete dir="${debian.bundles.dest}/META-INF"/>
+        <delete dir="${debian.bundles.dest}/smacklib.jar"/>
         <!-- Removes the last empty line -->
         <replaceregexp
-            file="${debian.bundles.dest}/smacklib.jar/META-INF/MANIFEST.MF"
+            file="${debian.bundles.common.dest}/smacklib.jar/META-INF/MANIFEST.MF"
             match="^\r\n$"
             flags="m"
             replace=""/>
         <concat
-            destfile="${debian.bundles.dest}/smacklib.jar/META-INF/MANIFEST.MF"
+            destfile="${debian.bundles.common.dest}/smacklib.jar/META-INF/MANIFEST.MF"
             append="true"
             eol="crlf"
             fixlastline="true">Bundle-ClassPath: .,smacklib.jar,xpp3.jar,jzlib.jar&#013;&#010;&#013;&#010;</concat>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/smacklib.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/smacklib.jar</replacevalue>
+        </replace>
+            
     </target>
 
     <!-- target to rebuild the jmdnslib bundle reusing debian package -->
@@ -3849,7 +3624,7 @@ org.jitsi.bccontrib.util"/>
         <delete file="${debian.bundles.dest}/jmdnslib.jar"/>
         <mkdir dir="${debian.bundles.dest}/jmdnslib.jar/META-INF"/>
 
-        <symlink resource="../../../../share/java/jmdns.jar"
+        <symlink resource="/usr/share/java/jmdns.jar"
              link="${debian.bundles.dest}/jmdnslib.jar/"/>
 
         <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
@@ -3877,7 +3652,7 @@ org.jitsi.bccontrib.util"/>
 
         <copy file="${lib.noinst}/bcprov.manifest.mf"
               tofile="${debian.bundles.dest}/bouncycastle.jar/META-INF/MANIFEST.MF"/>
-        <symlink resource="../../../../share/java/bcprov.jar"
+        <symlink resource="/usr/share/java/bcprov.jar"
              link="${debian.bundles.dest}/bouncycastle.jar/"/>
 
         <!-- Removes the last empty line -->
@@ -3892,7 +3667,7 @@ org.jitsi.bccontrib.util"/>
             eol="crlf"
             fixlastline="true">Bundle-ClassPath: .,bcprov.jar&#013;&#010;&#013;&#010;</concat>
     </target>
-    
+
     <!-- target to rebuild the account info bundle reusing debian package -->
     <target name="deb-bundle-plugin-accountinfo">
 
@@ -3904,7 +3679,7 @@ org.jitsi.bccontrib.util"/>
         </unzip>
         <delete file="${debian.bundles.dest}/accountinfo.jar"/>
         <mkdir dir="${debian.bundles.dest}/accountinfo.jar/META-INF"/>
-        <symlink resource="../../../../share/java/jcalendar.jar"
+        <symlink resource="/usr/share/java/jcalendar.jar"
              link="${debian.bundles.dest}/accountinfo.jar/"/>
 
         <!-- Create the sys .jar-->
@@ -3928,6 +3703,359 @@ org.jitsi.bccontrib.util"/>
             append="true"
             eol="crlf"
             fixlastline="true">Bundle-ClassPath: .,accountinfo.jar,jcalendar.jar&#013;&#010;&#013;&#010;</concat>
+    </target>
+
+    <!-- target to rebuild the commons-lang bundle reusing debian package -->
+    <target name="deb-bundle-commons-lang">
+        <!-- Creates a bundle containing the commons-lang implementation
+            in debian dest folder debian.bundles.dest.-->
+        <delete file="${debian.bundles.dest}/commons-lang.jar" failonerror="false"/>
+        <mkdir dir="${debian.bundles.dest}/commons-lang.jar/META-INF"/>
+        <symlink resource="/usr/share/java/commons-lang3.jar"
+                 link="${debian.bundles.dest}/commons-lang.jar/commons-lang.jar"/>
+        <copy file="${lib.noinst}/commons-lang3-3.1.manifest.mf"
+              tofile="${debian.bundles.dest}/commons-lang.jar/META-INF/MANIFEST.MF"/>
+    </target>
+
+    <!-- hsqldb missing bundle manifest -->
+    <target name="deb-bundle-hsqldb">
+        <!-- Creates a bundle containing the commons-lang implementation
+            in debian dest folder debian.bundles.dest.-->
+        <delete file="${debian.bundles.dest}/hsqldb.jar" failonerror="false"/>
+        <mkdir dir="${debian.bundles.dest}/hsqldb.jar/META-INF"/>
+        <symlink resource="/usr/share/java/hsqldb.jar"
+                 link="${debian.bundles.dest}/hsqldb.jar/hsqldb.jar"/>
+        <copy file="${lib.noinst}/hsqldb.jar.manifest.mf"
+              tofile="${debian.bundles.dest}/hsqldb.jar/META-INF/MANIFEST.MF"/>
+
+    </target>
+    <!-- Fix all bundles that depends on libjitsi libs, to reuse them -->
+    <target name="deb-libjitsi-deps">
+
+        <symlink overwrite="true"
+                 resource="/usr/share/libjitsi/lib/bccontrib.jar"
+                 link="${debian.bundles.dest}/bccontrib.jar"/>
+
+        <unzip src="${debian.bundles.dest}/libjitsi.jar"
+               dest="${debian.bundles.dest}">
+            <patternset>
+                <include name="META-INF/MANIFEST.MF"/>
+            </patternset>
+        </unzip>
+        <delete file="${debian.bundles.dest}/libjitsi.jar"/>
+        <mkdir dir="${debian.bundles.common.dest}/libjitsi.jar/META-INF"/>
+        <symlink resource="/usr/share/java/bcpkix.jar"
+                 link="${debian.bundles.common.dest}/libjitsi.jar/"/>
+        <symlink resource="/usr/share/libjitsi/libjitsi.jar"
+                 link="${debian.bundles.common.dest}/libjitsi.jar/"/>
+        <symlink resource="/usr/share/libjitsi/lib/fmj.jar"
+                 link="${debian.bundles.common.dest}/libjitsi.jar/"/>
+
+        <!-- Create the sys .jar-->
+        <jar compress="false"
+             destfile="${debian.bundles.common.dest}/libjitsi.jar/libjitsi-impl.jar">
+            <zipfileset dir="${dest}/net/java/sip/communicator/impl/libjitsi"
+                        prefix="net/java/sip/communicator/impl/libjitsi"/>
+        </jar>
+        <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
+              todir="${debian.bundles.common.dest}/libjitsi.jar/META-INF"/>
+        <delete dir="${debian.bundles.dest}/META-INF"/>
+        <delete dir="${debian.bundles.dest}/libjitsi.jar"/>
+
+        <!-- Removes the last empty line -->
+        <replaceregexp
+            file="${debian.bundles.common.dest}/libjitsi.jar/META-INF/MANIFEST.MF"
+            match="^\r\n$"
+            flags="m"
+            replace=""/>
+        <concat
+            destfile="${debian.bundles.common.dest}/libjitsi.jar/META-INF/MANIFEST.MF"
+            append="true"
+            eol="crlf"
+            fixlastline="true">Bundle-ClassPath: .,libjitsi-impl.jar,fmj.jar,libjitsi.jar,bcpkix.jar&#013;&#010;&#013;&#010;</concat>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/libjitsi.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/libjitsi.jar</replacevalue>
+        </replace>
+
+        <!--bundle-netaddr-->
+        <unzip src="${debian.bundles.dest}/netaddr.jar"
+               dest="${debian.bundles.dest}">
+            <patternset>
+                <include name="META-INF/MANIFEST.MF"/>
+            </patternset>
+        </unzip>
+        <delete file="${debian.bundles.dest}/netaddr.jar"/>
+        <mkdir dir="${debian.bundles.common.dest}/netaddr.jar/META-INF"/>
+        <symlink resource="/usr/share/libjitsi/lib/ice4j.jar"
+                 link="${debian.bundles.common.dest}/netaddr.jar/"/>
+        <symlink resource="/usr/share/java/weupnp.jar"
+                 link="${debian.bundles.common.dest}/netaddr.jar/"/>
+
+        <!-- Create the sys .jar-->
+        <jar compress="false"
+             destfile="${debian.bundles.common.dest}/netaddr.jar/netaddr.jar">
+            <zipfileset dir="${dest}/net/java/sip/communicator/service/netaddr"
+                        prefix="net/java/sip/communicator/service/netaddr"/>
+            <zipfileset dir="${dest}/net/java/sip/communicator/impl/netaddr"
+                        prefix="net/java/sip/communicator/impl/netaddr"/>
+        </jar>
+        <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
+              todir="${debian.bundles.common.dest}/netaddr.jar/META-INF"/>
+        <delete dir="${debian.bundles.dest}/META-INF"/>
+        <delete dir="${debian.bundles.dest}/netaddr.jar"/>
+
+        <!-- Removes the last empty line -->
+        <replaceregexp
+            file="${debian.bundles.common.dest}/netaddr.jar/META-INF/MANIFEST.MF"
+            match="^\r\n$"
+            flags="m"
+            replace=""/>
+        <concat
+            destfile="${debian.bundles.common.dest}/netaddr.jar/META-INF/MANIFEST.MF"
+            append="true"
+            eol="crlf"
+            fixlastline="true">Bundle-ClassPath: .,netaddr.jar,ice4j.jar,weupnp.jar&#013;&#010;&#013;&#010;</concat>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/netaddr.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/netaddr.jar</replacevalue>
+        </replace>
+
+        <!--zrtp4j /usr/share/libjitsi/lib/zrtp4j-light.jar -->
+        <unzip src="${debian.bundles.dest}/zrtp4j.jar"
+               dest="${debian.bundles.dest}">
+            <patternset>
+                <include name="META-INF/MANIFEST.MF"/>
+            </patternset>
+        </unzip>
+        <delete file="${debian.bundles.dest}/zrtp4j.jar"/>
+        <mkdir dir="${debian.bundles.dest}/zrtp4j.jar/META-INF"/>
+        <symlink resource="/usr/share/libjitsi/lib/zrtp4j-light.jar"
+                 link="${debian.bundles.dest}/zrtp4j.jar/"/>
+
+        <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
+              todir="${debian.bundles.dest}/zrtp4j.jar/META-INF"/>
+        <delete dir="${debian.bundles.dest}/META-INF"/>
+
+        <!-- Removes the last empty line -->
+        <replaceregexp
+            file="${debian.bundles.dest}/zrtp4j.jar/META-INF/MANIFEST.MF"
+            match="^\r\n$"
+            flags="m"
+            replace=""/>
+        <concat
+            destfile="${debian.bundles.dest}/zrtp4j.jar/META-INF/MANIFEST.MF"
+            append="true"
+            eol="crlf"
+            fixlastline="true">Bundle-ClassPath: .,zrtp4j-light.jar&#013;&#010;&#013;&#010;</concat>
+
+        <!--sdes4j /usr/share/libjitsi/lib/sdes4j.jar -->
+        <unzip src="${debian.bundles.dest}/sdes4j.jar"
+               dest="${debian.bundles.dest}">
+            <patternset>
+                <include name="META-INF/MANIFEST.MF"/>
+            </patternset>
+        </unzip>
+        <delete file="${debian.bundles.dest}/sdes4j.jar"/>
+        <mkdir dir="${debian.bundles.dest}/sdes4j.jar/META-INF"/>
+        <symlink resource="/usr/share/libjitsi/lib/sdes4j.jar"
+                 link="${debian.bundles.dest}/sdes4j.jar/"/>
+
+        <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
+              todir="${debian.bundles.dest}/sdes4j.jar/META-INF"/>
+        <delete dir="${debian.bundles.dest}/META-INF"/>
+
+        <!-- Removes the last empty line -->
+        <replaceregexp
+            file="${debian.bundles.dest}/sdes4j.jar/META-INF/MANIFEST.MF"
+            match="^\r\n$"
+            flags="m"
+            replace=""/>
+        <concat
+            destfile="${debian.bundles.dest}/sdes4j.jar/META-INF/MANIFEST.MF"
+            append="true"
+            eol="crlf"
+            fixlastline="true">Bundle-ClassPath: .,sdes4j.jar&#013;&#010;&#013;&#010;</concat>
+
+        <!--bundle-sip-->
+        <unzip src="${debian.bundles.dest}/protocol-sip.jar"
+               dest="${debian.bundles.dest}">
+            <patternset>
+                <include name="META-INF/MANIFEST.MF"/>
+            </patternset>
+        </unzip>
+        <delete file="${debian.bundles.dest}/protocol-sip.jar"/>
+        <mkdir dir="${debian.bundles.dest}/protocol-sip.jar/META-INF"/>
+        <symlink resource="/usr/share/libjitsi/lib/jain-sip-ri.jar"
+                 link="${debian.bundles.dest}/protocol-sip.jar/"/>
+        <symlink resource="/usr/share/libjitsi/lib/jain-sip-api.jar"
+                 link="${debian.bundles.dest}/protocol-sip.jar/"/>
+        <symlink resource="/usr/share/libjitsi/lib/jain-sdp.jar"
+                 link="${debian.bundles.dest}/protocol-sip.jar/"/>
+
+        <!-- Create the sys .jar-->
+        <jar compress="false"
+             destfile="${debian.bundles.dest}/protocol-sip.jar/protocol-sip.jar">
+            <zipfileset dir="${dest}/net/java/sip/communicator/impl/protocol/sip"
+                        prefix="net/java/sip/communicator/impl/protocol/sip"/>
+        </jar>
+        <move file="${debian.bundles.dest}/META-INF/MANIFEST.MF"
+              todir="${debian.bundles.dest}/protocol-sip.jar/META-INF"/>
+        <delete dir="${debian.bundles.dest}/META-INF"/>
+
+        <!-- Removes the last empty line -->
+        <replaceregexp
+            file="${debian.bundles.dest}/protocol-sip.jar/META-INF/MANIFEST.MF"
+            match="^\r\n$"
+            flags="m"
+            replace=""/>
+        <concat
+            destfile="${debian.bundles.dest}/protocol-sip.jar/META-INF/MANIFEST.MF"
+            append="true"
+            eol="crlf"
+            fixlastline="true">Bundle-ClassPath: .,protocol-sip.jar,jain-sip-ri.jar.jar,jain-sip-api.jar.jar,jain-sdp.jar&#013;&#010;&#013;&#010;</concat>
+
+    </target>
+
+    <target name="deb-bundle-httpmime">
+        <delete file="${debian.bundles.dest}/httpmime.jar" failonerror="false"/>
+        <mkdir dir="${debian.bundles.dest}/httpmime.jar/META-INF"/>
+        <symlink resource="/usr/share/java/httpmime.jar"
+                 link="${debian.bundles.dest}/httpmime.jar/httpmime.jar"/>
+        <manifest
+            file="${debian.bundles.dest}/httpmime.jar/META-INF/MANIFEST.MF">
+            <attribute name="Bundle-Name" value="Apache Http Mime"/>
+            <attribute name="Bundle-Description"
+                       value="Apache Http Mime"/>
+            <attribute name="Bundle-SymbolicName"
+                       value="org.apache.http.entity.mime"/>
+            <attribute name="Bundle-Version" value="4.2.3"/>
+            <attribute name="System-Bundle" value="yes"/>
+            <attribute name="Export-Package"
+                       value="org.apache.http.entity.mime,org.apache.http.entity.mime.content"/>
+            <attribute name="Bundle-ClassPath" value=".,httpmime.jar"/>
+        </manifest>
+    </target>
+    <target name="deb-bundle-common">
+    
+        <move file="${debian.bundles.dest}/protocol-jabber.jar"
+              tofile="${debian.bundles.common.dest}/protocol-jabber.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/protocol-jabber.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/protocol-jabber.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/protocol-media.jar"
+              tofile="${debian.bundles.common.dest}/protocol-media.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/protocol-media.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/protocol-media.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/protocol.jar"
+              tofile="${debian.bundles.common.dest}/protocol.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/protocol.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/protocol.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/configuration.jar"
+              tofile="${debian.bundles.common.dest}/configuration.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/configuration.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/configuration.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/dns.jar"
+              tofile="${debian.bundles.common.dest}/dns.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/dns.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/dns.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/dnsservice.jar"
+              tofile="${debian.bundles.common.dest}/dnsservice.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/dnsservice.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/dnsservice.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/fileaccess.jar"
+              tofile="${debian.bundles.common.dest}/fileaccess.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/fileaccess.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/fileaccess.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/packetlogging.jar"
+              tofile="${debian.bundles.common.dest}/packetlogging.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/packetlogging.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/packetlogging.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/resourcemanager.jar"
+              tofile="${debian.bundles.common.dest}/resourcemanager.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/resourcemanager.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/resourcemanager.jar</replacevalue>
+        </replace>
+
+        <move file="${debian.bundles.dest}/ui-service.jar"
+              tofile="${debian.bundles.common.dest}/ui-service.jar"/>
+        <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
+                 token="reference:file:sc-bundles/ui-service.jar">
+            <replacevalue>reference:file:/usr/share/jitsi-common/ui-service.jar</replacevalue>
+        </replace>
+    </target>
+    <target name="deb-bundle-slf4j">
+        <delete file="${debian.bundles.dest}/slf4j-api.jar" failonerror="false"/>
+        <mkdir dir="${debian.bundles.dest}/slf4j-api.jar/META-INF"/>
+        <symlink resource="/usr/share/java/slf4j-api.jar"
+                 link="${debian.bundles.dest}/slf4j-api.jar/slf4j-api.jar"/>
+        <manifest
+            file="${debian.bundles.dest}/slf4j-api.jar/META-INF/MANIFEST.MF">
+            <attribute name="Bundle-Name"
+                       value="slf4j-api"/>
+            <attribute name="Bundle-Description"
+                       value="The slf4j API"/>
+            <attribute name="Bundle-SymbolicName"
+                       value="slf4j.api"/>
+            <attribute name="Bundle-Version"
+                       value="1.7.5"/>
+            <attribute name="System-Bundle"
+                       value="yes"/>
+            <attribute name="Export-Package"
+                       value="org.slf4j, org.slf4j.spi, org.slf4j.helpers"/>
+            <attribute name="Import-Package"
+                       value="org.slf4j.impl"/>
+            <attribute name="Bundle-ClassPath"
+                       value=".,slf4j-api.jar"/>
+        </manifest>
+
+        <delete file="${debian.bundles.dest}/slf4j-jdk14.jar" failonerror="false"/>
+        <mkdir dir="${debian.bundles.dest}/slf4j-jdk14.jar/META-INF"/>
+        <symlink resource="/usr/share/java/slf4j-jdk14.jar"
+                 link="${debian.bundles.dest}/slf4j-jdk14.jar/slf4j-jdk14.jar"/>
+        <manifest
+            file="${debian.bundles.dest}/slf4j-jdk14.jar/META-INF/MANIFEST.MF">
+            <attribute name="Bundle-Name"
+                       value="slf4j-jdk14"/>
+            <attribute name="Bundle-Description"
+                       value="SLF4J JDK14 Binding"/>
+            <attribute name="Bundle-SymbolicName"
+                       value="slf4j.jdk14"/>
+            <attribute name="Bundle-Version"
+                       value="1.7.5"/>
+            <attribute name="System-Bundle"
+                       value="yes"/>
+            <attribute name="Export-Package"
+                       value="org.slf4j.impl"/>
+            <attribute name="Import-Package"
+                       value="org.slf4j, org.slf4j.spi, org.slf4j.helpers"/>
+            <attribute name="Bundle-ClassPath"
+                       value=".,slf4j-jdk14.jar"/>
+        </manifest>
     </target>
 
 </project>

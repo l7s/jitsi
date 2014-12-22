@@ -10,6 +10,7 @@ import java.util.*;
 
 import net.java.sip.communicator.service.credentialsstorage.*;
 import net.java.sip.communicator.util.*;
+import net.java.sip.communicator.util.Base64; // disambiguation
 
 import org.jitsi.service.configuration.*;
 import org.osgi.framework.*;
@@ -74,7 +75,7 @@ public class CredentialsStorageServiceImpl
     void start(BundleContext bc)
     {
         configurationService
-                = ServiceUtils.getService(bc, ConfigurationService.class);
+            = ServiceUtils.getService(bc, ConfigurationService.class);
 
         /*
          * If a master password is set, the migration of the unencrypted
@@ -470,7 +471,8 @@ public class CredentialsStorageServiceImpl
 
         if(masterPasswordInputService == null)
         {
-            logger.error("Missing MasterPasswordInputService to show input dialog");
+            logger.error(
+                    "Missing MasterPasswordInputService to show input dialog");
             return null;
         }
 

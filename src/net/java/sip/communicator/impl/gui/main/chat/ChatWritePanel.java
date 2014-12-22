@@ -34,6 +34,7 @@ import net.java.sip.communicator.service.resources.*;
 import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.util.skin.*;
 
+import org.apache.commons.lang3.*;
 import org.jitsi.service.configuration.*;
 import org.osgi.framework.*;
 
@@ -1065,12 +1066,12 @@ public class ChatWritePanel
                 if (!transportSelectorBox.getMenu().isEnabled())
                 {
                     // Show a message to the user that IM is not possible.
-                    chatPanel.getChatConversationPanel()
-                        .appendMessageToEnd("<h5>" +
-                            GuiActivator.getResources().
-                                getI18NString("service.gui.MSG_NOT_POSSIBLE") +
-                            "</h5>",
-                            ChatHtmlUtils.HTML_CONTENT_TYPE);
+                    chatPanel.getChatConversationPanel().appendMessageToEnd(
+                        "<h5>"
+                            + StringEscapeUtils.escapeHtml4(GuiActivator
+                                .getResources().getI18NString(
+                                    "service.gui.MSG_NOT_POSSIBLE")) + "</h5>",
+                        ChatHtmlUtils.HTML_CONTENT_TYPE);
                 }
                 else
                 {
@@ -1592,49 +1593,56 @@ public class ChatWritePanel
     {
         // Search for plugin components registered through the OSGI bundle
         // context.
-        ServiceReference[] serRefs = null;
-
-        String osgiFilter = "("
-            + net.java.sip.communicator.service.gui.Container.CONTAINER_ID
-            + "="+net.java.sip.communicator.service.gui.Container.
-                    CONTAINER_CHAT_WRITE_PANEL.getID()+")";
+        Collection<ServiceReference<PluginComponentFactory>> serRefs;
+        String osgiFilter
+            = "(" + net.java.sip.communicator.service.gui.Container.CONTAINER_ID
+                + "="
+                + net.java.sip.communicator.service.gui.Container
+                    .CONTAINER_CHAT_WRITE_PANEL.getID()
+                + ")";
 
         try
         {
-            serRefs = GuiActivator.bundleContext.getServiceReferences(
-                PluginComponentFactory.class.getName(),
-                osgiFilter);
+            serRefs
+                = GuiActivator.bundleContext.getServiceReferences(
+                        PluginComponentFactory.class,
+                        osgiFilter);
         }
-        catch (InvalidSyntaxException exc)
+        catch (InvalidSyntaxException ex)
         {
-            logger.error("Could not obtain plugin reference.", exc);
+            serRefs = null;
+            logger.error("Could not obtain plugin reference.", ex);
         }
-        if (serRefs != null)
+        if ((serRefs != null) && !serRefs.isEmpty())
         {
-            for (int i = 0; i < serRefs.length; i ++)
+            for (ServiceReference<PluginComponentFactory> serRef : serRefs)
             {
-                PluginComponentFactory factory =
-                    (PluginComponentFactory) GuiActivator
-                        .bundleContext.getService(serRefs[i]);
-
-                PluginComponent component =
-                    factory.getPluginComponentInstance(this);
+                PluginComponentFactory factory
+                    = GuiActivator.bundleContext.getService(serRef);
+                PluginComponent component
+                    = factory.getPluginComponentInstance(this);
 
                 ChatSession chatSession = chatPanel.getChatSession();
+
                 if (chatSession != null)
                 {
-                    ChatTransport currentTransport =
-                        chatSession.getCurrentChatTransport();
+                    ChatTransport currentTransport
+                        = chatSession.getCurrentChatTransport();
                     Object currentDescriptor = currentTransport.getDescriptor();
+
                     if (currentDescriptor instanceof Contact)
                     {
                         Contact contact = (Contact) currentDescriptor;
 
                         component.setCurrentContact(
-                            contact, currentTransport.getResourceName());
+                                contact,
+                                currentTransport.getResourceName());
                     }
                 }
-                if (component.getComponent() == null)
+
+                Object c = component.getComponent();
+
+                if (c == null)
                     continue;
 
                 GridBagConstraints constraints = new GridBagConstraints();
@@ -1647,8 +1655,7 @@ public class ChatWritePanel
                 constraints.weighty = 0f;
                 constraints.insets = new Insets(0, 3, 0, 0);
 
-                centerPanel.add(
-                    (Component)component.getComponent(), constraints);
+                centerPanel.add((Component) c, constraints);
             }
         }
         GuiActivator.getUIService().addPluginComponentListener(this);

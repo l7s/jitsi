@@ -811,48 +811,51 @@ public class ChatWindow
 
         // Search for plugin components registered through the OSGI bundle
         // context.
-        ServiceReference[] serRefs = null;
-
-        String osgiFilter = "(|("
-            + Container.CONTAINER_ID
-            + "="+Container.CONTAINER_CHAT_WINDOW.getID()+")"
-            + "(" + Container.CONTAINER_ID
-            + "="+Container.CONTAINER_CHAT_STATUS_BAR.getID()+"))";
+        Collection<ServiceReference<PluginComponentFactory>> serRefs;
+        String osgiFilter
+            = "(|(" + Container.CONTAINER_ID + "="
+                + Container.CONTAINER_CHAT_WINDOW.getID() + ")("
+                + Container.CONTAINER_ID + "="
+                + Container.CONTAINER_CHAT_STATUS_BAR.getID() + "))";
 
         try
         {
-            serRefs = GuiActivator.bundleContext.getServiceReferences(
-                PluginComponentFactory.class.getName(),
-                osgiFilter);
+            serRefs
+                = GuiActivator.bundleContext.getServiceReferences(
+                        PluginComponentFactory.class,
+                        osgiFilter);
         }
-        catch (InvalidSyntaxException exc)
+        catch (InvalidSyntaxException ex)
         {
-            logger.error("Could not obtain plugin component reference.", exc);
+            serRefs = null;
+            logger.error("Could not obtain plugin component reference.", ex);
         }
 
-        if (serRefs != null)
+        if ((serRefs != null) && !serRefs.isEmpty())
         {
-            for (ServiceReference serRef : serRefs)
+            for (ServiceReference<PluginComponentFactory> serRef : serRefs)
             {
                 PluginComponentFactory factory
-                    = (PluginComponentFactory)
-                        GuiActivator .bundleContext.getService(serRef);
-
-                Component comp = (Component)factory.getPluginComponentInstance(
-                    ChatWindow.this).getComponent();
+                    = GuiActivator.bundleContext.getService(serRef);
+                Component comp
+                    = (Component)
+                        factory
+                            .getPluginComponentInstance(ChatWindow.this)
+                                .getComponent();
 
                 // If this component has been already added, we have nothing
                 // more to do here.
                 if (comp.getParent() != null)
                     return;
 
-                Object borderLayoutConstraint = UIServiceImpl
-                    .getBorderLayoutConstraintsFromContainer(
-                        factory.getConstraints());
+                Object borderLayoutConstraints
+                    = UIServiceImpl.getBorderLayoutConstraintsFromContainer(
+                            factory.getConstraints());
 
-                this.addPluginComponent(comp,
-                                        factory.getContainer(),
-                                        borderLayoutConstraint);
+                addPluginComponent(
+                        comp,
+                        factory.getContainer(),
+                        borderLayoutConstraints);
             }
         }
     }
@@ -1288,7 +1291,8 @@ public class ChatWindow
 
             // Don't re-dispatch any events if the menu is active. Fixes the
             // navigation in the menu.
-            if (menuBar.isSelected())
+            if (menuBar.getSelectedMenu() != null
+                && menuBar.getSelectedMenu().isPopupMenuVisible())
             {
                 return false;
             }

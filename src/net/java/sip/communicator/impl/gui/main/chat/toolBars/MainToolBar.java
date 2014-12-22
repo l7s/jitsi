@@ -498,9 +498,6 @@ public class MainToolBar
             ChatRoomWrapper leavedRoomWrapped 
                 = GuiActivator.getMUCService().leaveChatRoom(
                     chatRoomWrapper);
-            if(leavedRoomWrapped != null)
-                GuiActivator.getUIService().closeChatRoomWindow(
-                    leavedRoomWrapped);
         }
         else if (buttonText.equals("call"))
         {

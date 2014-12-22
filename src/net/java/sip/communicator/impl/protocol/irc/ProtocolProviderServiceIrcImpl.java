@@ -15,17 +15,26 @@ import net.java.sip.communicator.util.*;
  *
  * @author Loic Kempf
  * @author Stephane Remy
+ * @author Danny van Heumen
  */
 public class ProtocolProviderServiceIrcImpl
     extends AbstractProtocolProviderService
 {
-    private static final Logger logger
+    /**
+     * The default secure IRC server port.
+     */
+    private static final int DEFAULT_SECURE_IRC_PORT = 6697;
+
+    /**
+     * Logger.
+     */
+    private static final Logger LOGGER
         = Logger.getLogger(ProtocolProviderServiceIrcImpl.class);
 
     /**
      * The irc server.
      */
-    private IrcStack ircStack;
+    private IrcStack ircstack = null;
 
     /**
      * The id of the account that this protocol provider represents.
@@ -41,6 +50,16 @@ public class ProtocolProviderServiceIrcImpl
      * The operation set managing multi user chat.
      */
     private OperationSetMultiUserChatIrcImpl multiUserChat;
+
+    /**
+     * The operation set for instant messaging.
+     */
+    private OperationSetBasicInstantMessagingIrcImpl instantMessaging;
+
+    /**
+     * The operation set for persistent presence.
+     */
+    private OperationSetPersistentPresenceIrcImpl persistentPresence;
 
     /**
      * Indicates whether or not the provider is initialized and ready for use.
@@ -63,12 +82,14 @@ public class ProtocolProviderServiceIrcImpl
      */
     public ProtocolProviderServiceIrcImpl()
     {
-        if (logger.isTraceEnabled())
-            logger.trace("Creating a irc provider.");
+        if (LOGGER.isTraceEnabled())
+        {
+            LOGGER.trace("Creating a irc provider.");
+        }
     }
 
     /**
-     * Initializes the service implementation, and puts it in a sate where it
+     * Initializes the service implementation, and puts it in a state where it
      * could operate with other services. It is strongly recommended that
      * properties in this Map be mapped to property names as specified by
      * <tt>AccountProperties</tt>.
@@ -80,11 +101,15 @@ public class ProtocolProviderServiceIrcImpl
      *
      * @see net.java.sip.communicator.service.protocol.AccountID
      */
-    protected void initialize(String userID, AccountID accountID)
+    protected void initialize(final String userID, final AccountID accountID)
     {
-        synchronized(initializationLock)
+        synchronized (initializationLock)
         {
             this.accountID = accountID;
+
+            //Initialize instant message transform support.
+            addSupportedOperationSet(OperationSetInstantMessageTransform.class,
+                new OperationSetInstantMessageTransformImpl());
 
             //Initialize the multi user chat support
             multiUserChat = new OperationSetMultiUserChatIrcImpl(this);
@@ -93,18 +118,68 @@ public class ProtocolProviderServiceIrcImpl
                 OperationSetMultiUserChat.class,
                 multiUserChat);
 
-            userID = getAccountID().getUserID();
+            // Initialize basic instant messaging
+            this.instantMessaging =
+                new OperationSetBasicInstantMessagingIrcImpl(this);
 
-            ircStack
-                = new IrcStack(
-                        this,
-                        userID,
-                        userID,
-                        "SIP Communicator 1.0",
-                        "");
+            // Register basic instant messaging support.
+            addSupportedOperationSet(OperationSetBasicInstantMessaging.class,
+                this.instantMessaging);
+            // Register basic instant messaging transport support.
+            addSupportedOperationSet(
+                OperationSetBasicInstantMessagingTransport.class,
+                this.instantMessaging);
+
+            //Initialize persistent presence
+            persistentPresence =
+                new OperationSetPersistentPresenceIrcImpl(this);
+
+            // Register persistent presence support.
+            addSupportedOperationSet(OperationSetPersistentPresence.class,
+                persistentPresence);
+            // Also register for (simple) presence support.
+            addSupportedOperationSet(OperationSetPresence.class,
+                persistentPresence);
+
+            // TODO Implement OperationSetChangePassword and channel password
+            // changes to IRC remote identity services such as NickServ
+
+            final String user = getAccountID().getUserID();
+
+            ircstack = new IrcStack(this, user, user, "Jitsi", user);
 
             isInitialized = true;
         }
+    }
+
+    /**
+     * Get the Multi User Chat implementation.
+     *
+     * @return returns the Multi User Chat implementation
+     */
+    public OperationSetMultiUserChatIrcImpl getMUC()
+    {
+        return this.multiUserChat;
+    }
+
+    /**
+     * Get the Basic Instant Messaging implementation.
+     *
+     * @return returns the Basic Instant Messaging implementation
+     */
+    public OperationSetBasicInstantMessagingIrcImpl getBasicInstantMessaging()
+    {
+        return this.instantMessaging;
+    }
+
+    /**
+     * Get the Persistent Presence implementation.
+     *
+     * @return returns the Persistent Presence implementation.
+     */
+    public OperationSetPersistentPresenceIrcImpl getPersistentPresence()
+    {
+        return this.persistentPresence;
     }
 
     /**
@@ -153,7 +228,7 @@ public class ProtocolProviderServiceIrcImpl
      *   registration fails for some reason (e.g. a networking error or an
      *   implementation problem).
      */
-    public void register(SecurityAuthority authority)
+    public void register(final SecurityAuthority authority)
         throws OperationFailedException
     {
         AccountID accountID = getAccountID();
@@ -165,7 +240,7 @@ public class ProtocolProviderServiceIrcImpl
             = accountID
                 .getAccountPropertyInt(
                     ProtocolProviderFactory.SERVER_PORT,
-                    6667);
+                    DEFAULT_SECURE_IRC_PORT);
         //Verify whether a password has already been stored for this account
         String serverPassword = IrcActivator.
             getProtocolProviderFactory().loadPassword(getAccountID());
@@ -173,8 +248,11 @@ public class ProtocolProviderServiceIrcImpl
             accountID.getAccountPropertyBoolean(
                 ProtocolProviderFactory.AUTO_CHANGE_USER_NAME, true);
         boolean passwordRequired =
-            accountID.getAccountPropertyBoolean(
+            !accountID.getAccountPropertyBoolean(
                 ProtocolProviderFactory.NO_PASSWORD_REQUIRED, true);
+        boolean secureConnection =
+            accountID.getAccountPropertyBoolean(
+                ProtocolProviderFactory.DEFAULT_ENCRYPTION, true);
 
         //if we don't - retrieve it from the user through the security authority
         if (serverPassword == null && passwordRequired)
@@ -190,8 +268,12 @@ public class ProtocolProviderServiceIrcImpl
                     credentials,
                     SecurityAuthority.AUTHENTICATION_REQUIRED);
 
-            //extract the password the user passed us.
-            char[] pass = credentials.getPassword();
+            char[] pass = null;
+            if (credentials != null)
+            {
+                // extract the password the user passed us.
+                pass = credentials.getPassword();
+            }
 
             // the user didn't provide us a password (canceled the operation)
             if (pass == null)
@@ -213,10 +295,21 @@ public class ProtocolProviderServiceIrcImpl
             }
         }
 
-        this.ircStack.connect(  serverAddress,
-                                serverPort,
-                                serverPassword,
-                                autoNickChange);
+        try
+        {
+            this.ircstack.connect(serverAddress, serverPort, serverPassword,
+                secureConnection, autoNickChange);
+        }
+        catch (OperationFailedException e)
+        {
+            // Just rethrow operation failed exception. No need to wrap.
+            throw e;
+        }
+        catch (Exception e)
+        {
+            throw new OperationFailedException(e.getMessage(),
+                OperationFailedException.GENERAL_ERROR, e);
+        }
     }
 
     /**
@@ -226,36 +319,30 @@ public class ProtocolProviderServiceIrcImpl
      */
     public void shutdown()
     {
-        if(!isInitialized)
+        if (!isInitialized)
         {
             return;
         }
-        if (logger.isTraceEnabled())
-            logger.trace("Killing the Irc Protocol Provider.");
-
-        if(isRegistered())
+        if (LOGGER.isTraceEnabled())
         {
-            try
-            {
-                //do the un-registration
-                synchronized(this.initializationLock)
-                {
-                    unregister();
-                    this.ircStack.dispose();
-                    ircStack = null;
-                }
-            }
-            catch (OperationFailedException ex)
-            {
-                //we're shutting down so we need to silence the exception here
-                logger.error(
-                    "Failed to properly unregister before shutting down. "
-                    + getAccountID()
-                    , ex);
-            }
+            LOGGER.trace("Killing the Irc Protocol Provider.");
         }
 
-        isInitialized = false;
+        try
+        {
+            synchronized (this.initializationLock)
+            {
+                unregister();
+                this.ircstack.dispose();
+                ircstack = null;
+            }
+        }
+        catch (OperationFailedException ex)
+        {
+            // we're shutting down so we need to silence the exception here
+            LOGGER.error("Failed to properly unregister before shutting down. "
+                + getAccountID(), ex);
+        }
     }
 
     /**
@@ -266,26 +353,26 @@ public class ProtocolProviderServiceIrcImpl
      *   registration fails for some reason (e.g. a networking error or an
      *   implementation problem).
      */
-    public void unregister()
-        throws OperationFailedException
+    public void unregister() throws OperationFailedException
     {
-        for (ChatRoom joinedChatRoom
-                : multiUserChat.getCurrentlyJoinedChatRooms())
-            joinedChatRoom.leave();
-
-        if (ircStack.isConnected())
-            ircStack.disconnect();
+        if (this.ircstack == null)
+        {
+            return;
+        }
+        this.ircstack.disconnect();
     }
 
-    /*
-     * (non-Javadoc)
+    /**
+     * {@inheritDoc}
      *
-     * @see net.java.sip.communicator.service.protocol.ProtocolProviderService#
-     * isSignallingTransportSecure()
+     * @return returns true in case of secure transport, or false if transport
+     *         is not secure
      */
+    @Override
     public boolean isSignalingTransportSecure()
     {
-        return false;
+        final IrcConnection connection = this.ircstack.getConnection();
+        return connection != null && connection.isSecureConnection();
     }
 
     /**
@@ -316,7 +403,7 @@ public class ProtocolProviderServiceIrcImpl
      */
     public IrcStack getIrcStack()
     {
-        return ircStack;
+        return ircstack;
     }
 
     /**
@@ -333,18 +420,17 @@ public class ProtocolProviderServiceIrcImpl
      * Sets the current registration state of this protocol provider.
      *
      * @param regState the new registration state to set
+     * @param reason reason for the state change
      */
     protected void setCurrentRegistrationState(
-        RegistrationState regState)
+        final RegistrationState regState, final int reason)
     {
-        RegistrationState oldState = this.currentRegistrationState;
-
+        final RegistrationState oldState = this.currentRegistrationState;
         this.currentRegistrationState = regState;
-
         fireRegistrationStateChanged(
             oldState,
             this.currentRegistrationState,
-            RegistrationStateChangeEvent.REASON_USER_REQUEST,
+            reason,
             null);
     }
 }

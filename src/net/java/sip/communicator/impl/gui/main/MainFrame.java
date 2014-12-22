@@ -378,7 +378,7 @@ public class MainFrame
         boolean isCallButtonEnabled = false;
 
         // Indicates if the big call button outside the search is enabled.
-        String callButtonEnabledString = UtilActivator.getResources()
+        String callButtonEnabledString = GuiActivator.getResources()
             .getSettingsString("impl.gui.CALL_BUTTON_ENABLED");
 
         if (callButtonEnabledString != null
@@ -1416,26 +1416,28 @@ public class MainFrame
     private ContactEventHandler getContactHandlerForProvider(
         ProtocolProviderService protocolProvider)
     {
-        ServiceReference[] serRefs = null;
-
-        String osgiFilter = "("
-            + ProtocolProviderFactory.PROTOCOL
-            + "=" + protocolProvider.getProtocolName()+")";
+        Collection<ServiceReference<ContactEventHandler>> serRefs;
+        String osgiFilter
+            = "(" + ProtocolProviderFactory.PROTOCOL + "="
+                + protocolProvider.getProtocolName() + ")";
 
         try
         {
-            serRefs = GuiActivator.bundleContext.getServiceReferences(
-                ContactEventHandler.class.getName(), osgiFilter);
+            serRefs
+                = GuiActivator.bundleContext.getServiceReferences(
+                        ContactEventHandler.class,
+                        osgiFilter);
         }
-        catch (InvalidSyntaxException ex){
+        catch (InvalidSyntaxException ex)
+        {
+            serRefs = null;
             logger.error("GuiActivator : " + ex);
         }
 
-        if(serRefs == null)
+        if ((serRefs == null) || serRefs.isEmpty())
             return null;
 
-        return (ContactEventHandler) GuiActivator.bundleContext
-            .getService(serRefs[0]);
+        return GuiActivator.bundleContext.getService(serRefs.iterator().next());
     }
 
     /**
@@ -1460,37 +1462,30 @@ public class MainFrame
 
         // Search for plugin components registered through the OSGI bundle
         // context.
-        ServiceReference[] serRefs = null;
+        Collection<ServiceReference<PluginComponentFactory>> serRefs;
 
         try
         {
             serRefs
-                = GuiActivator
-                    .bundleContext
-                        .getServiceReferences(
-                            PluginComponentFactory.class.getName(),
-                            "(|("
-                                + Container.CONTAINER_ID
-                                + "="
-                                + Container.CONTAINER_MAIN_WINDOW.getID()
-                                + ")("
-                                + Container.CONTAINER_ID
-                                + "="
-                                + Container.CONTAINER_STATUS_BAR.getID()
-                                + "))");
+                = GuiActivator.bundleContext.getServiceReferences(
+                        PluginComponentFactory.class,
+                        "(|(" + Container.CONTAINER_ID + "="
+                            + Container.CONTAINER_MAIN_WINDOW.getID() + ")("
+                            + Container.CONTAINER_ID + "="
+                            + Container.CONTAINER_STATUS_BAR.getID() + "))");
         }
         catch (InvalidSyntaxException exc)
         {
+            serRefs = null;
             logger.error("Could not obtain plugin reference.", exc);
         }
 
-        if (serRefs != null)
+        if ((serRefs != null) && !serRefs.isEmpty())
         {
-            for (ServiceReference serRef : serRefs)
+            for (ServiceReference<PluginComponentFactory> serRef : serRefs)
             {
                 PluginComponentFactory factory
-                    = (PluginComponentFactory)
-                            GuiActivator.bundleContext.getService(serRef);
+                    = GuiActivator.bundleContext.getService(serRef);
 
                 if (factory.isNativeComponent())
                     nativePluginsTable.add(factory);

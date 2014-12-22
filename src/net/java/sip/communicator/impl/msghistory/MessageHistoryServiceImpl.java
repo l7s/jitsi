@@ -43,6 +43,7 @@ import org.osgi.framework.*;
  */
 public class MessageHistoryServiceImpl
     implements  MessageHistoryService,
+                MessageHistoryAdvancedService,
                 MessageListener,
                 ChatRoomMessageListener,
                 AdHocChatRoomMessageListener,
@@ -128,8 +129,8 @@ public class MessageHistoryServiceImpl
                                                     Date startDate)
         throws RuntimeException
     {
-        TreeSet<EventObject> result =
-            new TreeSet<EventObject>(new MessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
+
         // get the readers for this contact
         Map<Contact, HistoryReader> readers = getHistoryReaders(contact);
 
@@ -176,8 +177,7 @@ public class MessageHistoryServiceImpl
                                                     Date endDate)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new MessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
 
         // get the readers for this contact
         Map<Contact, HistoryReader> readers = getHistoryReaders(contact);
@@ -220,8 +220,7 @@ public class MessageHistoryServiceImpl
                                                 Date endDate)
         throws RuntimeException
     {
-        TreeSet<EventObject> result
-            = new TreeSet<EventObject>(new MessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
 
         // get the readers for this contact
         Map<Contact, HistoryReader> readers = getHistoryReaders(contact);
@@ -315,9 +314,7 @@ public class MessageHistoryServiceImpl
     public Collection<EventObject> findLast(MetaContact contact, int count)
         throws RuntimeException
     {
-        TreeSet<EventObject> result
-            = new TreeSet<EventObject>(
-                new MessageEventComparator<EventObject>());
+        LinkedList<EventObject> result = new LinkedList<EventObject>();
 
         Iterator<Contact> iter = contact.getContacts();
         while (iter.hasNext())
@@ -336,20 +333,19 @@ public class MessageHistoryServiceImpl
                         convertHistoryRecordToMessageEvent(recs.next(), item));
 
                 }
-            } catch (IOException e)
+            }
+            catch (IOException e)
             {
                 logger.error("Could not read history", e);
             }
         }
 
-        LinkedList<EventObject> resultAsList
-            = new LinkedList<EventObject>(result);
-        int startIndex = resultAsList.size() - count;
-
+        Collections.sort(result, new MessageEventComparator<EventObject>());
+        int startIndex = result.size() - count;
         if(startIndex < 0)
             startIndex = 0;
 
-        return resultAsList.subList(startIndex, resultAsList.size());
+        return result.subList(startIndex, result.size());
     }
 
     /**
@@ -370,16 +366,8 @@ public class MessageHistoryServiceImpl
         if(!this.historyService.isHistoryCreated(historyID))
             return false;
 
-        History history;
-        if (this.historyService.isHistoryExisting(historyID))
-        {
-            history = this.historyService.getHistory(historyID);
-        }
-        else
-        {
-            history = this.historyService.createHistory(historyID,
+        History history = this.historyService.createHistory(historyID,
                 recordStructure);
-        }
 
         return history.getReader().findLast(
             1, keywords, field, caseSensitive).hasNext();
@@ -401,9 +389,7 @@ public class MessageHistoryServiceImpl
             boolean isSMSEnabled)
         throws RuntimeException
     {
-        TreeSet<EventObject> result
-            = new TreeSet<EventObject>(
-                    new MessageEventComparator<EventObject>(true));
+        HashSet<EventObject> result = new HashSet<EventObject>();
 
         List<HistoryID> historyIDs=
             this.historyService.getExistingHistories(
@@ -450,16 +436,8 @@ public class MessageHistoryServiceImpl
                 if(descriptor == null)
                     continue;
 
-                History history;
-                if (this.historyService.isHistoryExisting(id))
-                {
-                    history = this.historyService.getHistory(id);
-                }
-                else
-                {
-                    history = this.historyService.createHistory(id,
+                History history = this.historyService.createHistory(id,
                         recordStructure);
-                }
 
                 HistoryReader reader = history.getReader();
 
@@ -620,8 +598,7 @@ public class MessageHistoryServiceImpl
                                                             int count)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new MessageEventComparator<EventObject>());
+        LinkedList<EventObject> result = new LinkedList<EventObject>();
 
         Iterator<Contact> iter = contact.getContacts();
         while (iter.hasNext())
@@ -648,7 +625,8 @@ public class MessageHistoryServiceImpl
                             item));
 
                 }
-            } catch (IOException e)
+            }
+            catch (IOException e)
             {
                 logger.error("Could not read history", e);
             }
@@ -678,14 +656,12 @@ public class MessageHistoryServiceImpl
                 startIx++;
         }
 
-        LinkedList<EventObject> resultAsList
-            = new LinkedList<EventObject>(result);
-
+        Collections.sort(result, new MessageEventComparator<EventObject>());
         int toIndex = startIx + count;
-        if(toIndex > resultAsList.size())
-            toIndex = resultAsList.size();
+        if(toIndex > result.size())
+            toIndex = result.size();
 
-        return resultAsList.subList(startIx, toIndex);
+        return result.subList(startIx, toIndex);
     }
 
     /**
@@ -703,8 +679,7 @@ public class MessageHistoryServiceImpl
                                                             int count)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new MessageEventComparator<EventObject>());
+        LinkedList<EventObject> result = new LinkedList<EventObject>();
 
         Iterator<Contact> iter = contact.getContacts();
         while (iter.hasNext())
@@ -725,20 +700,19 @@ public class MessageHistoryServiceImpl
                             item));
 
                 }
-            } catch (IOException e)
+            }
+            catch (IOException e)
             {
                 logger.error("Could not read history", e);
             }
         }
 
-        LinkedList<EventObject> resultAsList
-            = new LinkedList<EventObject>(result);
-        int startIndex = resultAsList.size() - count;
-
+        Collections.sort(result, new MessageEventComparator<EventObject>());
+        int startIndex = result.size() - count;
         if(startIndex < 0)
             startIndex = 0;
 
-        return resultAsList.subList(startIndex, resultAsList.size());
+        return result.subList(startIndex, result.size());
     }
 
     /**
@@ -752,8 +726,6 @@ public class MessageHistoryServiceImpl
      */
     private History getHistory(Contact localContact, Contact remoteContact)
             throws IOException {
-        History retVal = null;
-
         String localId = localContact == null ? "default" : localContact
                 .getAddress();
         String remoteId = remoteContact == null ? "default" : remoteContact
@@ -796,17 +768,7 @@ public class MessageHistoryServiceImpl
             }
         }
 
-        if (this.historyService.isHistoryExisting(historyId))
-        {
-            retVal = this.historyService.getHistory(historyId);
-        }
-        else
-        {
-            retVal = this.historyService.createHistory(historyId,
-                recordStructure);
-        }
-
-        return retVal;
+        return this.historyService.createHistory(historyId, recordStructure);
     }
 
     /**
@@ -873,8 +835,6 @@ public class MessageHistoryServiceImpl
                         String channel)
         throws IOException
     {
-        History retVal = null;
-
         String localId = localContact == null ? "default" : localContact
                 .getAddress();
 
@@ -884,15 +844,7 @@ public class MessageHistoryServiceImpl
                             account,
                             channel + "@" + server });
 
-        if (this.historyService.isHistoryExisting(historyId))
-        {
-            retVal = this.historyService.getHistory(historyId);
-        } else {
-            retVal = this.historyService.createHistory(historyId,
-                    recordStructure);
-        }
-
-        return retVal;
+        return this.historyService.createHistory(historyId, recordStructure);
     }
 
     /**
@@ -1139,6 +1091,8 @@ public class MessageHistoryServiceImpl
         messageSourceServiceReg = bundleContext.registerService(
             ContactSourceService.class.getName(),
             messageSourceService, null);
+        MessageHistoryActivator.getContactListService()
+            .addMetaContactListListener(this.messageSourceService);
     }
 
     /**
@@ -1148,6 +1102,9 @@ public class MessageHistoryServiceImpl
     {
         if(messageSourceServiceReg != null)
         {
+            MessageHistoryActivator.getContactListService()
+                .removeMetaContactListListener(this.messageSourceService);
+
             messageSourceServiceReg.unregister();
             messageSourceServiceReg = null;
 
@@ -1474,6 +1431,58 @@ public class MessageHistoryServiceImpl
                     sdf.format(messageTimestamp),
                     null},
                     new Date()); // this date is when the history record is written
+        } catch (IOException e)
+        {
+            logger.error("Could not add message to history", e);
+        }
+    }
+
+    /**
+     * Inserts message to the history. Allows to update the laready saved
+     * history.
+     * @param direction String direction of the message in or out.
+     * @param source The source Contact
+     * @param destination The destination Contact
+     * @param message Message message to be written
+     * @param messageTimestamp Date this is the timestamp when was message
+     * received that came from the protocol provider
+     * @param isSmsSubtype whether message to write is an sms
+     */
+    public void insertMessage(
+        String direction,
+        Contact source,
+        Contact destination,
+        Message message,
+        Date messageTimestamp,
+        boolean isSmsSubtype)
+    {
+        try
+        {
+            MetaContact metaContact = MessageHistoryActivator
+                .getContactListService().findMetaContactByContact(destination);
+            if(metaContact != null
+                && !isHistoryLoggingEnabled(
+                metaContact.getMetaUID()))
+            {
+                // logging is switched off for this particular contact
+                return;
+            }
+
+            History history = this.getHistory(source, destination);
+
+            HistoryWriter historyWriter = history.getWriter();
+            SimpleDateFormat sdf
+                = new SimpleDateFormat(HistoryService.DATE_FORMAT);
+            historyWriter.insertRecord(new String[]{direction,
+                    message.getContent(), message.getContentType(),
+                    message.getEncoding(), message.getMessageUID(),
+                    message.getSubject(), sdf.format(messageTimestamp),
+                    isSmsSubtype ? MSG_SUBTYPE_SMS : null},
+                messageTimestamp,
+                STRUCTURE_NAMES[6]);
+                // this date is when the history record to be written
+                // as we are inserting
+
         } catch (IOException e)
         {
             logger.error("Could not add message to history", e);
@@ -1847,7 +1856,7 @@ public class MessageHistoryServiceImpl
                                    boolean caseSensitive)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(new MessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         // get the readers for this contact
         Map<Contact, HistoryReader> readers = getHistoryReaders(contact);
 
@@ -1888,7 +1897,7 @@ public class MessageHistoryServiceImpl
                                     boolean caseSensitive)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(new MessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         // get the readers for this contact
         Map<Contact, HistoryReader> readers = getHistoryReaders(contact);
 
@@ -1929,7 +1938,7 @@ public class MessageHistoryServiceImpl
                                      boolean caseSensitive)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(new MessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         // get the readers for this contact
         Map<Contact, HistoryReader> readers = getHistoryReaders(contact);
 
@@ -2012,7 +2021,7 @@ public class MessageHistoryServiceImpl
     public Collection<EventObject> findByStartDate(ChatRoom room, Date startDate)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(new ChatRoomMessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         try
         {
             // get the readers for this room
@@ -2049,7 +2058,7 @@ public class MessageHistoryServiceImpl
     public Collection<EventObject> findByEndDate(ChatRoom room, Date endDate)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(new ChatRoomMessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         try
         {
             // get the readers for this room
@@ -2087,7 +2096,7 @@ public class MessageHistoryServiceImpl
     public Collection<EventObject> findByPeriod(ChatRoom room, Date startDate, Date endDate)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(new ChatRoomMessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         try
         {
             // get the readers for this room
@@ -2148,8 +2157,7 @@ public class MessageHistoryServiceImpl
             Date endDate, String[] keywords, boolean caseSensitive)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new ChatRoomMessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         try
         {
             // get the readers for this room
@@ -2205,8 +2213,7 @@ public class MessageHistoryServiceImpl
             boolean caseSensitive)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new ChatRoomMessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         try
         {
             // get the readers for this room
@@ -2264,8 +2271,7 @@ public class MessageHistoryServiceImpl
                                                     boolean caseSensitive)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new ChatRoomMessageEventComparator<EventObject>());
+        HashSet<EventObject> result = new HashSet<EventObject>();
         try
         {
             // get the readers for this room
@@ -2304,8 +2310,7 @@ public class MessageHistoryServiceImpl
     public Collection<EventObject> findLast(ChatRoom room, int count)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new ChatRoomMessageEventComparator<EventObject>());
+        LinkedList<EventObject> result = new LinkedList<EventObject>();
 
         try
         {
@@ -2320,19 +2325,19 @@ public class MessageHistoryServiceImpl
                         room));
 
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             logger.error("Could not read history", e);
         }
 
-        LinkedList<EventObject> resultAsList
-        = new LinkedList<EventObject>(result);
-        int startIndex = resultAsList.size() - count;
-
+        Collections.sort(result,
+            new ChatRoomMessageEventComparator<EventObject>());
+        int startIndex = result.size() - count;
         if(startIndex < 0)
             startIndex = 0;
 
-        return resultAsList.subList(startIndex, resultAsList.size());
+        return result.subList(startIndex, result.size());
     }
 
     /**
@@ -2350,8 +2355,7 @@ public class MessageHistoryServiceImpl
                                                             int count)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new ChatRoomMessageEventComparator<EventObject>());
+        LinkedList<EventObject> result = new LinkedList<EventObject>();
 
         try
         {
@@ -2366,19 +2370,19 @@ public class MessageHistoryServiceImpl
                         room));
 
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             logger.error("Could not read history", e);
         }
 
-        LinkedList<EventObject> resultAsList
-            = new LinkedList<EventObject>(result);
-
+        Collections.sort(result,
+            new ChatRoomMessageEventComparator<EventObject>());
         int toIndex = count;
-        if(toIndex > resultAsList.size())
-            toIndex = resultAsList.size();
+        if(toIndex > result.size())
+            toIndex = result.size();
 
-        return resultAsList.subList(0, toIndex);
+        return result.subList(0, toIndex);
     }
 
     /**
@@ -2396,8 +2400,7 @@ public class MessageHistoryServiceImpl
                                                             int count)
         throws RuntimeException
     {
-        TreeSet<EventObject> result = new TreeSet<EventObject>(
-            new ChatRoomMessageEventComparator<EventObject>());
+        LinkedList<EventObject> result = new LinkedList<EventObject>();
 
         try
         {
@@ -2412,19 +2415,19 @@ public class MessageHistoryServiceImpl
                         room));
 
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             logger.error("Could not read history", e);
         }
 
-        LinkedList<EventObject> resultAsList
-            = new LinkedList<EventObject>(result);
-        int startIndex = resultAsList.size() - count;
-
+        Collections.sort(result,
+            new ChatRoomMessageEventComparator<EventObject>());
+        int startIndex = result.size() - count;
         if(startIndex < 0)
             startIndex = 0;
 
-        return resultAsList.subList(startIndex, resultAsList.size());
+        return result.subList(startIndex, result.size());
     }
 
     /**
@@ -2956,6 +2959,9 @@ public class MessageHistoryServiceImpl
         HistoryID historyId = HistoryID.createFromRawID(
                     new String[] {  "messages" });
         historyService.purgeLocallyStoredHistory(historyId);
+
+        if(this.messageSourceService != null)
+            this.messageSourceService.eraseLocallyStoredHistory();
     }
 
     /**
@@ -2975,6 +2981,9 @@ public class MessageHistoryServiceImpl
             History history = this.getHistory(null, item);
             historyService.purgeLocallyStoredHistory(history.getID());
         }
+
+        if(this.messageSourceService != null)
+            this.messageSourceService.eraseLocallyStoredHistory(contact);
     }
 
     /**
@@ -2988,6 +2997,9 @@ public class MessageHistoryServiceImpl
     {
         History history = this.getHistoryForMultiChat(room);
         historyService.purgeLocallyStoredHistory(history.getID());
+
+        if(this.messageSourceService != null)
+            this.messageSourceService.eraseLocallyStoredHistory(room);
     }
     
     /**

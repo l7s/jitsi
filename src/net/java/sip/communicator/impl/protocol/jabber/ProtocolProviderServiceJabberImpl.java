@@ -19,8 +19,8 @@ import net.java.sip.communicator.impl.protocol.jabber.debugger.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.caps.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.carbon.*;
-import net.java.sip.communicator.impl.protocol.jabber.extensions.colibri.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.coin.*;
+import net.java.sip.communicator.impl.protocol.jabber.extensions.colibri.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.inputevt.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingle.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingleinfo.*;
@@ -41,10 +41,11 @@ import org.jitsi.util.*;
 import org.jivesoftware.smack.*;
 import org.jivesoftware.smack.packet.*;
 import org.jivesoftware.smack.provider.*;
+import org.jivesoftware.smack.util.*;
 import org.jivesoftware.smack.util.StringUtils;
 import org.jivesoftware.smackx.*;
 import org.jivesoftware.smackx.packet.*;
-import org.osgi.framework.*;
+import org.xmlpull.v1.*;
 import org.xmpp.jnodes.smack.*;
 
 /**
@@ -238,6 +239,11 @@ public class ProtocolProviderServiceJabberImpl
     private XMPPConnection connection;
 
     /**
+     * The socket address of the XMPP server.
+     */
+    private InetSocketAddress address;
+
+    /**
      * Indicates whether or not the provider is initialized and ready for use.
      */
     private boolean isInitialized = false;
@@ -413,6 +419,23 @@ public class ProtocolProviderServiceJabberImpl
     }
 
     /**
+     * An <tt>OperationSet</tt> that allows access to connection information used
+     * by the protocol provider.
+     */
+    private class OperationSetConnectionInfoJabberImpl
+       implements OperationSetConnectionInfo
+    {
+       /**
+        * @return The XMPP server address.
+        */
+        @Override
+        public InetSocketAddress getServerAddress()
+        {
+            return address;
+        }
+    }
+
+    /**
      * Returns the state of the registration of this protocol provider
      * @return the <tt>RegistrationState</tt> that this provider is
      * currently in or null in case it is in a unknown state.
@@ -435,13 +458,10 @@ public class ProtocolProviderServiceJabberImpl
     {
         if(guiVerification == null)
         {
-            ServiceReference guiVerifyReference
-                = JabberActivator.getBundleContext().getServiceReference(
-                    CertificateService.class.getName());
-            if(guiVerifyReference != null)
-                guiVerification = (CertificateService)
-                    JabberActivator.getBundleContext().getService(
-                        guiVerifyReference);
+            guiVerification
+                = ServiceUtils.getService(
+                        JabberActivator.getBundleContext(),
+                        CertificateService.class);
         }
 
         return guiVerification;
@@ -539,7 +559,7 @@ public class ProtocolProviderServiceJabberImpl
 
             // sets this if any is trying to use us through registration
             // to know we are not registered
-            this.unregister(false);
+            this.unregisterInternal(false);
 
             // reset states
             this.abortConnecting = false;
@@ -789,6 +809,12 @@ public class ProtocolProviderServiceJabberImpl
      */
     private JabberLoginStrategy createLoginStrategy()
     {
+        if (((JabberAccountIDImpl)getAccountID()).isAnonymousAuthUsed())
+        {
+            return new AnonymousLoginStrategy(
+                getAccountID().getAuthorizationName());
+        }
+
         String clientCertId = getAccountID().getAccountPropertyString(
                 ProtocolProviderFactory.CLIENT_TLS_CERTIFICATE);
         if(clientCertId != null)
@@ -1136,6 +1162,8 @@ public class ProtocolProviderServiceJabberImpl
             tlsRequired ? ConnectionConfiguration.SecurityMode.required :
                 ConnectionConfiguration.SecurityMode.enabled);
 
+        TLSUtils.setTLSOnly(confConn);
+
         if(connection != null)
         {
             logger.error("Connection is not null and isConnected:"
@@ -1146,6 +1174,7 @@ public class ProtocolProviderServiceJabberImpl
         }
 
         connection = new XMPPConnection(confConn);
+        this.address = address;
 
         try
         {
@@ -1181,7 +1210,7 @@ public class ProtocolProviderServiceJabberImpl
                     logger.debug(buff.toString());
                 }
 
-                connection.setCustomSslContext(sslContext);
+                confConn.setCustomSSLContext(sslContext);
             }
             else if (tlsRequired)
                 throw new XMPPException(
@@ -1377,6 +1406,7 @@ public class ProtocolProviderServiceJabberImpl
         discoveryManager
             = new ScServiceDiscoveryManager(
                     this,
+                    connection,
                     new String[] { "http://jabber.org/protocol/commands"},
                     // Add features Jitsi supports in addition to smack.
                     supportedFeatures.toArray(
@@ -1476,14 +1506,32 @@ public class ProtocolProviderServiceJabberImpl
      */
     public void unregister()
     {
-        unregister(true);
+        unregisterInternal(true);
+    }
+
+    /**
+     * Ends the registration of this protocol provider with the service.
+     * @param userRequest is the unregister by user request.
+     */
+    public void unregister(boolean userRequest)
+    {
+        unregisterInternal(true, userRequest);
     }
 
     /**
      * Unregister and fire the event if requested
      * @param fireEvent boolean
      */
-    public void unregister(boolean fireEvent)
+    public void unregisterInternal(boolean fireEvent)
+    {
+        unregisterInternal(fireEvent, false);
+    }
+
+    /**
+     * Unregister and fire the event if requested
+     * @param fireEvent boolean
+     */
+    public void unregisterInternal(boolean fireEvent, boolean userRequest)
     {
         synchronized(initializationLock)
         {
@@ -1494,7 +1542,8 @@ public class ProtocolProviderServiceJabberImpl
                     getRegistrationState()
                     , RegistrationState.UNREGISTERING
                     , RegistrationStateChangeEvent.REASON_NOT_SPECIFIED
-                    , null);
+                    , null
+                    , userRequest);
             }
 
             disconnectAndCleanConnection();
@@ -1507,7 +1556,8 @@ public class ProtocolProviderServiceJabberImpl
                 fireRegistrationStateChanged(
                     currRegState,
                     RegistrationState.UNREGISTERED,
-                    RegistrationStateChangeEvent.REASON_USER_REQUEST, null);
+                    RegistrationStateChangeEvent.REASON_USER_REQUEST, null,
+                    userRequest);
             }
         }
     }
@@ -1663,6 +1713,10 @@ public class ProtocolProviderServiceJabberImpl
             addSupportedOperationSet(
                 OperationSetMultiUserChat.class,
                 new OperationSetMultiUserChatJabberImpl(this));
+
+            addSupportedOperationSet(
+                OperationSetJitsiMeetTools.class,
+                new OperationSetJitsiMeetToolsJabberImpl(this));
 
             addSupportedOperationSet(
                 OperationSetServerStoredContactInfo.class,
@@ -1926,6 +1980,11 @@ public class ProtocolProviderServiceJabberImpl
             addSupportedOperationSet(OperationSetTLS.class,
                     opsetTLS);
 
+            OperationSetConnectionInfo opsetConnectionInfo
+                    = new OperationSetConnectionInfoJabberImpl();
+            addSupportedOperationSet(OperationSetConnectionInfo.class,
+                    opsetConnectionInfo);
+
             isInitialized = true;
         }
     }
@@ -2182,7 +2241,9 @@ public class ProtocolProviderServiceJabberImpl
         public void connectionClosedOnError(Exception exception)
         {
             logger.error("connectionClosedOnError " +
-                         exception.getLocalizedMessage());
+                         exception.getLocalizedMessage(), exception);
+
+            int reason = RegistrationStateChangeEvent.REASON_NOT_SPECIFIED;
 
             if(exception instanceof XMPPException)
             {
@@ -2223,6 +2284,11 @@ public class ProtocolProviderServiceJabberImpl
             {
                 return;
             }
+            else if(exception instanceof XmlPullParserException)
+            {
+                reason = RegistrationStateChangeEvent
+                    .REASON_SERVER_RETURNED_ERRONEOUS_INPUT;
+            }
 
             // if we are in the middle of connecting process
             // do not fire events, will do it later when the method
@@ -2235,7 +2301,7 @@ public class ProtocolProviderServiceJabberImpl
                         ProtocolProviderServiceJabberImpl.this,
                         getRegistrationState(),
                         RegistrationState.CONNECTION_FAILED,
-                        RegistrationStateChangeEvent.REASON_NOT_SPECIFIED,
+                        reason,
                         exception.getMessage());
                      return;
                 }
@@ -2245,7 +2311,7 @@ public class ProtocolProviderServiceJabberImpl
 
             fireRegistrationStateChanged(getRegistrationState(),
                 RegistrationState.CONNECTION_FAILED,
-                RegistrationStateChangeEvent.REASON_NOT_SPECIFIED,
+                reason,
                 exception.getMessage());
         }
 
@@ -2953,5 +3019,4 @@ public class ProtocolProviderServiceJabberImpl
         }
         return result;
     }
-
 }

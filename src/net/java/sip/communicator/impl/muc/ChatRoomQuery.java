@@ -8,12 +8,12 @@ package net.java.sip.communicator.impl.muc;
 import java.util.*;
 import java.util.regex.*;
 
-import org.osgi.framework.*;
-
 import net.java.sip.communicator.service.contactsource.*;
 import net.java.sip.communicator.service.muc.*;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.event.*;
+
+import org.osgi.framework.*;
 
 /**
  * The <tt>ChatRoomQuery</tt> is a query over the
@@ -157,7 +157,7 @@ public class ChatRoomQuery
     /**
      * Handles chat room presence status updates.
      * 
-     * @param evt the <tt>LocalUserChatRoomPresenceChangeEvent</tt> instance 
+     * @param evt the <tt>LocalUserChatRoomPresenceChangeEvent</tt> instance
      * containing the chat room and the type, and reason of the change
      */
     @Override
@@ -165,16 +165,16 @@ public class ChatRoomQuery
         LocalUserChatRoomPresenceChangeEvent evt)
     {
         ChatRoom sourceChatRoom = evt.getChatRoom();
-    
+
         String eventType = evt.getEventType();
-        
+
         boolean existingContact = false;
         ChatRoomSourceContact foundContact = null;
         synchronized (contactResults)
         {
-            for(ChatRoomSourceContact contact : contactResults)
+            for (ChatRoomSourceContact contact : contactResults)
             {
-                if(contact.getContactAddress().equals(sourceChatRoom.getName()))
+                if (contactEqualsChatRoom(contact, sourceChatRoom))
                 {
                     existingContact = true;
                     foundContact = contact;
@@ -306,27 +306,25 @@ public class ChatRoomQuery
      * @param evt the event that describes the change.
      */
     @Override
-    public void contentChanged(ChatRoomListChangeEvent evt)
+    public void contentChanged(final ChatRoomListChangeEvent evt)
     {
         ChatRoomWrapper chatRoom = evt.getSourceChatRoom();
-        switch(evt.getEventID())
+        switch (evt.getEventID())
         {
             case ChatRoomListChangeEvent.CHAT_ROOM_ADDED:
-                addChatRoom(chatRoom.getChatRoom(), false, 
+                addChatRoom(chatRoom.getChatRoom(), false,
                     chatRoom.isAutojoin());
                 break;
             case ChatRoomListChangeEvent.CHAT_ROOM_REMOVED:
                 LinkedList<ChatRoomSourceContact> tmpContactResults;
                 synchronized (contactResults)
                 {
-                    tmpContactResults 
+                    tmpContactResults
                         = new LinkedList<ChatRoomSourceContact>(contactResults);
-                
-                
-                    for(ChatRoomSourceContact contact : tmpContactResults)
+
+                    for (ChatRoomSourceContact contact : tmpContactResults)
                     {
-                        if(contact.getContactAddress().equals(
-                            chatRoom.getChatRoomName()))
+                    if (contactEqualsChatRoom(contact, chatRoom))
                         {
                             contactResults.remove(contact);
                             fireContactRemoved(contact);
@@ -338,12 +336,12 @@ public class ChatRoomQuery
             case ChatRoomListChangeEvent.CHAT_ROOM_CHANGED:
                 synchronized (contactResults)
                 {
-                    for(ChatRoomSourceContact contact : contactResults)
+                    for (ChatRoomSourceContact contact : contactResults)
                     {
-                        if(contact.getContactAddress().equals(
-                            chatRoom.getChatRoomName()))
+                        if (contactEqualsChatRoom(contact,
+                            chatRoom.getChatRoom()))
                         {
-                            if(chatRoom.isAutojoin() != contact.isAutoJoin())
+                            if (chatRoom.isAutojoin() != contact.isAutoJoin())
                             {
                                 contact.setAutoJoin(chatRoom.isAutojoin());
                                 fireContactChanged(contact);
@@ -382,6 +380,41 @@ public class ChatRoomQuery
                 }
             }
         }
+    }
+
+    /**
+     * Test equality of contact to chat room. This test recognizes that chat
+     * rooms may have equal names but connected to different accounts.
+     *
+     * @param contact the contact
+     * @param chatRoom the chat room
+     * @return returns <tt>true</tt> if they are equal, or <tt>false</tt> if
+     *         they are different
+     */
+    private boolean contactEqualsChatRoom(final ChatRoomSourceContact contact,
+        final ChatRoom chatRoom)
+    {
+        return contact.getProvider() == chatRoom.getParentProvider()
+            && contact.getContactAddress().equals(chatRoom.getIdentifier());
+    }
+
+    /**
+     * Test equality of contact to chat room wrapper. This method does not rely
+     * on a chat room instance, since that may not be available in case of
+     * removal.
+     *
+     * @param contact the contact
+     * @param chatRoomWrapper the chat room wrapper
+     * @return returns <tt>true</tt> if they are equal, or <tt>false</tt> if
+     *         they are different.
+     */
+    private boolean contactEqualsChatRoom(final ChatRoomSourceContact contact,
+        final ChatRoomWrapper chatRoomWrapper)
+    {
+        return contact.getProvider() == chatRoomWrapper.getParentProvider()
+            .getProtocolProvider()
+            && contact.getContactAddress().equals(
+                chatRoomWrapper.getChatRoomID());
     }
 
     /**
