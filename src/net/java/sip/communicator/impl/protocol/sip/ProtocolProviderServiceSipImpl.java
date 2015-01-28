@@ -561,16 +561,17 @@ public class ProtocolProviderServiceSipImpl
                     new OperationSetJitsiMeetToolsSipImpl());
             }
 
+            //init presence op set.
+            this.opSetPersPresence
+                = new OperationSetPresenceSipImpl(this, enablePresence,
+                        forceP2P, pollingValue, subscriptionExpiration);
+
+            addSupportedOperationSet(
+                OperationSetPersistentPresence.class,
+                opSetPersPresence);
+
             if (enablePresence)
             {
-                //init presence op set.
-                this.opSetPersPresence
-                    = new OperationSetPresenceSipImpl(this, enablePresence,
-                            forceP2P, pollingValue, subscriptionExpiration);
-
-                addSupportedOperationSet(
-                    OperationSetPersistentPresence.class,
-                    opSetPersPresence);
                 //also register with standard presence
                 addSupportedOperationSet(
                     OperationSetPresence.class,
