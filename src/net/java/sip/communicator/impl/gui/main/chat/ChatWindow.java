@@ -744,15 +744,23 @@ public class ChatWindow
             }
         }
         else
-        {          
-            ChatPanel chatPanel = getCurrentChat();
-
-            if(chatPanel == null
-                || chatPanel.getChatConversationPanel() == null)
-                return;
-            
-            GuiActivator
-                .getUIService().getChatWindowManager().closeChat(chatPanel);
+        {     
+            if(ConfigurationUtils.isMultiChatWindowEnabled())
+            {
+                GuiActivator
+                    .getUIService().getChatWindowManager().closeAllChats(this, true);
+            }
+            else
+            {
+                ChatPanel chatPanel = getCurrentChat();
+    
+                if(chatPanel == null
+                    || chatPanel.getChatConversationPanel() == null)
+                    return;
+                
+                GuiActivator
+                    .getUIService().getChatWindowManager().closeChat(chatPanel);
+            }
         }
     }
 
