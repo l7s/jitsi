@@ -142,13 +142,12 @@ public class ToolsMenuItem
             System.out.println("\tMAP: \n."+ responseMap + "\n");
             if(responseMap.containsKey("user.FAX") )
             {
-                
+                if(responseMap.get("user.FAX").equalsIgnoreCase("EMPTY_STRING" ))
+                {
+                    return "NO_NUM";
+                }
                 number = responseMap.get("user.FAX").split(",");
                 return "OK";
-            }
-            if(responseMap.get("user.FAX")=="EMPTY_STRING" )
-            {
-                return "NO_NUM";
             }
             else
             {
@@ -185,7 +184,7 @@ public class ToolsMenuItem
             {
                 isWorkerRunning=false;
                 
-                if(error=="OK")
+                if(error.equalsIgnoreCase("OK") )
                 {
                     pluginDialog = new PluginDialog(number);
 
@@ -198,7 +197,7 @@ public class ToolsMenuItem
                     popupDialog.setVisible(false);
                     pluginDialog.setVisible(true);
                 }
-                else if(error=="NO_NUM")
+                else if(error.equalsIgnoreCase("NO_NUM"))
                 {   
                     popupDialog2 = new PopupDialog();
                     popupDialog2.setPopup(2);
@@ -212,7 +211,7 @@ public class ToolsMenuItem
                     popupDialog.setVisible(false);
                     popupDialog2.setVisible(true);
                 }
-                else if(error=="ERROR_HANDLED"){}
+                else if(error.equalsIgnoreCase("ERROR_HANDLED")){}
                 else
                 {
                     System.out.println("\tFAX Plugin Response: "+ error );
