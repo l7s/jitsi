@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.service.notification;
 
@@ -233,54 +244,62 @@ class NotificationServiceImpl
             if (handler == null)
                 continue;
 
-            if (actionType.equals(ACTION_POPUP_MESSAGE))
+            try
             {
-                ((PopupMessageNotificationHandler) handler).popupMessage(
+                if(actionType.equals(ACTION_POPUP_MESSAGE))
+                {
+                    ((PopupMessageNotificationHandler) handler).popupMessage(
                         (PopupMessageNotificationAction) action,
                         data.getTitle(),
                         data.getMessage(),
                         data.getIcon(),
                         data.getExtra(
-                                NotificationData
-                                    .POPUP_MESSAGE_HANDLER_TAG_EXTRA));
-            }
-            else if (actionType.equals(ACTION_LOG_MESSAGE))
-            {
-                ((LogMessageNotificationHandler) handler).logMessage(
+                            NotificationData
+                                .POPUP_MESSAGE_HANDLER_TAG_EXTRA));
+                }
+                else if(actionType.equals(ACTION_LOG_MESSAGE))
+                {
+                    ((LogMessageNotificationHandler) handler).logMessage(
                         (LogMessageNotificationAction) action,
                         data.getMessage());
-            }
-            else if (actionType.equals(ACTION_SOUND))
-            {
-                SoundNotificationAction soundNotificationAction
-                    = (SoundNotificationAction) action;
+                }
+                else if(actionType.equals(ACTION_SOUND))
+                {
+                    SoundNotificationAction soundNotificationAction
+                        = (SoundNotificationAction) action;
 
-                if(soundNotificationAction.isSoundNotificationEnabled()
+                    if(soundNotificationAction.isSoundNotificationEnabled()
                         || soundNotificationAction.isSoundPlaybackEnabled()
                         || soundNotificationAction.isSoundPCSpeakerEnabled())
-                {
-                    ((SoundNotificationHandler) handler).start(
+                    {
+                        ((SoundNotificationHandler) handler).start(
                             (SoundNotificationAction) action,
                             data);
+                    }
                 }
-            }
-            else if (actionType.equals(ACTION_COMMAND))
-            {
-                @SuppressWarnings("unchecked")
-                Map<String, String> cmdargs
-                    = (Map<String, String>)
+                else if(actionType.equals(ACTION_COMMAND))
+                {
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> cmdargs
+                        = (Map<String, String>)
                         data.getExtra(
-                                NotificationData
-                                    .COMMAND_NOTIFICATION_HANDLER_CMDARGS_EXTRA);
+                            NotificationData
+                                .COMMAND_NOTIFICATION_HANDLER_CMDARGS_EXTRA);
 
-                ((CommandNotificationHandler) handler).execute(
+                    ((CommandNotificationHandler) handler).execute(
                         (CommandNotificationAction) action,
                         cmdargs);
+                }
+                else if(actionType.equals(ACTION_VIBRATE))
+                {
+                    ((VibrateNotificationHandler) handler).vibrate(
+                        (VibrateNotificationAction) action);
+                }
             }
-            else if(actionType.equals(ACTION_VIBRATE))
+            catch(Exception e)
             {
-                ((VibrateNotificationHandler) handler).vibrate(
-                        (VibrateNotificationAction) action );
+                logger.error("Error dispatching notification of type"
+                    + actionType + " from " + handler, e);
             }
         }
     }
@@ -312,7 +331,6 @@ class NotificationServiceImpl
      * @param message the message to use if and where appropriate (e.g. with
      * systray or log notification.)
      * @param icon the icon to show in the notification if and where appropriate
-     * @param tag additional info to be used by the notification handler
      * @return An object referencing the notification. It may be used to stop a
      * still running notification. Can be null if the eventType is unknown or
      * the notification is not active.

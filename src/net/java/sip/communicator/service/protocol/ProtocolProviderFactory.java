@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.service.protocol;
 
@@ -174,6 +185,12 @@ public abstract class ProtocolProviderFactory
     public static final String FORCE_PROXY_BYPASS = "FORCE_PROXY_BYPASS";
 
     /**
+     * The name of the property that indicates whether the client must
+     * be registered with a registrar when making outgoing calls.
+     */
+    public static final String MUST_REGISTER_TO_CALL = "MUST_REGISTER_TO_CALL";
+
+    /**
      * The name of the property under which we store the user preference for a
      * transport protocol to use (i.e. tcp or udp).
      */
@@ -337,11 +354,6 @@ public abstract class ProtocolProviderFactory
      * Indicates if ICE should be used.
      */
     public static final String IS_USE_ICE = "ICE_ENABLED";
-
-    /**
-     * Indicates if Google ICE should be used.
-     */
-    public static final String IS_USE_GOOGLE_ICE = "GTALK_ICE_ENABLED";
 
     /**
      * Indicates if STUN server should be automatically discovered.

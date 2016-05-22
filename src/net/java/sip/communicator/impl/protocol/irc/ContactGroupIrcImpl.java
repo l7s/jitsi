@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -31,13 +42,13 @@ public class ContactGroupIrcImpl
     /**
      * Subgroups.
      */
-    private final List<ContactGroupIrcImpl> subgroups =
+    private final ArrayList<ContactGroupIrcImpl> subgroups =
         new ArrayList<ContactGroupIrcImpl>();
 
     /**
      * Contacts in this group.
      */
-    private final List<ContactIrcImpl> contacts =
+    private final ArrayList<ContactIrcImpl> contacts =
         new ArrayList<ContactIrcImpl>();
 
     /**
@@ -46,11 +57,16 @@ public class ContactGroupIrcImpl
     private ContactGroup parent;
 
     /**
+     * Flag for persistence.
+     */
+    private boolean persistent;
+
+    /**
      * Contact Group IRC implementation.
      *
      * @param provider IRC protocol provider service instance.
      */
-    public ContactGroupIrcImpl(final ProtocolProviderServiceIrcImpl provider)
+    ContactGroupIrcImpl(final ProtocolProviderServiceIrcImpl provider)
     {
         this(provider, null, "root");
     }
@@ -76,6 +92,7 @@ public class ContactGroupIrcImpl
             throw new IllegalArgumentException("name cannot be null");
         }
         this.name = name;
+        this.persistent = true;
     }
 
     /**
@@ -164,15 +181,43 @@ public class ContactGroupIrcImpl
      * @return returns contact or null if contact cannot be found
      */
     @Override
-    public Contact getContact(final String id)
+    public ContactIrcImpl getContact(final String id)
     {
-        if (id == null)
+        if (id == null || id.isEmpty())
         {
             return null;
         }
         for (ContactIrcImpl contact : this.contacts)
         {
             if (id.equals(contact.getAddress()))
+            {
+                return contact;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find contact by searching through direct contacts and subsequently
+     * continue searching in subgroups.
+     *
+     * @param id the contact id
+     * @return returns found contact instance or <tt>null</tt> if contact is not
+     *         found
+     */
+    public ContactIrcImpl findContact(final String id)
+    {
+        // search own contacts
+        ContactIrcImpl contact = getContact(id);
+        if (contact != null)
+        {
+            return contact;
+        }
+        // search in subgroups
+        for (ContactGroupIrcImpl subgroup : this.subgroups)
+        {
+            contact = subgroup.findContact(id);
+            if (contact != null)
             {
                 return contact;
             }
@@ -246,7 +291,18 @@ public class ContactGroupIrcImpl
     @Override
     public boolean isPersistent()
     {
-        return false;
+        return this.persistent;
+    }
+
+    /**
+     * Set persistence.
+     *
+     * @param persistent <tt>true</tt> for persistent group, <tt>false</tt> for
+     *            non-persistent group
+     */
+    public void setPersistent(final boolean persistent)
+    {
+        this.persistent = persistent;
     }
 
     /**
@@ -268,7 +324,7 @@ public class ContactGroupIrcImpl
     @Override
     public boolean isResolved()
     {
-        return false;
+        return true;
     }
 
     /**
@@ -297,6 +353,20 @@ public class ContactGroupIrcImpl
     }
 
     /**
+     * Remove contact.
+     *
+     * @param contact the contact to remove
+     */
+    public void removeContact(final ContactIrcImpl contact)
+    {
+        if (contact == null)
+        {
+            throw new IllegalArgumentException("contact cannot be null");
+        }
+        this.contacts.remove(contact);
+    }
+
+    /**
      * Add group as subgroup to this group.
      *
      * @param group the group
@@ -308,5 +378,19 @@ public class ContactGroupIrcImpl
             throw new IllegalArgumentException("group cannot be null");
         }
         this.subgroups.add(group);
+    }
+
+    /**
+     * Remove subgroup from this group.
+     *
+     * @param group the group
+     */
+    public void removeSubGroup(final ContactGroupIrcImpl group)
+    {
+        if (group == null)
+        {
+            throw new IllegalArgumentException("group cannot be null");
+        }
+        this.subgroups.remove(group);
     }
 }

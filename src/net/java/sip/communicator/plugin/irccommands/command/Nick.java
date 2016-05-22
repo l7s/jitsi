@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.irccommands.command;
 
@@ -15,7 +26,11 @@ import net.java.sip.communicator.impl.protocol.irc.*;
  */
 public class Nick implements Command
 {
+    /**
+     * Index for end of nick command prefix.
+     */
     private static final int END_OF_COMMAND_PREFIX_INDEX = 6;
+
     /**
      * Instance of the IRC connection.
      */
@@ -62,7 +77,7 @@ public class Nick implements Command
         {
             newNick = part.substring(0, indexOfSep);
         }
-        if (newNick.length() > 0)
+        if (!newNick.isEmpty())
         {
             this.connection.getIdentityManager().setNick(newNick);
         }

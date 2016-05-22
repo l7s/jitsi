@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -14,7 +25,6 @@ import net.java.sip.communicator.util.*;
 import com.ircclouds.irc.api.*;
 import com.ircclouds.irc.api.domain.*;
 import com.ircclouds.irc.api.domain.messages.*;
-import com.ircclouds.irc.api.listeners.*;
 import com.ircclouds.irc.api.state.*;
 
 /**
@@ -38,10 +48,16 @@ public class MessageManager
     private static final int START_OF_COMMAND_INDEX = 1;
 
     /**
-     * Maximum message size for IRC messages given the spec specifies a buffer
-     * of 512 bytes. The command ending (CRLF) takes up 2 bytes.
+     * Safety net of 5 bytes to use as extra slack to prevent off-by-one
+     * failures.
      */
-    private static final int IRC_PROTOCOL_MAXIMUM_MESSAGE_SIZE = 510;
+    public static final int SAFETY_NET = 5;
+
+    /**
+     * Maximum message size for IRC messages given the spec specifies a buffer
+     * of 512 bytes. The command ending (CRLF) takes up 2 bytes, so max is 510.
+     */
+    public static final int IRC_PROTOCOL_MAX_MESSAGE_SIZE = 510;
 
     /**
      * IrcConnection instance.
@@ -229,15 +245,39 @@ public class MessageManager
      *
      * @param chatroom The chat room to send the message to.
      * @param message The message to send.
+     * @throws OperationFailedException OperationFailedException is thrown when
+     *             message is too large to be processed by IRC server.
      */
     public void message(final ChatRoomIrcImpl chatroom, final String message)
+        throws OperationFailedException
     {
         if (!this.connectionState.isConnected())
         {
             throw new IllegalStateException("Not connected to an IRC server.");
         }
         final String target = chatroom.getIdentifier();
-        this.irc.message(target, message);
+        // message format as forwarded by IRC server to clients:
+        // :<user> PRIVMSG <nick> :<message>
+        final int maxMsgSize = calculateMaximumMessageSize(0, target);
+        if (maxMsgSize < message.length())
+        {
+            LOGGER.warn("Message for " + target
+                + " is too large. At best you can send the message up to: "
+                + message.substring(0, maxMsgSize));
+            throw new OperationFailedException(
+                "Message is too large for this IRC server.",
+                OperationFailedException.ILLEGAL_ARGUMENT);
+        }
+        try
+        {
+            this.irc.message(target, message);
+            LOGGER.trace("Message delivered to server successfully.");
+        }
+        catch (RuntimeException e)
+        {
+            LOGGER.trace("Failed to deliver message: " + e.getMessage(), e);
+            throw e;
+        }
     }
 
     /**
@@ -245,14 +285,32 @@ public class MessageManager
      *
      * @param contact The contact to send the message to.
      * @param message The message to send.
+     * @throws OperationFailedException OperationFailedException is thrown when
+     *             message is too large to be processed by IRC server.
      */
     public void message(final Contact contact, final Message message)
+        throws OperationFailedException
     {
         if (!this.connectionState.isConnected())
         {
             throw new IllegalStateException("Not connected to an IRC server.");
         }
         final String target = contact.getAddress();
+        // message format as forwarded by IRC server to clients:
+        // :<user> PRIVMSG <nick> :<message>
+        final int maxMsgSize = calculateMaximumMessageSize(0, target);
+        if (maxMsgSize < message.getContent().length())
+        {
+            // Message is definitely too large to be sent to a standard IRC
+            // network. Sending is not attempted, since we would send a partial
+            // message, even though the user is not informed of this.
+            LOGGER.warn("Message for " + target
+                + " is too large. At best you can send the message up to: "
+                + message.getContent().substring(0, maxMsgSize));
+            throw new OperationFailedException(
+                "Message is too large for this IRC server.",
+                OperationFailedException.ILLEGAL_ARGUMENT);
+        }
         try
         {
             this.irc.message(target, message.getContent());
@@ -273,12 +331,39 @@ public class MessageManager
      */
     public int calculateMaximumMessageSize(final Contact contact)
     {
+        return calculateMaximumMessageSize(SAFETY_NET, contact.getAddress());
+    }
+
+    /**
+     * Calculate maximum message size that can be transmitted.
+     *
+     * @param room receiving chat room
+     * @return Returns maximum message size.
+     */
+    public int calculateMaximumMessageSize(final ChatRoomIrcImpl room)
+    {
+        return calculateMaximumMessageSize(SAFETY_NET, room.getIdentifier());
+    }
+
+    /**
+     * Calculate maximum message size by given identifier and based on local
+     * user's own identity.
+     *
+     * @param safety Number of chars extra slack as safety measure for resulting
+     *            value. (This may just save you in case of off-by-one errors by
+     *            an IRC server.)
+     * @param identifier the identifier
+     * @return Returns number of chars available for message.
+     */
+    private int calculateMaximumMessageSize(final int safety,
+        final String identifier)
+    {
         final StringBuilder builder = new StringBuilder(":");
         builder.append(this.identity.getIdentityString());
         builder.append(" PRIVMSG ");
-        builder.append(contact.getAddress());
+        builder.append(identifier);
         builder.append(" :");
-        return IRC_PROTOCOL_MAXIMUM_MESSAGE_SIZE - builder.length();
+        return IRC_PROTOCOL_MAX_MESSAGE_SIZE - safety - builder.length();
     }
 
     /**
@@ -287,7 +372,7 @@ public class MessageManager
      * @author Danny van Heumen
      */
     private final class MessageManagerListener
-        extends VariousMessageListenerAdapter
+        extends AbstractIrcMessageListener
     {
         /**
          * IRC reply containing away message.
@@ -301,33 +386,11 @@ public class MessageManager
             IRCServerNumerics.NO_SUCH_NICK_CHANNEL;
 
         /**
-         * On User Quit event.
-         *
-         * @param msg user quit message
+         * Constructor.
          */
-        @Override
-        public void onUserQuit(final QuitMessage msg)
+        public MessageManagerListener()
         {
-            final String user = msg.getSource().getNick();
-            if (MessageManager.this.connectionState.getNickname().equals(user))
-            {
-                LOGGER.debug("Local user QUIT message received: removing "
-                    + "message manager listener.");
-                MessageManager.this.irc.deleteListener(this);
-            }
-        }
-
-        /**
-         * In case a fatal error occurs, remove the MessageManager.
-         */
-        @Override
-        public void onError(final ErrorMessage aMsg)
-        {
-            // Errors signal fatal situation, so unregister and assume
-            // connection lost.
-            LOGGER.debug("Local user received ERROR message: removing "
-                + "message manager listener.");
-            MessageManager.this.irc.deleteListener(this);
+            super(MessageManager.this.irc, MessageManager.this.connectionState);
         }
 
         /**

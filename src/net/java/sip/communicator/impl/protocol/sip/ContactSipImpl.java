@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -524,9 +535,7 @@ public class ContactSipImpl
         if(obj instanceof String)
         {
             String sobj = (String)obj;
-
-            if(sobj.startsWith("sip:"))
-                sobj = sobj.substring(4);
+            sobj = stripScheme(stripAddress(sobj));
 
             if(getAddress().equalsIgnoreCase(sobj))
                 return true;
@@ -542,6 +551,43 @@ public class ContactSipImpl
         ContactSipImpl sipContact = (ContactSipImpl) obj;
 
         return this.getAddress().equals(sipContact.getAddress());
+    }
+
+    /**
+     * Get rid of any parameters, ports etc. within a sip contact
+     * @param address   the address to strip
+     * @return          [sip[s]:]user@host without any params or port numbers.
+     */
+    static String stripAddress(String address)
+    {
+        if (address != null && address.length() > 0)
+        {
+            int idx = address.indexOf(':', 5);
+            if (idx > -1)
+                address = address.substring(0, idx);
+            idx = address.indexOf(';');
+            if (idx > -1)
+                address = address.substring(0, idx);
+        }
+        return address;
+    }
+
+    /**
+     * @param from  address to strip
+     * @return the address, stripped from either "sip:" or "sips:"
+     */
+    public static String stripScheme(String from)
+    {
+        if (from.startsWith("sip:"))
+        {
+            return from.substring(4);
+        }
+        else if (from.startsWith("sips:"))
+        {
+            return from.substring(5);
+        }
+
+        return from;
     }
 
     /**

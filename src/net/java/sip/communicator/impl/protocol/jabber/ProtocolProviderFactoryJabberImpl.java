@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
@@ -10,6 +21,8 @@ import java.util.*;
 
 import net.java.sip.communicator.service.protocol.*;
 
+import net.java.sip.communicator.service.protocol.jabber.*;
+import org.jivesoftware.smack.provider.*;
 import org.jivesoftware.smack.util.*;
 import org.osgi.framework.*;
 
@@ -24,6 +37,46 @@ public class ProtocolProviderFactoryJabberImpl
      * Indicates if ICE should be used.
      */
     public static final String IS_USE_JINGLE_NODES = "JINGLE_NODES_ENABLED";
+
+    /**
+     * Our provider manager instances.
+     */
+    static ProviderManager providerManager = null;
+
+    static
+    {
+        try
+        {
+            
+            // Set the extension provider manager for classes that use 
+            // it directly
+            ProviderManager.setInstance(new ProviderManagerExt());
+            // Set the Smack interop implementation for the classes that need
+            // to support Smackv4 interoperation
+            AbstractSmackInteroperabilityLayer.setImplementationClass(
+                    SmackV3InteroperabilityLayer.class);
+        }
+        catch(Throwable t)
+        {
+            // once loaded if we try to set instance second time
+            // IllegalStateException is thrown
+        }
+        finally
+        {
+            providerManager = ProviderManager.getInstance();
+        }
+
+        // checks class names, not using instanceof
+        // tests do unloading and loading the protocol bundle and
+        // ProviderManagerExt class get loaded two times from different
+        // classloaders
+        if (!(providerManager.getClass().getName()
+                .equals(ProviderManagerExt.class.getName())))
+        {
+            throw new RuntimeException(
+                "ProviderManager set to the default one");
+        }
+    }
 
     /**
      * Creates an instance of the ProtocolProviderFactoryJabberImpl.

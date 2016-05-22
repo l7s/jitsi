@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -12,7 +23,6 @@ import net.java.sip.communicator.util.*;
 
 import com.ircclouds.irc.api.*;
 import com.ircclouds.irc.api.domain.messages.*;
-import com.ircclouds.irc.api.listeners.*;
 import com.ircclouds.irc.api.state.*;
 
 /**
@@ -56,7 +66,7 @@ public class ServerChannelLister
     /**
      * IRCApi connection state.
      */
-    private final IIRCState state;
+    private final IIRCState connectionState;
 
     /**
      * The cached channel list.
@@ -71,20 +81,22 @@ public class ServerChannelLister
      * Constructor.
      *
      * @param irc thread-safe irc api instance
-     * @param state irc connection state
+     * @param connectionState irc connection state
      */
-    public ServerChannelLister(final IRCApi irc, final IIRCState state)
+    public ServerChannelLister(final IRCApi irc,
+        final IIRCState connectionState)
     {
         if (irc == null)
         {
             throw new IllegalArgumentException("irc instance cannot be null");
         }
         this.irc = irc;
-        if (state == null)
+        if (connectionState == null)
         {
-            throw new IllegalArgumentException("state instance cannot be null");
+            throw new IllegalArgumentException(
+                "connectionState instance cannot be null");
         }
-        this.state = state;
+        this.connectionState = connectionState;
     }
 
     /**
@@ -95,7 +107,7 @@ public class ServerChannelLister
     public List<String> getList()
     {
         LOGGER.trace("Start retrieve server chat room list.");
-        if (!state.isConnected())
+        if (!connectionState.isConnected())
         {
             throw new IllegalStateException("Not connected to an IRC server.");
         }
@@ -244,7 +256,7 @@ public class ServerChannelLister
      * completely filled.
      */
     private final class ChannelListListener
-        extends VariousMessageListenerAdapter
+        extends AbstractIrcMessageListener
     {
         /**
          * Start of an IRC server channel listing reply.
@@ -275,37 +287,9 @@ public class ServerChannelLister
         private ChannelListListener(
             final Result<List<String>, Exception> signal)
         {
+            super(ServerChannelLister.this.irc,
+                ServerChannelLister.this.connectionState);
             this.signal = signal;
-        }
-
-        /**
-         * On User Quit event.
-         *
-         * @param msg QuitMessage
-         */
-        @Override
-        public void onUserQuit(final QuitMessage msg)
-        {
-            final String user = msg.getSource().getNick();
-            if (ServerChannelLister.this.state.getNickname().equals(user))
-            {
-                LOGGER.debug("Local user QUIT message received: removing "
-                    + "server channel lister listener.");
-                ServerChannelLister.this.irc.deleteListener(this);
-            }
-        }
-
-        /**
-         * In case a fatal error occurs, remove the ChannelListLister listener.
-         */
-        @Override
-        public void onError(final ErrorMessage aMsg)
-        {
-            // Errors signal fatal situation, so unregister and assume
-            // connection lost.
-            LOGGER.debug("Local user received ERROR message: removing "
-                + "server channel lister listener.");
-            ServerChannelLister.this.irc.deleteListener(this);
         }
 
         /**

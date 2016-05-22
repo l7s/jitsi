@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -64,8 +75,8 @@ public class OperationSetVideoTelephonySipImpl
         super(basicTelephony);
 
         parentProvider.registerMethodProcessor(
-                Request.INFO,
-                new PictureFastUpdateMethodProcessor());
+            Request.INFO,
+            new PictureFastUpdateMethodProcessor());
     }
 
     /**
@@ -153,8 +164,33 @@ public class OperationSetVideoTelephonySipImpl
     public Call createVideoCall(String uri, QualityPreset qualityPreferences)
         throws OperationFailedException, ParseException
     {
-        Address toAddress = parentProvider.parseAddressString(uri);
+        return createVideoCall(
+            parentProvider.parseAddressString(uri), qualityPreferences);
+    }
 
+    /**
+     * Create a new video call and invite the specified CallPeer to it.
+     *
+     * @param toAddress the address of the callee that we should invite to a new
+     * call.
+     * @param qualityPreferences the quality preset we will use establishing
+     * the video call, and we will expect from the other side. When establishing
+     * call we don't have any indications whether remote part supports quality
+     * presets, so this setting can be ignored.
+     * @return CallPeer the CallPeer that will represented by the
+     * specified uri. All following state change events will be delivered
+     * through that call peer. The Call that this peer is a member
+     * of could be retrieved from the CallParticipatn instance with the use
+     * of the corresponding method.
+     * @throws OperationFailedException with the corresponding code if we fail
+     * to create the video call.
+     * @throws ParseException if <tt>callee</tt> is not a valid sip address
+     * string.
+     */
+    private Call createVideoCall(Address toAddress,
+                                 QualityPreset qualityPreferences)
+        throws OperationFailedException
+    {
         CallSipImpl call = basicTelephony.createOutgoingCall();
         call.setLocalVideoAllowed(true, getMediaUseCase());
         call.setInitialQualityPreferences(qualityPreferences);
@@ -198,12 +234,7 @@ public class OperationSetVideoTelephonySipImpl
             throw new IllegalArgumentException(ex.getMessage());
         }
 
-        CallSipImpl call = basicTelephony.createOutgoingCall();
-        call.setLocalVideoAllowed(true, getMediaUseCase());
-        call.setInitialQualityPreferences(qualityPreferences);
-        call.invite(toAddress, null);
-
-        return call;
+        return createVideoCall(toAddress, qualityPreferences);
     }
 
     /**
@@ -319,7 +350,7 @@ public class OperationSetVideoTelephonySipImpl
             }
             catch (Exception e)
             {
-                e.printStackTrace(System.err);
+                logger.error("Error creating server transaction" , e);
                 return false;
             }
             if (serverTransaction == null)

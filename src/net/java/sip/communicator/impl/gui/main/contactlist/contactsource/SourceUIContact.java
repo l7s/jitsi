@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.contactlist.contactsource;
 
@@ -460,10 +471,6 @@ public class SourceUIContact
         if (displayDetails != null)
             tip.addLine(new JLabel[]{new JLabel(getDisplayDetails())});
 
-        // skip details for some types
-        if(sourceContact.getContactSource().getType()
-            == ContactSourceService.RECENT_MESSAGES_TYPE)
-            return tip;
 
         try
         {
@@ -499,6 +506,13 @@ public class SourceUIContact
         }
         catch (OperationNotSupportedException e)
         {
+            List<ContactDetail> telDetails
+                = sourceContact.getContactDetails(
+                    OperationSetBasicTelephony.class);
+            // if there is no telephony
+            if(telDetails == null || telDetails.isEmpty())
+                return tip;
+
             // Categories aren't supported. This is the case for history
             // records.
             List<ContactDetail> allDetails = sourceContact.getContactDetails();
@@ -559,10 +573,10 @@ public class SourceUIContact
             }
             else
             {
-                labelText = contactDetail.getDetail();
+                labelText = contactDetail.getDisplayName();
             }
 
-            jLabels[i] = new JLabel(labelText);
+            jLabels[i] = new JLabel(filterAddressDisplay(labelText));
 
             toolTip.addLine(jLabels);
         }

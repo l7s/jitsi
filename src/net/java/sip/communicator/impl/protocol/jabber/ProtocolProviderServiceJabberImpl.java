@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
@@ -17,11 +28,11 @@ import javax.net.ssl.*;
 
 import net.java.sip.communicator.impl.protocol.jabber.debugger.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.*;
-import net.java.sip.communicator.impl.protocol.jabber.extensions.caps.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.carbon.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.coin.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.colibri.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.inputevt.*;
+import net.java.sip.communicator.impl.protocol.jabber.extensions.jibri.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingle.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingleinfo.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.keepalive.*;
@@ -142,46 +153,19 @@ public class ProtocolProviderServiceJabberImpl
     public static final String URN_IETF_RFC_3264 = "urn:ietf:rfc:3264";
 
     /**
+     * http://xmpp.org/extensions/xep-0092.html Software Version.
+     *
+     */
+    // Used in JVB
+    @SuppressWarnings("unused")
+    public static final String URN_XMPP_IQ_VERSION = "jabber:iq:version";
+
+    /**
      * Jingle's Discovery Info URN for "XEP-0294: Jingle RTP Header Extensions
      * Negotiation" support.
      */
     public static final String URN_XMPP_JINGLE_RTP_HDREXT =
         "urn:xmpp:jingle:apps:rtp:rtp-hdrext:0";
-
-    /**
-     * Capabilities name for audio call in Google Talk web version.
-     */
-    public static final String CAPS_GTALK_WEB_VOICE = "voice-v1";
-
-    /**
-     * Capabilities name for video call (receive side) in Google Talk web
-     * version.
-     */
-    public static final String CAPS_GTALK_WEB_VIDEO = "video-v1";
-
-    /**
-     * Capabilities name for video call (sender side) in Google Talk web
-     * version.
-     */
-    public static final String CAPS_GTALK_WEB_CAMERA = "camera-v1";
-
-    /**
-     * URN for Google voice.
-     */
-    public static final String URN_GOOGLE_VOICE =
-        "http://www.google.com/xmpp/protocol/voice/v1";
-
-    /**
-     * URN for Google camera.
-     */
-    public static final String URN_GOOGLE_CAMERA =
-        "http://www.google.com/xmpp/protocol/camera/v1";
-
-    /**
-     * URN for Google video.
-     */
-    public static final String URN_GOOGLE_VIDEO =
-        "http://www.google.com/xmpp/protocol/video/v1";
 
     /**
      * URN for XEP-0077 inband registration
@@ -349,16 +333,6 @@ public class ProtocolProviderServiceJabberImpl
      * The details of the proxy we are using to connect to the server (if any)
      */
     private org.jivesoftware.smack.proxy.ProxyInfo proxy;
-
-    /**
-     * Our provider manager instances.
-     */
-    private static ProviderManager providerManager = null;
-
-    /**
-     * Lock for creating provider.
-     */
-    private static Object providerCreationLock = new Object();
 
     /**
      * State for connect and login state.
@@ -1153,6 +1127,12 @@ public class ProtocolProviderServiceJabberImpl
                 serviceName, proxy
         );
 
+        // if we have OperationSetPersistentPresence skip sending initial
+        // presence while login is executed, the OperationSet will take care
+        // of it
+        if(getOperationSet(OperationSetPersistentPresence.class) != null)
+            confConn.setSendPresence(false);
+
         confConn.setReconnectionAllowed(false);
         boolean tlsRequired = loginStrategy.isTlsRequired();
 
@@ -1186,7 +1166,7 @@ public class ProtocolProviderServiceJabberImpl
                         getTrustManager(cvs, serviceName));
 
                 // log SSL/TLS algorithms and protocols
-                if (logger.isDebugEnabled())
+                if (logger.isDebugEnabled() && sslContext != null)
                 {
                     final StringBuilder buff = new StringBuilder();
                     buff.append("Available TLS protocols and algorithms:\n");
@@ -1410,30 +1390,8 @@ public class ProtocolProviderServiceJabberImpl
                     new String[] { "http://jabber.org/protocol/commands"},
                     // Add features Jitsi supports in addition to smack.
                     supportedFeatures.toArray(
-                            new String[supportedFeatures.size()]));
-
-        boolean isCallingDisabled
-                = JabberActivator.getConfigurationService()
-                .getBoolean(IS_CALLING_DISABLED, false);
-
-        boolean isCallingDisabledForAccount = false;
-        if (accountID != null && accountID.getAccountPropertyBoolean(
-                ProtocolProviderFactory.IS_CALLING_DISABLED_FOR_ACCOUNT,
-                false))
-            isCallingDisabled = true;
-
-        if(isGTalkTesting()
-                && !isCallingDisabled
-                && !isCallingDisabledForAccount)
-        {
-            // Add Google Talk "ext" capabilities
-            discoveryManager.addExtFeature(CAPS_GTALK_WEB_VOICE);
-            discoveryManager.addExtFeature(CAPS_GTALK_WEB_VIDEO);
-            discoveryManager.addExtFeature(CAPS_GTALK_WEB_CAMERA);
-            discoveryManager.addFeature(URN_GOOGLE_VOICE);
-            discoveryManager.addFeature(URN_GOOGLE_VIDEO);
-            discoveryManager.addFeature(URN_GOOGLE_CAMERA);
-        }
+                            new String[supportedFeatures.size()]),
+                    true);
 
         /*
          * Expose the discoveryManager as service-public through the
@@ -1606,26 +1564,6 @@ public class ProtocolProviderServiceJabberImpl
             this.clearRegistrationStateChangeListener();
             this.clearSupportedOperationSet();
 
-            synchronized(providerCreationLock)
-            {
-                if(providerManager == null)
-                {
-                    try
-                    {
-                        ProviderManager.setInstance(new ProviderManagerExt());
-                    }
-                    catch(Throwable t)
-                    {
-                        // once loaded if we try to set instance second time
-                        // IllegalStateException is thrown
-                    }
-                    finally
-                    {
-                        providerManager = ProviderManager.getInstance();
-                    }
-                }
-            }
-
             String protocolIconPath
                 = accountID.getAccountPropertyString(
                         ProtocolProviderFactory.PROTOCOL_ICON_PATH);
@@ -1773,6 +1711,9 @@ public class ProtocolProviderServiceJabberImpl
             // RTP HDR extension
             supportedFeatures.add(URN_XMPP_JINGLE_RTP_HDREXT);
 
+            ProviderManager providerManager
+                = ProtocolProviderFactoryJabberImpl.providerManager;
+
             //register our jingle provider
             providerManager.addIQProvider( JingleIQ.ELEMENT_NAME,
                                            JingleIQ.NAMESPACE,
@@ -1799,6 +1740,12 @@ public class ProtocolProviderServiceJabberImpl
                     ColibriConferenceIQ.ELEMENT_NAME,
                     ColibriConferenceIQ.NAMESPACE,
                     new ColibriIQProvider());
+
+            providerManager.addIQProvider(
+                    JibriIq.ELEMENT_NAME,
+                    JibriIq.NAMESPACE,
+                    new JibriIqProvider()
+            );
 
             providerManager.addExtensionProvider(
                     ConferenceDescriptionPacketExtension.ELEMENT_NAME,
@@ -1884,10 +1831,14 @@ public class ProtocolProviderServiceJabberImpl
                 }
 
                 // init DTMF
-                OperationSetDTMFJabberImpl operationSetDTMFSip
+                OperationSetDTMFJabberImpl operationSetDTMF
                     = new OperationSetDTMFJabberImpl(this);
                 addSupportedOperationSet(
-                    OperationSetDTMF.class, operationSetDTMFSip);
+                    OperationSetDTMF.class, operationSetDTMF);
+
+                addSupportedOperationSet(
+                    OperationSetIncomingDTMF.class,
+                    new OperationSetIncomingDTMFJabberImpl());
 
                 addJingleFeatures();
 
@@ -2086,6 +2037,93 @@ public class ProtocolProviderServiceJabberImpl
     public AccountID getAccountID()
     {
         return accountID;
+    }
+
+    /**
+     * Validates the node part of a JID and returns an error message if
+     * applicable and a suggested correction.
+     * 
+     * @param contactId the contact identifier to validate
+     * @param result Must be supplied as an empty a list. Implementors add
+     *            items:
+     *            <ol>
+     *            <li>is the error message if applicable
+     *            <li>a suggested correction. Index 1 is optional and can only
+     *            be present if there was a validation failure.
+     *            </ol>
+     * @return true if the contact id is valid, false otherwise
+     */
+    @Override
+    public boolean validateContactAddress(String contactId, List<String> result)
+    {
+        if (result == null)
+        {
+            throw new IllegalArgumentException("result must be an empty list");
+        }
+
+        result.clear();
+        try
+        {
+            contactId = contactId.trim();
+            if (contactId.length() == 0)
+            {
+                result.add(JabberActivator.getResources().getI18NString(
+                    "impl.protocol.jabber.INVALID_ADDRESS", new String[]
+                { contactId }));
+                // no suggestion for an empty id
+                return false;
+            }
+
+            String user = contactId;
+            String remainder = "";
+            int at = contactId.indexOf('@');
+            if (at > -1)
+            {
+                user = contactId.substring(0, at);
+                remainder = contactId.substring(at);
+            }
+
+            // <conforming-char> ::= #x21 | [#x23-#x25] | [#x28-#x2E] |
+            // [#x30-#x39] | #x3B | #x3D | #x3F |
+            // [#x41-#x7E] | [#x80-#xD7FF] |
+            // [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+            boolean valid = true;
+            String suggestion = "";
+            for (char c : user.toCharArray())
+            {
+                if (!(c == 0x21 || (c >= 0x23 && c <= 0x25)
+                    || (c >= 0x28 && c <= 0x2e) || (c >= 0x30 && c <= 0x39)
+                    || c == 0x3b || c == 0x3d || c == 0x3f
+                    || (c >= 0x41 && c <= 0x7e) || (c >= 0x80 && c <= 0xd7ff)
+                    || (c >= 0xe000 && c <= 0xfffd)))
+                {
+                    valid = false;
+                }
+                else
+                {
+                    suggestion += c;
+                }
+            }
+
+            if (!valid)
+            {
+                result.add(JabberActivator.getResources().getI18NString(
+                    "impl.protocol.jabber.INVALID_ADDRESS", new String[]
+                { contactId }));
+                result.add(suggestion + remainder);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            result.add(JabberActivator.getResources().getI18NString(
+                "impl.protocol.jabber.INVALID_ADDRESS", new String[]
+            { contactId }));
+        }
+
+        return false;
     }
 
     /**
@@ -2368,61 +2406,6 @@ public class ProtocolProviderServiceJabberImpl
     }
 
     /**
-     * Determines if the given list of <tt>ext features</tt> is supported by the
-     * specified jabber id.
-     *
-     * @param jid the jabber id for which to check
-     * @param extFeatures the list of ext features to check for
-     *
-     * @return <tt>true</tt> if the list of ext features is supported;
-     * otherwise, <tt>false</tt>
-     */
-    public boolean isExtFeatureListSupported(String jid, String... extFeatures)
-    {
-        EntityCapsManager capsManager  = discoveryManager.getCapsManager();
-        EntityCapsManager.Caps caps = capsManager.getCapsByUser(jid);
-
-        String bypassDomain = accountID.getAccountPropertyString(
-            "TELEPHONY_BYPASS_GTALK_CAPS");
-        String domain = StringUtils.parseServer(jid);
-        boolean domainEquals = domain.equals(bypassDomain);
-
-        if(caps != null && caps.ext != null)
-        {
-            String exts[] = caps.ext.split(" ");
-            boolean found = false;
-
-            for(String extFeature : extFeatures)
-            {
-                // in case we have a domain that have to bypass GTalk caps
-                if(extFeature.equals(CAPS_GTALK_WEB_VOICE) && domainEquals)
-                {
-                    return true;
-                }
-
-                found = false;
-                for(String ext : exts)
-                {
-                    if(ext.equals(extFeature))
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if(!found)
-                {
-                    break;
-                }
-            }
-
-            return found;
-        }
-
-        return false;
-    }
-
-    /**
      * Determines if the given list of <tt>features</tt> is supported by the
      * specified jabber id.
      *
@@ -2434,18 +2417,16 @@ public class ProtocolProviderServiceJabberImpl
      */
     public boolean isFeatureListSupported(String jid, String... features)
     {
-        boolean isFeatureListSupported = true;
-
         try
         {
             if(discoveryManager == null)
-                return isFeatureListSupported;
+                return false;
 
             DiscoverInfo featureInfo =
                 discoveryManager.discoverInfoNonBlocking(jid);
 
             if(featureInfo == null)
-                return isFeatureListSupported;
+                return false;
 
             for (String feature : features)
             {
@@ -2453,17 +2434,19 @@ public class ProtocolProviderServiceJabberImpl
                 {
                     // If one is not supported we return false and don't check
                     // the others.
-                    isFeatureListSupported = false;
-                    break;
+                    return false;
                 }
             }
+
+            return true;
         }
         catch (XMPPException e)
         {
             if (logger.isDebugEnabled())
                 logger.debug("Failed to retrive discovery info.", e);
         }
-        return isFeatureListSupported;
+
+        return false;
     }
 
     /**
@@ -2791,24 +2774,6 @@ public class ProtocolProviderServiceJabberImpl
     public SecurityAuthority getAuthority()
     {
         return authority;
-    }
-
-    /**
-     * Returns true if gtalktesting is enabled, false otherwise.
-     *
-     * @return true if gtalktesting is enabled, false otherwise.
-     */
-    public boolean isGTalkTesting()
-    {
-        return
-            Boolean.getBoolean("gtalktesting")
-                || JabberActivator.getConfigurationService().getBoolean(
-                        "net.java.sip.communicator.impl.protocol.jabber"
-                            + ".gtalktesting",
-                        false)
-                || accountID.getAccountPropertyBoolean(
-                        ProtocolProviderFactory.IS_USE_GOOGLE_ICE,
-                        true);
     }
 
     UserCredentials getUserCredentials()

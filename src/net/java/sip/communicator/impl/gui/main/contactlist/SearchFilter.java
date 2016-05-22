@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.contactlist;
 
@@ -53,12 +64,6 @@ public class SearchFilter
                 + ".DISABLE_CALL_HISTORY_SEARCH_IN_CONTACT_LIST";
 
     /**
-     * Defines custom order for the contact sources.
-     */
-    private static Map<Integer, Integer> contactSourceOrder
-        = new HashMap<Integer, Integer>();
-
-    /**
      * If set, we are searching a phone number and will use the phone number
      * service to try matching the numbers.
      */
@@ -70,7 +75,6 @@ public class SearchFilter
     public SearchFilter(MetaContactListSource contactListSource)
     {
         this.mclSource = contactListSource;
-        initContactSourceOrder();
     }
 
     /**
@@ -80,19 +84,6 @@ public class SearchFilter
     {
         this.mclSource = null;
         this.sourceContactList = sourceContactList;
-        initContactSourceOrder();
-    }
-
-    /**
-     * Initializes the custom contact source order map.
-     */
-    private void initContactSourceOrder()
-    {
-        //This entry will be used to set the index for chat room contact sources
-        //The index is used to order the contact sources in the contact list.
-        //The chat room sources will be ordered after the meta contact list.
-        contactSourceOrder.put(ContactSourceService.CHAT_ROOM_TYPE,
-            GuiActivator.getContactListService().getSourceIndex() + 1);
     }
 
     /**
@@ -154,13 +145,13 @@ public class SearchFilter
             if (sourceContactList.getDefaultFilter()
                 .equals(TreeContactList.presenceFilter))
             {
-                Integer contactSourceIndex = contactSourceOrder.get(
-                    filterSource.getContactSourceService().getType());
-                if(contactSourceIndex != null)
+                if(filterSource.getContactSourceService().getType()
+                    == ContactSourceService.CONTACT_LIST_TYPE)
                 {
                     //We are setting the index from contactSourceOrder map. This
                     //index is set to reorder the sources in the contact list.
-                    filterSource.setContactSourceIndex(contactSourceIndex);
+                    filterSource.setContactSourceIndex(
+                        this.mclSource.getIndex() + 1);
                 }
             }
             // If we have stopped filtering in the mean time we return here.
@@ -279,14 +270,13 @@ public class SearchFilter
      */
     private boolean isMatching(String text)
     {
-        if (filterPattern != null)
-            return filterPattern.matcher(text).find();
+        if (filterPattern != null && filterPattern.matcher(text).find())
+            return true;
 
         if(isSearchingPhoneNumber && this.filterString != null)
             return GuiActivator.getPhoneNumberI18nService()
                 .phoneNumbersMatch(this.filterString, text);
 
         return true;
-
     }
 }

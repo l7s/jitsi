@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.service.protocol;
 
@@ -234,6 +245,19 @@ public abstract class AbstractProtocolProviderService
     }
 
     /**
+     * Default implementation that always returns true.
+     * 
+     * @param contactId ignored.
+     * @param result ignored
+     * @return true
+     */
+    @Override
+    public boolean validateContactAddress(String contactId, List<String> result)
+    {
+        return true;
+    }
+
+    /**
      * Returns an array containing all operation sets supported by the current
      * implementation. When querying this method users must be prepared to
      * receive any subset of the OperationSet-s defined by this service. They
@@ -301,6 +325,18 @@ public abstract class AbstractProtocolProviderService
     public boolean isRegistered()
     {
         return getRegistrationState().equals(RegistrationState.REGISTERED);
+    }
+
+    /**
+     * Indicates whether or not this provider must registered
+     * when placing outgoing calls.
+     *
+     * @return <tt>true</tt> if the provider must be registered when placing a
+     * call and <tt>false</tt> otherwise.
+     */
+    public boolean isRegistrationRequiredForCalling()
+    {
+        return true;
     }
 
     /**

@@ -1,16 +1,32 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <jni.h>
 #import <Cocoa/Cocoa.h>
 #include <dlfcn.h>
 
+#ifdef _JITSI_USE_1_6_
+#define JVM_JAVA_KEY "Java"
+#else
 #define JVM_JAVA_KEY "Javax" // Cannot be Java
                              // or OSX requests the old Apple JVM
+#endif
+
 #define JVM_WORKING_DIR_KEY "WorkingDirectory"
 #define JVM_MAIN_CLASS_NAME_KEY "MainClass"
 #define JVM_CLASSPATH_KEY "ClassPath"
@@ -234,7 +250,8 @@ JLI_Launch_t getLauncher(NSDictionary *javaDictionary)
 
     for (id key in sortedKeys)
     {
-        JLI_Launch_t jli_LaunchFxnPtr = getJLILaunch(foundVersions[key]);
+        JLI_Launch_t jli_LaunchFxnPtr =
+            getJLILaunch([foundVersions objectForKey:key]);
 
         if(jli_LaunchFxnPtr != NULL)
         {
@@ -285,6 +302,12 @@ void launchJitsi(int argMainCount, char *argMainValues[])
 
     if(jli_LaunchFxnPtr == NULL)
     {
+        NSString *oldLauncher =
+            [NSMutableString stringWithFormat:@"%@/Contents/MacOS/%@_OldLauncher",
+                                        [mainBundle bundlePath], pname];
+
+        execv([oldLauncher fileSystemRepresentation], argMainValues);
+
         NSLog(@"No java found!");
         exit(-1);
     }

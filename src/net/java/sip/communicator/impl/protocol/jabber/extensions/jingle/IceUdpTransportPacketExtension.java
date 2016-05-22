@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber.extensions.jingle;
 
@@ -180,6 +191,27 @@ public class IceUdpTransportPacketExtension
     }
 
     /**
+     * Removes given <tt>PacketExtension</tt> from the list of child packet
+     * extensions. <tt>CandidatePacketExtension</tt> are not taken into account
+     * in this method and {@link #removeCandidate(CandidatePacketExtension)}
+     * should be used instead.
+     *
+     * @param childExtension <tt>PacketExtension</tt> instance to be removed
+     *        from child packet extensions list.
+     *
+     * @return <tt>true</tt> if given <tt>childExtension</tt> has been in the
+     *         list and was removed or <tt>false</tt> otherwise.
+     */
+    public boolean removeChildExtension(PacketExtension childExtension)
+    {
+        List<? extends PacketExtension> childExtensions
+            = super.getChildExtensions();
+
+        return childExtensions != null
+            && childExtensions.remove(childExtension);
+    }
+
+    /**
      * Returns the list of {@link CandidatePacketExtension}s currently
      * registered with this transport.
      *
@@ -315,6 +347,7 @@ public class IceUdpTransportPacketExtension
                 copy.setFingerprint(dtlsFingerprint.getFingerprint());
                 copy.setHash(dtlsFingerprint.getHash());
                 copy.setRequired(dtlsFingerprint.getRequired());
+                copy.setSetup(dtlsFingerprint.getSetup());
 
                 dst.addChildExtension(copy);
             }

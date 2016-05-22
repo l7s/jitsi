@@ -1,11 +1,23 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
+import java.io.*;
 import java.util.*;
 
 import net.java.sip.communicator.service.protocol.*;
@@ -57,8 +69,19 @@ public class OperationSetPersistentPresenceIrcImpl
 
         // Create volatile contact
         ContactIrcImpl newVolatileContact =
-            new ContactIrcImpl(this.parentProvider, id, volatileGroup);
+            new ContactIrcImpl(this.parentProvider, id, volatileGroup,
+                IrcStatusEnum.ONLINE);
         volatileGroup.addContact(newVolatileContact);
+
+        // Add nick to watch list of presence manager.
+        final IrcConnection connection =
+            this.parentProvider.getIrcStack().getConnection();
+        if (connection != null)
+        {
+            // FIXME create private method that decides between adding to
+            // persistent context directly or adding via presence manager
+            connection.getPresenceManager().addNickWatch(id);
+        }
 
         this.fireSubscriptionEvent(newVolatileContact, volatileGroup,
             SubscriptionEvent.SUBSCRIPTION_CREATED);
@@ -91,6 +114,7 @@ public class OperationSetPersistentPresenceIrcImpl
         ContactGroupIrcImpl volatileGroup =
             new ContactGroupIrcImpl(this.parentProvider, this.rootGroup,
                 groupName);
+        volatileGroup.setPersistent(false);
 
         this.rootGroup.addSubGroup(volatileGroup);
 
@@ -111,10 +135,12 @@ public class OperationSetPersistentPresenceIrcImpl
     }
 
     /**
-     * IRC currently does not implement subscribing.
+     * Subscribes to presence updates for specified contact identifier.
      *
-     * @param contactIdentifier contact
-     * @throws OperationFailedException if not implemented
+     * @param contactIdentifier the contact's identifier
+     * @throws IllegalArgumentException on bad input
+     * @throws IllegalStateException if disconnected
+     * @throws OperationFailedException on failed operation
      */
     @Override
     public void subscribe(final String contactIdentifier)
@@ -122,17 +148,17 @@ public class OperationSetPersistentPresenceIrcImpl
         IllegalStateException,
         OperationFailedException
     {
-        LOGGER.trace("subscribe(\"" + contactIdentifier + "\") called");
-        throw new OperationFailedException("Not implemented.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        subscribe(this.rootGroup, contactIdentifier);
     }
 
     /**
-     * IRC currently does not implement subscribing.
+     * Subscribes to presence updates for specified contact identifier.
      *
      * @param parent contact group
      * @param contactIdentifier contact
      * @throws OperationFailedException if not implemented
+     * @throws IllegalArgumentException on bad input
+     * @throws IllegalStateException if disconnected
      */
     @Override
     public void subscribe(final ContactGroup parent,
@@ -141,17 +167,53 @@ public class OperationSetPersistentPresenceIrcImpl
         IllegalStateException,
         OperationFailedException
     {
-        LOGGER.trace("subscribe(\"" + parent.getGroupName() + "\", \""
-            + contactIdentifier + "\") called");
-        throw new OperationFailedException("Not implemented.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        if (contactIdentifier == null || contactIdentifier.isEmpty())
+        {
+            throw new IllegalArgumentException(
+                "contactIdentifier cannot be null or empty");
+        }
+        if (!(parent instanceof ContactGroupIrcImpl))
+        {
+            throw new IllegalArgumentException(
+                "parent group must be an instance of ContactGroupIrcImpl");
+        }
+        final ContactGroupIrcImpl contactGroup = (ContactGroupIrcImpl) parent;
+        final IrcConnection connection =
+            this.parentProvider.getIrcStack().getConnection();
+        if (connection == null)
+        {
+            throw new IllegalStateException("not currently connected");
+        }
+        // TODO show some kind of confirmation dialog before adding a contact,
+        // since contacts in IRC are not always authenticated.
+        // TODO verify id with IdentityService (future) to ensure that user is
+        // authenticated before adding it (ACC 3: user is logged in, ACC 0: user
+        // does not exist, ACC 1: account exists but user is not logged in)
+        final ContactIrcImpl newContact =
+            new ContactIrcImpl(this.parentProvider, contactIdentifier,
+                contactGroup, IrcStatusEnum.OFFLINE);
+        try
+        {
+            contactGroup.addContact(newContact);
+            connection.getPresenceManager().addNickWatch(contactIdentifier);
+            fireSubscriptionEvent(newContact, contactGroup,
+                SubscriptionEvent.SUBSCRIPTION_CREATED);
+        }
+        catch (RuntimeException e)
+        {
+            LOGGER.debug("Failed to subscribe to contact.", e);
+            fireSubscriptionEvent(newContact, contactGroup,
+                SubscriptionEvent.SUBSCRIPTION_FAILED);
+        }
     }
 
     /**
-     * IRC currently does not implement unsubscribing.
+     * Unsubscribe for presence change events for specified contact.
      *
-     * @param contact contact to unsubscribe
-     * @throws OperationFailedException if not implemented
+     * @param contact contact instance
+     * @throws IllegalArgumentException on bad input
+     * @throws IllegalStateException if disconnected
+     * @throws OperationFailedException if something went wrong
      */
     @Override
     public void unsubscribe(final Contact contact)
@@ -159,13 +221,38 @@ public class OperationSetPersistentPresenceIrcImpl
         IllegalStateException,
         OperationFailedException
     {
-        LOGGER.trace("unsubscribe(\"" + contact.getAddress() + "\") called");
-        throw new OperationFailedException("Not implemented.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        if (!(contact instanceof ContactIrcImpl))
+        {
+            throw new IllegalArgumentException(
+                "contact must be instance of ContactIrcImpl");
+        }
+        final ContactIrcImpl ircContact = (ContactIrcImpl) contact;
+        final ContactGroupIrcImpl parentGroup =
+            (ContactGroupIrcImpl) ircContact.getParentContactGroup();
+        try
+        {
+            final IrcConnection connection =
+                this.parentProvider.getIrcStack().getConnection();
+            if (connection != null)
+            {
+                connection.getPresenceManager().removeNickWatch(
+                    contact.getAddress());
+            }
+            parentGroup.removeContact(ircContact);
+            fireSubscriptionEvent(ircContact, parentGroup,
+                SubscriptionEvent.SUBSCRIPTION_REMOVED);
+        }
+        catch (RuntimeException e)
+        {
+            LOGGER.debug("Failed to unsubscribe from contact.", e);
+            fireSubscriptionEvent(ircContact, parentGroup,
+                SubscriptionEvent.SUBSCRIPTION_FAILED);
+        }
     }
 
     /**
-     * Creating a contact group is currently not implemented.
+     * Create a "server stored" contact group. (Which is not actually server
+     * stored, but close enough ...)
      *
      * @param parent parent contact group
      * @param groupName new group's name
@@ -176,8 +263,22 @@ public class OperationSetPersistentPresenceIrcImpl
         final String groupName) throws OperationFailedException
     {
         LOGGER.trace("createServerStoredContactGroup(...) called");
-        throw new OperationFailedException("Not implemented.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        if (!(parent instanceof ContactGroupIrcImpl))
+        {
+            throw new IllegalArgumentException(
+                "parent is not an instance of ContactGroupIrcImpl");
+        }
+        if (groupName == null || groupName.isEmpty())
+        {
+            throw new IllegalArgumentException(
+                "groupName cannot be null or empty");
+        }
+        final ContactGroupIrcImpl parentGroup = (ContactGroupIrcImpl) parent;
+        final ContactGroupIrcImpl newGroup =
+           new ContactGroupIrcImpl(this.parentProvider, parentGroup, groupName);
+        parentGroup.addSubGroup(newGroup);
+        fireServerStoredGroupEvent(newGroup,
+            ServerStoredGroupEvent.GROUP_CREATED_EVENT);
     }
 
     /**
@@ -191,8 +292,16 @@ public class OperationSetPersistentPresenceIrcImpl
         throws OperationFailedException
     {
         LOGGER.trace("removeServerStoredContactGroup called");
-        throw new OperationFailedException("Not implemented.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        if (!(group instanceof ContactGroupIrcImpl))
+        {
+            throw new IllegalArgumentException(
+                "group must be an instance of ContactGroupIrcImpl");
+        }
+        final ContactGroupIrcImpl ircGroup = (ContactGroupIrcImpl) group;
+        ((ContactGroupIrcImpl) ircGroup.getParentContactGroup())
+            .removeSubGroup(ircGroup);
+        fireServerStoredGroupEvent(ircGroup,
+            ServerStoredGroupEvent.GROUP_REMOVED_EVENT);
     }
 
     /**
@@ -221,8 +330,20 @@ public class OperationSetPersistentPresenceIrcImpl
         final ContactGroup newParent) throws OperationFailedException
     {
         LOGGER.trace("moveContactToGroup called");
-        throw new OperationFailedException("Not implemented.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        if (!(contactToMove instanceof ContactIrcImpl))
+        {
+            throw new IllegalArgumentException(
+                "contactToMove must be an instance of ContactIrcImpl");
+        }
+        final ContactIrcImpl contact = (ContactIrcImpl) contactToMove;
+        // remove contact from old parent contact group
+        ((ContactGroupIrcImpl) contact.getParentContactGroup())
+            .removeContact(contact);
+        // add contact to new parent contact group
+        final ContactGroupIrcImpl newGroup = (ContactGroupIrcImpl) newParent;
+        newGroup.addContact(contact);
+        // update parent contact group in contact
+        contact.setParentContactGroup(newGroup);
     }
 
     /**
@@ -233,10 +354,21 @@ public class OperationSetPersistentPresenceIrcImpl
     @Override
     public ContactGroup getServerStoredContactListRoot()
     {
-        // TODO consider using this for contacts that are registered at NickServ
-        // for the IRC network. Store contacts and possibly some whois info if
-        // useful for these contacts as persistent data.
         return this.rootGroup;
+    }
+
+    /**
+     * Creates an unresolved contact for IRC.
+     *
+     * @param address contact address
+     * @param persistentData persistent data for contact
+     * @return returns newly created unresolved contact instance
+     */
+    @Override
+    public ContactIrcImpl createUnresolvedContact(final String address,
+        final String persistentData)
+    {
+        return createUnresolvedContact(address, persistentData, this.rootGroup);
     }
 
     /**
@@ -251,28 +383,26 @@ public class OperationSetPersistentPresenceIrcImpl
     public ContactIrcImpl createUnresolvedContact(final String address,
         final String persistentData, final ContactGroup parentGroup)
     {
+        // FIXME actually make this thing unresolved until the first presence
+        // update is received?
+        if (address == null || address.isEmpty())
+        {
+            throw new IllegalArgumentException(
+                "address cannot be null or empty");
+        }
         if (!(parentGroup instanceof ContactGroupIrcImpl))
         {
             throw new IllegalArgumentException(
                 "Provided contact group is not an IRC contact group instance.");
         }
-        return new ContactIrcImpl(this.parentProvider, address,
-            (ContactGroupIrcImpl) parentGroup);
-    }
-
-    /**
-     * Creates an unresolved contact for IRC.
-     *
-     * @param address contact address
-     * @param persistentData persistent data for contact
-     * @return returns newly created unresolved contact instance
-     */
-    @Override
-    public ContactIrcImpl createUnresolvedContact(final String address,
-        final String persistentData)
-    {
-        return new ContactIrcImpl(this.parentProvider, address,
-            this.getRootGroup());
+        final ContactGroupIrcImpl group = (ContactGroupIrcImpl) parentGroup;
+        final ContactIrcImpl unresolvedContact =
+            new ContactIrcImpl(this.parentProvider, address,
+                (ContactGroupIrcImpl) parentGroup, IrcStatusEnum.OFFLINE);
+        group.addContact(unresolvedContact);
+        this.parentProvider.getIrcStack().getContext().nickWatchList
+            .add(address);
+        return unresolvedContact;
     }
 
     /**
@@ -293,8 +423,11 @@ public class OperationSetPersistentPresenceIrcImpl
             throw new IllegalArgumentException(
                 "parentGroup is not a ContactGroupIrcImpl instance");
         }
-        return new ContactGroupIrcImpl(this.parentProvider,
-            (ContactGroupIrcImpl) parentGroup, groupUID);
+        final ContactGroupIrcImpl unresolvedGroup =
+            new ContactGroupIrcImpl(this.parentProvider,
+                (ContactGroupIrcImpl) parentGroup, groupUID);
+        ((ContactGroupIrcImpl) parentGroup).addSubGroup(unresolvedGroup);
+        return unresolvedGroup;
     }
 
     /**
@@ -332,30 +465,31 @@ public class OperationSetPersistentPresenceIrcImpl
      */
     @Override
     public void publishPresenceStatus(final PresenceStatus status,
-        String statusMessage)
+        final String statusMessage)
         throws IllegalArgumentException,
         IllegalStateException,
         OperationFailedException
     {
         final IrcConnection connection =
             this.parentProvider.getIrcStack().getConnection();
+        String message = statusMessage;
         if (connection == null)
         {
             throw new IllegalStateException("Connection is not available.");
         }
-        if (statusMessage != null && statusMessage.isEmpty())
+        if (message != null && message.isEmpty())
         {
             // if we provide a message, make sure it isn't empty
-            statusMessage = null;
+            message = null;
         }
 
         if (status.getStatus() >= IrcStatusEnum.AVAILABLE_THRESHOLD)
         {
-            connection.getPresenceManager().away(false, statusMessage);
+            connection.getPresenceManager().away(false, message);
         }
         else if (status.getStatus() >= IrcStatusEnum.AWAY_THRESHOLD)
         {
-            connection.getPresenceManager().away(true, statusMessage);
+            connection.getPresenceManager().away(true, message);
         }
     }
 
@@ -396,11 +530,11 @@ public class OperationSetPersistentPresenceIrcImpl
     }
 
     /**
-     * IRC currently does not implement querying presence status.
+     * Query contact status using WHOIS query to IRC server.
      *
      * @param contactIdentifier contact id
      * @return returns current presence status
-     * @throws OperationFailedException for not supporting this feature
+     * @throws OperationFailedException in case of problems during query
      */
     @Override
     public PresenceStatus queryContactStatus(final String contactIdentifier)
@@ -408,9 +542,26 @@ public class OperationSetPersistentPresenceIrcImpl
         IllegalStateException,
         OperationFailedException
     {
-        // TODO implement querying presence status of contact
-        throw new OperationFailedException("Not supported.",
-            OperationFailedException.NOT_SUPPORTED_OPERATION);
+        final IrcConnection connection =
+            this.parentProvider.getIrcStack().getConnection();
+        if (connection == null)
+        {
+            throw new IllegalStateException("not connected");
+        }
+        try
+        {
+            return connection.getPresenceManager().query(contactIdentifier);
+        }
+        catch (IOException e)
+        {
+            throw new OperationFailedException("Presence query failed.",
+                OperationFailedException.NETWORK_FAILURE, e);
+        }
+        catch (InterruptedException e)
+        {
+            throw new OperationFailedException("Presence query interrupted.",
+                OperationFailedException.GENERAL_ERROR, e);
+        }
     }
 
     /**
@@ -420,28 +571,9 @@ public class OperationSetPersistentPresenceIrcImpl
      * @return contact instance if found or null if nothing found
      */
     @Override
-    public Contact findContactByID(final String contactID)
+    public ContactIrcImpl findContactByID(final String contactID)
     {
-        if (contactID == null)
-        {
-            return null;
-        }
-        Contact contact = this.rootGroup.getContact(contactID);
-        if (contact != null)
-        {
-            return contact;
-        }
-        Iterator<ContactGroup> groups = this.rootGroup.subgroups();
-        while (groups.hasNext())
-        {
-            ContactGroup group = groups.next();
-            contact = group.getContact(contactID);
-            if (contact != null)
-            {
-                return contact;
-            }
-        }
-        return null;
+        return this.rootGroup.findContact(contactID);
     }
 
     /**
@@ -492,5 +624,55 @@ public class OperationSetPersistentPresenceIrcImpl
                 + " for nick name '" + id + "'.");
         }
         return contact;
+    }
+
+    /**
+     * Update presence based for user's nick.
+     *
+     * @param nick the nick
+     * @param newStatus the new status
+     */
+    void updateNickContactPresence(final String nick,
+        final PresenceStatus newStatus)
+    {
+        LOGGER.trace("Received presence update for nick '" + nick
+            + "', status: " + newStatus.getStatus());
+        final Contact contact = findContactByID(nick);
+        if (contact == null)
+        {
+            LOGGER.trace("null contact instance found: presence will not be "
+                + "processed.");
+            return;
+        }
+        if (!(contact instanceof ContactIrcImpl))
+        {
+            throw new IllegalArgumentException(
+                "Expected contact to be an IRC contact instance.");
+        }
+        final ContactIrcImpl contactIrc = (ContactIrcImpl) contact;
+        final ContactGroup group = contact.getParentContactGroup();
+        final PresenceStatus previous = contactIrc.getPresenceStatus();
+        contactIrc.setPresenceStatus(newStatus);
+        fireContactPresenceStatusChangeEvent(contact, group, previous);
+    }
+
+    /**
+     * Update the nick/id for an IRC contact.
+     *
+     * @param oldNick the old nick
+     * @param newNick the new nick
+     */
+    void updateNick(final String oldNick, final String newNick)
+    {
+        ContactIrcImpl contact = findContactByID(oldNick);
+        if (contact == null)
+        {
+            // Nick change is not meant for any known contact. Ignoring.
+            return;
+        }
+        contact.setAddress(newNick);
+        fireContactPropertyChangeEvent(
+            ContactPropertyChangeEvent.PROPERTY_DISPLAY_NAME, contact, oldNick,
+            newNick);
     }
 }

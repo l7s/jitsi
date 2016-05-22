@@ -1,12 +1,22 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.otr;
 
-import net.java.otr4j.*;
 import net.java.otr4j.io.*;
 import net.java.sip.communicator.plugin.otr.OtrContactManager.OtrContact;
 import net.java.sip.communicator.service.protocol.*;
@@ -25,20 +35,6 @@ public class OtrTransformLayer
      */
     public MessageDeliveredEvent messageDelivered(MessageDeliveredEvent evt)
     {
-        Contact contact = evt.getDestinationContact();
-        OtrContact otrContact =
-            OtrContactManager.getOtrContact(contact, evt.getContactResource());
-
-        OtrPolicy policy = OtrActivator.scOtrEngine.getContactPolicy(contact);
-        ScSessionStatus sessionStatus =
-            OtrActivator.scOtrEngine.getSessionStatus(otrContact);
-        // If OTR is disabled and we are not over an encrypted session, don't
-        // process anything.
-        if (!policy.getEnableManual()
-            && sessionStatus != ScSessionStatus.ENCRYPTED
-            && sessionStatus != ScSessionStatus.FINISHED)
-            return evt;
-
         if (OtrActivator.scOtrEngine.isMessageUIDInjected(evt
             .getSourceMessage().getMessageUID()))
             // If this is a message otr4j injected earlier, don't display it,
@@ -67,16 +63,6 @@ public class OtrTransformLayer
         Contact contact = evt.getDestinationContact();
         OtrContact otrContact =
             OtrContactManager.getOtrContact(contact, evt.getContactResource());
-
-        OtrPolicy policy = OtrActivator.scOtrEngine.getContactPolicy(contact);
-        ScSessionStatus sessionStatus =
-            OtrActivator.scOtrEngine.getSessionStatus(otrContact);
-        // If OTR is disabled and we are not over an encrypted session, don't
-        // process anything.
-        if (!policy.getEnableManual()
-            && sessionStatus != ScSessionStatus.ENCRYPTED
-            && sessionStatus != ScSessionStatus.FINISHED)
-            return new MessageDeliveredEvent[] {evt};
 
         // If this is a message otr4j injected earlier, return the event as is.
         if (OtrActivator.scOtrEngine.isMessageUIDInjected(evt
@@ -137,16 +123,6 @@ public class OtrTransformLayer
         Contact contact = evt.getSourceContact();
         OtrContact otrContact =
             OtrContactManager.getOtrContact(contact, evt.getContactResource());
-
-        OtrPolicy policy = OtrActivator.scOtrEngine.getContactPolicy(contact);
-        ScSessionStatus sessionStatus =
-            OtrActivator.scOtrEngine.getSessionStatus(otrContact);
-        // If OTR is disabled and we are not over an encrypted session, don't
-        // process anything.
-        if (!policy.getEnableManual()
-            && sessionStatus != ScSessionStatus.ENCRYPTED
-            && sessionStatus != ScSessionStatus.FINISHED)
-            return evt;
 
         // Process the incoming message.
         String msgContent = evt.getSourceMessage().getContent();

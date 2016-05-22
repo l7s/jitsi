@@ -1,18 +1,28 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
-import java.util.*;
+import java.util.regex.*;
 
 import net.java.sip.communicator.util.*;
 
 import com.ircclouds.irc.api.*;
 import com.ircclouds.irc.api.domain.messages.*;
-import com.ircclouds.irc.api.listeners.*;
 import com.ircclouds.irc.api.state.*;
 
 /**
@@ -27,6 +37,9 @@ import com.ircclouds.irc.api.state.*;
  * TODO Query remote identity service for current identity-state such as:
  * unknown, unauthenticated, authenticated.
  *
+ * TODO Catch 900 (AUTHENTICATE LoggedIn) message and extract identity from
+ * there so that we do not have to do a separate WHOIS query.
+ *
  * @author Danny van Heumen
  */
 public class IdentityManager
@@ -38,20 +51,11 @@ public class IdentityManager
         .getLogger(IdentityManager.class);
 
     /**
-     * Reserved symbols. These symbols have special meaning and cannot be
-     * used to start nick names.
+     * Pattern of a valid nick.
      */
-    private static final Set<Character> RESERVED;
-
-    /**
-     * Initialize RESERVED symbols set.
-     */
-    static {
-        final HashSet<Character> reserved = new HashSet<Character>();
-        reserved.add('#');
-        reserved.add('&');
-        RESERVED = Collections.unmodifiableSet(reserved);
-    }
+    public static final Pattern NICK_PATTERN = Pattern
+        .compile("[A-Za-z\\[\\]\\\\`\\^\\{\\}_\\|]"
+            + "[A-Za-z0-9\\-\\[\\]\\\\`\\^\\{\\}_\\|]*");
 
     /**
      * The IRCApi instance.
@@ -64,6 +68,11 @@ public class IdentityManager
      * The connection state.
      */
     private final IIRCState connectionState;
+
+    /**
+     * The protocol provider instance.
+     */
+    private final ProtocolProviderServiceIrcImpl provider;
 
     /**
      * The identity container.
@@ -82,8 +91,10 @@ public class IdentityManager
      *
      * @param irc thread-safe IRCApi instance
      * @param connectionState the connection state
+     * @param provider the protocol provider instance
      */
-    public IdentityManager(final IRCApi irc, final IIRCState connectionState)
+    public IdentityManager(final IRCApi irc, final IIRCState connectionState,
+        final ProtocolProviderServiceIrcImpl provider)
     {
         if (irc == null)
         {
@@ -96,6 +107,12 @@ public class IdentityManager
                 "connectionState instance cannot be null");
         }
         this.connectionState = connectionState;
+        if (provider == null)
+        {
+            throw new IllegalArgumentException("provider cannot be null");
+        }
+        this.provider = provider;
+        this.irc.addListener(new IdentityListener());
         // query user's WHOIS identity as perceived by the IRC server
         queryIdentity(this.irc, this.connectionState, new WhoisListener());
         isupportNickLen = parseISupportNickLen(this.connectionState);
@@ -182,20 +199,17 @@ public class IdentityManager
     public static String checkNick(final String nick,
         final Integer isupportNickLen)
     {
-        if (nick == null)
+        if (nick == null || nick.isEmpty())
+        {
+            throw new IllegalArgumentException("a nick name must be provided");
+        }
+        if (!NICK_PATTERN.matcher(nick).matches())
         {
             throw new IllegalArgumentException(
-                "a nick name must be provided");
+                "nick name contains invalid characters: only letters, "
+                    + "digits and -, \\, [, ], `, ^, {, }, |, _ are allowed");
         }
-        // TODO Add '+' and '!' to reserved symbols too?
-        if (RESERVED.contains(nick.charAt(0)))
-        {
-            throw new IllegalArgumentException(
-                "the nick name must not start with '#' or '&' "
-                    + "since these are reserved for IRC's channels");
-        }
-        if (isupportNickLen != null
-            && nick.length() > isupportNickLen.intValue())
+        if (isupportNickLen != null && nick.length() > isupportNickLen)
         {
             throw new IllegalArgumentException("the nick name must not be "
                 + "longer than " + isupportNickLen.intValue() + " characters "
@@ -223,12 +237,21 @@ public class IdentityManager
      * @author Danny van Heumen
      */
     private final class WhoisListener
-        extends VariousMessageListenerAdapter
+        extends AbstractIrcMessageListener
     {
         /**
          * IRC reply for WHOIS query.
          */
         private static final int RPL_WHOISUSER = 311;
+
+        /**
+         * Constructor.
+         */
+        public WhoisListener()
+        {
+            super(IdentityManager.this.irc,
+                IdentityManager.this.connectionState);
+        }
 
         /**
          * On receiving a server numeric message.
@@ -244,8 +267,7 @@ public class IdentityManager
                 final String whoismsg = msg.getText();
                 final int endNickIndex = whoismsg.indexOf(' ');
                 final String nick = whoismsg.substring(0, endNickIndex);
-                if (!IdentityManager.this.connectionState.getNickname().equals(
-                    nick))
+                if (!localUser(nick))
                 {
                     // We can only use WHOIS info about ourselves to discover
                     // our identity on the IRC server. So skip other WHOIS
@@ -256,41 +278,11 @@ public class IdentityManager
                 // Once the WHOIS reply is processed and the identity is
                 // updated, we can delete the listener as the purpose is
                 // fulfilled.
-                IdentityManager.this.irc.deleteListener(this);
+                this.irc.deleteListener(this);
                 break;
             default:
                 break;
             }
-        }
-
-        /**
-         * OnUserQuit event.
-         *
-         * @param msg QuitMessage event.
-         */
-        @Override
-        public void onUserQuit(final QuitMessage msg)
-        {
-            final String user = msg.getSource().getNick();
-            if (IdentityManager.this.connectionState.getNickname().equals(user))
-            {
-                LOGGER.debug("Local user QUIT message received: removing "
-                    + "whois listener.");
-                IdentityManager.this.irc.deleteListener(this);
-            }
-        }
-
-        /**
-         * In case a fatal error occurs, remove the WhoisListener.
-         */
-        @Override
-        public void onError(final ErrorMessage aMsg)
-        {
-            // Errors signal fatal situation, so unregister and assume
-            // connection lost.
-            LOGGER.debug("Local user received ERROR message: removing whois "
-                + "listener.");
-            IdentityManager.this.irc.deleteListener(this);
         }
 
         /**
@@ -309,10 +301,50 @@ public class IdentityManager
                 whoismsg.substring(endUserIndex + 1, endHostIndex);
             IdentityManager.this.identity.setHost(host);
             IdentityManager.this.identity.setUser(user);
-            LOGGER
-                .debug(String.format("Current identity: %s!%s@%s",
-                    IdentityManager.this.connectionState.getNickname(), user,
-                    host));
+            LOGGER.debug(String.format("Current identity: %s!%s@%s",
+                this.connectionState.getNickname(), user, host));
+        }
+    }
+
+    /**
+     * General listener for identity-related events.
+     *
+     * @author Danny van Heumen
+     */
+    private final class IdentityListener
+        extends AbstractIrcMessageListener
+    {
+        /**
+         * Constructor.
+         */
+        public IdentityListener()
+        {
+            super(IdentityManager.this.irc,
+                IdentityManager.this.connectionState);
+        }
+
+        /**
+         * Nick change event.
+         *
+         * @param msg nick change event message
+         */
+        @Override
+        public void onNickChange(final NickMessage msg)
+        {
+            if (msg == null || msg.getSource() == null)
+            {
+                return;
+            }
+            final String oldNick = msg.getSource().getNick();
+            final String newNick = msg.getNewNick();
+            if (oldNick == null || newNick == null)
+            {
+                LOGGER.error("Incomplete nick change message. Old nick: '"
+                    + oldNick + "', new nick: '" + newNick + "'.");
+                return;
+            }
+            IdentityManager.this.provider.getPersistentPresence().updateNick(
+                oldNick, newNick);
         }
     }
 

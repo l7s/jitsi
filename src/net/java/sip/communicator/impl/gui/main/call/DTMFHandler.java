@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.call;
 
@@ -19,7 +30,7 @@ import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.resources.*;
 import net.java.sip.communicator.util.*;
 
-import org.jitsi.service.protocol.*;
+import org.jitsi.service.neomedia.*;
 
 /**
  * Handles DTMF sending and playing sound notifications for that.
@@ -42,6 +53,8 @@ public class DTMFHandler
                         KeyEvent.VK_1,
                         '1',
                         ImageLoader.ONE_DIAL_BUTTON,
+                        ImageLoader.ONE_DIAL_BUTTON_PRESSED,
+                        ImageLoader.ONE_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.ONE_DIAL_BUTTON_MAC,
                         ImageLoader.ONE_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_ONE),
@@ -50,6 +63,8 @@ public class DTMFHandler
                         KeyEvent.VK_2,
                         '2',
                         ImageLoader.TWO_DIAL_BUTTON,
+                        ImageLoader.TWO_DIAL_BUTTON_PRESSED,
+                        ImageLoader.TWO_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.TWO_DIAL_BUTTON_MAC,
                         ImageLoader.TWO_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_TWO),
@@ -58,6 +73,8 @@ public class DTMFHandler
                         KeyEvent.VK_3,
                         '3',
                         ImageLoader.THREE_DIAL_BUTTON,
+                        ImageLoader.THREE_DIAL_BUTTON_PRESSED,
+                        ImageLoader.THREE_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.THREE_DIAL_BUTTON_MAC,
                         ImageLoader.THREE_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_THREE),
@@ -66,6 +83,8 @@ public class DTMFHandler
                         KeyEvent.VK_4,
                         '4',
                         ImageLoader.FOUR_DIAL_BUTTON,
+                        ImageLoader.FOUR_DIAL_BUTTON_PRESSED,
+                        ImageLoader.FOUR_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.FOUR_DIAL_BUTTON_MAC,
                         ImageLoader.FOUR_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_FOUR),
@@ -74,6 +93,8 @@ public class DTMFHandler
                         KeyEvent.VK_5,
                         '5',
                         ImageLoader.FIVE_DIAL_BUTTON,
+                        ImageLoader.FIVE_DIAL_BUTTON_PRESSED,
+                        ImageLoader.FIVE_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.FIVE_DIAL_BUTTON_MAC,
                         ImageLoader.FIVE_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_FIVE),
@@ -82,6 +103,8 @@ public class DTMFHandler
                         KeyEvent.VK_6,
                         '6',
                         ImageLoader.SIX_DIAL_BUTTON,
+                        ImageLoader.SIX_DIAL_BUTTON_PRESSED,
+                        ImageLoader.SIX_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.SIX_DIAL_BUTTON_MAC,
                         ImageLoader.SIX_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_SIX),
@@ -90,6 +113,8 @@ public class DTMFHandler
                         KeyEvent.VK_7,
                         '7',
                         ImageLoader.SEVEN_DIAL_BUTTON,
+                        ImageLoader.SEVEN_DIAL_BUTTON_PRESSED,
+                        ImageLoader.SEVEN_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.SEVEN_DIAL_BUTTON_MAC,
                         ImageLoader.SEVEN_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_SEVEN),
@@ -98,6 +123,8 @@ public class DTMFHandler
                         KeyEvent.VK_8,
                         '8',
                         ImageLoader.EIGHT_DIAL_BUTTON,
+                        ImageLoader.EIGHT_DIAL_BUTTON_PRESSED,
+                        ImageLoader.EIGHT_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.EIGHT_DIAL_BUTTON_MAC,
                         ImageLoader.EIGHT_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_EIGHT),
@@ -106,6 +133,8 @@ public class DTMFHandler
                         KeyEvent.VK_9,
                         '9',
                         ImageLoader.NINE_DIAL_BUTTON,
+                        ImageLoader.NINE_DIAL_BUTTON_PRESSED,
+                        ImageLoader.NINE_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.NINE_DIAL_BUTTON_MAC,
                         ImageLoader.NINE_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_NINE),
@@ -113,6 +142,8 @@ public class DTMFHandler
                         DTMFTone.DTMF_A,
                         KeyEvent.VK_A,
                         'a',
+                        null,
+                        null,
                         null,
                         null,
                         null,
@@ -124,11 +155,15 @@ public class DTMFHandler
                         null,
                         null,
                         null,
+                        null,
+                        null,
                         null),
                     new DTMFToneInfo(
                         DTMFTone.DTMF_C,
                         KeyEvent.VK_C,
                         'c',
+                        null,
+                        null,
                         null,
                         null,
                         null,
@@ -140,12 +175,16 @@ public class DTMFHandler
                         null,
                         null,
                         null,
+                        null,
+                        null,
                         null),
                     new DTMFToneInfo(
                         DTMFTone.DTMF_STAR,
                         KeyEvent.VK_ASTERISK,
                         '*',
                         ImageLoader.STAR_DIAL_BUTTON,
+                        ImageLoader.STAR_DIAL_BUTTON_PRESSED,
+                        ImageLoader.STAR_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.STAR_DIAL_BUTTON_MAC,
                         ImageLoader.STAR_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_STAR),
@@ -154,6 +193,8 @@ public class DTMFHandler
                         KeyEvent.VK_0,
                         '0',
                         ImageLoader.ZERO_DIAL_BUTTON,
+                        ImageLoader.ZERO_DIAL_BUTTON_PRESSED,
+                        ImageLoader.ZERO_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.ZERO_DIAL_BUTTON_MAC,
                         ImageLoader.ZERO_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_ZERO),
@@ -162,6 +203,8 @@ public class DTMFHandler
                         KeyEvent.VK_NUMBER_SIGN,
                         '#',
                         ImageLoader.DIEZ_DIAL_BUTTON,
+                        ImageLoader.DIEZ_DIAL_BUTTON_PRESSED,
+                        ImageLoader.DIEZ_DIAL_BUTTON_ROLLOVER,
                         ImageLoader.DIEZ_DIAL_BUTTON_MAC,
                         ImageLoader.DIEZ_DIAL_BUTTON_MAC_ROLLOVER,
                         SoundProperties.DIAL_DIEZ)
@@ -670,6 +713,16 @@ public class DTMFHandler
         public final ImageID imageID;
 
         /**
+         * The image to display in buttons sending DTMFs.
+         */
+        public final ImageID imageIDPressed;
+
+        /**
+         * The image to display in buttons sending DTMFs.
+         */
+        public final ImageID imageIDRollover;
+
+        /**
          * The char associated with this DTMF tone.
          */
         public final char keyChar;
@@ -712,13 +765,16 @@ public class DTMFHandler
         public DTMFToneInfo(
             DTMFTone tone,
             int keyCode, char keyChar,
-            ImageID imageID, ImageID macImageID, ImageID macImageRolloverID,
+            ImageID imageID, ImageID imageIDPressed,ImageID imageIDRollover,
+            ImageID macImageID, ImageID macImageRolloverID,
             String sound)
         {
             this.tone = tone;
             this.keyCode = keyCode;
             this.keyChar = keyChar;
             this.imageID = imageID;
+            this.imageIDPressed = imageIDPressed;
+            this.imageIDRollover = imageIDRollover;
             this.macImageID = macImageID;
             this.macImageRolloverID = macImageRolloverID;
             this.sound = sound;

@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.service.protocol;
 
@@ -90,6 +101,13 @@ public interface ProtocolProviderService
      * @return true if the provider is currently registered and false otherwise.
      */
     public boolean isRegistered();
+
+    /**
+     * Indicates whether or not this provider must registered
+     * when placing outgoing calls.
+     * @return true if the provider must be registered when placing a call.
+     */
+    public boolean isRegistrationRequiredForCalling();
 
     /**
      * Returns the state of the registration of this protocol provider with the
@@ -193,18 +211,28 @@ public interface ProtocolProviderService
     public void shutdown();
 
     /**
-     * A hashcode allowing usage of protocol providers as keys in Hashtables.
-     * @return an int that may be used when storing protocol providers as
-     * hashtable keys.
-     */
-    public int hashCode();
-
-    /**
      * Returns the AccountID that uniquely identifies the account represented by
      * this instance of the ProtocolProviderService.
      * @return the id of the account represented by this provider.
      */
     public AccountID getAccountID();
+
+    /**
+     * Validates the given protocol specific contact identifier and returns an
+     * error message if applicable and a suggested correction.
+     * 
+     * @param contactId the contact identifier to validate
+     * @param result Must be supplied as an empty a list. Implementors add
+     *            items:
+     *            <ol>
+     *            <li>is the error message if applicable
+     *            <li>a suggested correction. Index 1 is optional and can only
+     *            be present if there was a validation failure.
+     *            </ol>
+     * @return true if the contact id is valid, false otherwise
+     */
+    public boolean validateContactAddress(String contactId,
+        List<String> result);
 
     /**
      * Indicate if the signaling transport of this protocol instance uses a

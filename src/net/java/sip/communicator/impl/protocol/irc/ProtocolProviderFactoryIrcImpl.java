@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -24,6 +35,41 @@ public class ProtocolProviderFactoryIrcImpl
     extends ProtocolProviderFactory
 {
     /**
+     * Property indicating whether or not to enable a periodic task for querying
+     * channel member presence (available, away).
+     */
+    public static final String CHAT_ROOM_PRESENCE_TASK =
+        "CHAT_ROOM_PRESENCE_TASK";
+
+    /**
+     * Property indicating whether or not to enable a periodic task for querying
+     * contact presence (offline, online).
+     */
+    public static final String CONTACT_PRESENCE_TASK = "CONTACT_PRESENCE_TASK";
+
+    /**
+     * Property indicating SASL is enabled.
+     */
+    public static final String SASL_ENABLED = "SASL_ENABLED";
+
+    /**
+     * Property for SASL user name.
+     */
+    public static final String SASL_USERNAME = "SASL_USERNAME";
+
+    /**
+     * Property for SASL authorization role.
+     */
+    public static final String SASL_ROLE = "SASL_ROLE";
+
+    /**
+     * Property for indicating that DNS names should be resolved through the
+     * SOCKS proxy if a proxy server is configured.
+     */
+    public static final String RESOLVE_DNS_THROUGH_PROXY =
+        "RESOLVE_DNS_THROUGH_PROXY";
+
+ /**
      * Constructor.
      */
     public ProtocolProviderFactoryIrcImpl()
@@ -204,9 +250,8 @@ public class ProtocolProviderFactoryIrcImpl
         this.storeAccount(accountID);
 
         registration =
-            (ServiceRegistration<ProtocolProviderService>) context
-                .registerService(ProtocolProviderService.class.getName(),
-                    protocolProvider, properties);
+            context.registerService(ProtocolProviderService.class,
+                protocolProvider, properties);
 
         registeredAccounts.put(accountID, registration);
     }

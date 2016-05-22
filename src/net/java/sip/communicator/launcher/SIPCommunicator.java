@@ -1,14 +1,26 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.launcher;
 
 import java.awt.*;
 import java.io.*;
 
+import net.java.sip.communicator.impl.version.*;
 import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.util.launchutils.*;
 
@@ -109,7 +121,7 @@ public class SIPCommunicator
                     "dns,dnsjava");
         }
 
-        if (version.startsWith("1.4") || vmVendor.startsWith("Gnu") ||
+        if (version.startsWith("1.5") || vmVendor.startsWith("Gnu") ||
                 vmVendor.startsWith("Free"))
         {
             String os = "";
@@ -171,9 +183,58 @@ public class SIPCommunicator
             }
         }
 
+        String currentVersion =
+            VersionImpl.VERSION_MAJOR + "." + VersionImpl.VERSION_MINOR;
+        File jitsiVersion
+            = new File(new File(
+                System.getProperty(PNAME_SC_CACHE_DIR_LOCATION),
+                System.getProperty(PNAME_SC_HOME_DIR_NAME)),
+                    ".lastversion");
+        if (jitsiVersion.exists())
+        {
+            BufferedReader r = new BufferedReader(new FileReader(jitsiVersion));
+            String lastVersion = r.readLine();
+            r.close();
+
+            if (!currentVersion.equals(lastVersion))
+            {
+                File felixCache =
+                    new File(new File(
+                        System.getProperty(PNAME_SC_CACHE_DIR_LOCATION),
+                        System.getProperty(PNAME_SC_HOME_DIR_NAME)),
+                        "sip-communicator.bin");
+                if (felixCache.exists())
+                {
+                    deleteRecursive(felixCache);
+                }
+            }
+        }
+
+        FileWriter fw = new FileWriter(jitsiVersion);
+        fw.write(currentVersion);
+        fw.close();
+
         //there was no error, continue;
         System.setOut(new ScStdOut(System.out));
         Main.main(new String[0]);
+    }
+
+    /**
+     * Recursively delete a directory.
+     * @param f The directory to the delete.
+     * @throws IOException
+     */
+    private static void deleteRecursive(File f) throws IOException
+    {
+        if (f.isDirectory())
+        {
+            for (File c : f.listFiles())
+            {
+                deleteRecursive(c);
+            }
+        }
+
+        f.delete();
     }
 
     /**

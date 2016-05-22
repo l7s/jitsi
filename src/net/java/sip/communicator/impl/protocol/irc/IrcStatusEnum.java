@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -29,7 +40,7 @@ public final class IrcStatusEnum
     public static final IrcStatusEnum OFFLINE
         = new IrcStatusEnum(
             0,
-            "Offline",
+            "service.gui.OFFLINE",
             getImageInBytes("service.protocol.irc.OFFLINE_STATUS_ICON"));
 
     /**
@@ -39,7 +50,7 @@ public final class IrcStatusEnum
     public static final IrcStatusEnum AWAY
         = new IrcStatusEnum(
             40,
-            "Away",
+            "service.gui.AWAY_STATUS",
             getImageInBytes("service.protocol.irc.AWAY_STATUS_ICON"));
 
     /**
@@ -49,20 +60,25 @@ public final class IrcStatusEnum
     public static final IrcStatusEnum ONLINE
         = new IrcStatusEnum(
             65,
-            "Online",
+            "service.gui.ONLINE",
             getImageInBytes("service.protocol.irc.IRC_16x16"));
 
     /**
-     * Initialize the list of supported status states.
+     * The list of supported status states.
      */
-    private static final List<IrcStatusEnum> SUPPORTED_STATUS_SET
-        = new LinkedList<IrcStatusEnum>();
+    private static final List<IrcStatusEnum> SUPPORTED_STATUS_SET;
 
+    /**
+     * Initialize an unmodifiable set of supported statuses.
+     */
     static
     {
-        SUPPORTED_STATUS_SET.add(OFFLINE);
-        SUPPORTED_STATUS_SET.add(AWAY);
-        SUPPORTED_STATUS_SET.add(ONLINE);
+        final LinkedList<IrcStatusEnum> statusSet =
+            new LinkedList<IrcStatusEnum>();
+        statusSet.add(ONLINE);
+        statusSet.add(AWAY);
+        statusSet.add(OFFLINE);
+        SUPPORTED_STATUS_SET = Collections.unmodifiableList(statusSet);
     }
 
     /**
@@ -87,6 +103,17 @@ public final class IrcStatusEnum
     static Iterator<IrcStatusEnum> supportedStatusSet()
     {
         return SUPPORTED_STATUS_SET.iterator();
+    }
+
+    /**
+     * Return <em>i18n</em> IRC presence status name.
+     *
+     * @return returns i18n status name
+     */
+    @Override
+    public String getStatusName()
+    {
+        return IrcActivator.getResources().getI18NString(super.getStatusName());
     }
 
     /**
