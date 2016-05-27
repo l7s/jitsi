@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.ircaccregwizz;
 
@@ -22,6 +33,7 @@ import net.java.sip.communicator.service.protocol.*;
  * and the password of the account.
  *
  * @author Lionel Ferreira & Michael Tarantino
+ * @author Danny van Heumen
  */
 public class FirstWizardPage
     extends TransparentPanel
@@ -60,6 +72,8 @@ public class FirstWizardPage
     private JPanel serverPanel = new TransparentPanel(new BorderLayout(10, 10));
 
     private JPanel optionsPanel = new TransparentPanel(new BorderLayout(10, 10));
+    
+    private JPanel saslPanel = new TransparentPanel(new BorderLayout(10, 10));
 
     private JPanel labelsPanel = new TransparentPanel();
 
@@ -76,8 +90,8 @@ public class FirstWizardPage
     private JLabel infoPassword
         = new JLabel(Resources.getString("plugin.ircaccregwizz.INFO_PASSWORD"));
 
-    private JLabel nick
-        = new JLabel(Resources.getString("plugin.ircaccregwizz.USERNAME"));
+    private JLabel nick = new JLabel(
+        Resources.getString("plugin.ircaccregwizz.USERNAME") + ":");
 
     private JLabel passLabel = new JLabel(
         Resources.getString("service.gui.PASSWORD") + ":");
@@ -111,6 +125,9 @@ public class FirstWizardPage
         = new SIPCommCheckBox(
             Resources.getString("plugin.ircaccregwizz.AUTO_NICK_CHANGE"));
 
+    private JCheckBox resolveDnsThroughProxy = new SIPCommCheckBox(
+        Resources.getString("plugin.ircaccregwizz.RESOLVE_DNS_THROUGH_PROXY"));
+
     private JCheckBox defaultPort = new SIPCommCheckBox(
             Resources.getString("plugin.ircaccregwizz.USE_DEFAULT_PORT"));
 
@@ -119,6 +136,19 @@ public class FirstWizardPage
 
     private JCheckBox useSecureConnection = new SIPCommCheckBox(
         Resources.getString("plugin.ircaccregwizz.USE_SECURE_CONNECTION"));
+
+    private JCheckBox enableContactPresenceTask = new SIPCommCheckBox(
+        Resources.getString("plugin.ircaccregwizz.ENABLE_CONTACT_PRESENCE"));
+
+    private JCheckBox enableChatRoomPresenceTask = new SIPCommCheckBox(
+        Resources.getString("plugin.ircaccregwizz.ENABLE_CHAT_ROOM_PRESENCE"));
+
+    private JCheckBox saslEnabled = new SIPCommCheckBox(
+        Resources.getString("plugin.ircaccregwizz.ENABLE_SASL_AUTHENTICATION"));
+
+    private JTextField saslUserIdField = new JTextField();
+
+    private JTextField saslRoleField = new JTextField();
 
     private JPanel mainPanel = new TransparentPanel();
 
@@ -166,6 +196,7 @@ public class FirstWizardPage
         this.portField.setEnabled(false);
         this.rememberPassBox.setEnabled(false);
         this.useSecureConnection.setEnabled(true);
+        this.resolveDnsThroughProxy.setEnabled(true);
     }
 
     /**
@@ -185,14 +216,19 @@ public class FirstWizardPage
         this.passwordNotRequired.addActionListener(this);
         this.useSecureConnection.addActionListener(this);
 
+        this.saslEnabled.addActionListener(this);
+
         this.userIDField.setText(userId);
         this.serverField.setText(server);
         this.passField.setEnabled(false);
         this.rememberPassBox.setSelected(true);
         this.autoNickChange.setSelected(true);
+        this.resolveDnsThroughProxy.setSelected(true);
         this.defaultPort.setSelected(true);
         this.passwordNotRequired.setSelected(true);
         this.useSecureConnection.setSelected(true);
+        this.enableContactPresenceTask.setSelected(true);
+        this.enableChatRoomPresenceTask.setSelected(true);
         this.portField
             .setText(this.useSecureConnection.isSelected() ? DEFAULT_SECURE_PORT
                 : DEFAULT_PLAINTEXT_PORT);
@@ -214,18 +250,14 @@ public class FirstWizardPage
         labelsPanel.add(emptyPanel);
         labelsPanel.add(passLabel);
 
-//        labelsPanel.add(server);
-
         valuesPanel.add(userIDField);
         valuesPanel.add(nickExampleLabel);
         valuesPanel.add(passField);
-//        valuesPanel.add(serverField);
 
         userPassPanel.add(infoPassword, BorderLayout.NORTH);
         userPassPanel.add(labelsPanel, BorderLayout.WEST);
         userPassPanel.add(valuesPanel, BorderLayout.CENTER);
         userPassPanel.add(passwordNotRequired, BorderLayout.SOUTH);
-//        userPassPanel.add(autoChangeNick, BorderLayout.SOUTH);
 
         userPassPanel.setBorder(BorderFactory
                                 .createTitledBorder(Resources.getString(
@@ -251,21 +283,59 @@ public class FirstWizardPage
         serverPanel.setBorder(BorderFactory.createTitledBorder(
             Resources.getString("plugin.ircaccregwizz.IRC_SERVER")));
 
-        optionsPanel.add(rememberPassBox, BorderLayout.CENTER);
-        optionsPanel.add(autoNickChange, BorderLayout.SOUTH);
+        final JPanel optionsSubPanel = new TransparentPanel();
+        optionsSubPanel.setLayout(new BoxLayout(optionsSubPanel, BoxLayout.Y_AXIS));
+        optionsPanel.add(optionsSubPanel, BorderLayout.WEST);
+        optionsSubPanel.add(rememberPassBox);
+        optionsSubPanel.add(autoNickChange);
+        final JPanel partition = new TransparentPanel();
+        optionsSubPanel.add(resolveDnsThroughProxy);
+        optionsPanel.add(partition, BorderLayout.SOUTH);
+        partition.setLayout(new BorderLayout());
+        partition.add(enableContactPresenceTask, BorderLayout.WEST);
+        partition.add(enableChatRoomPresenceTask, BorderLayout.EAST);
 
         optionsPanel.setBorder(BorderFactory.createTitledBorder(
             Resources.getString("service.gui.OPTIONS")));
 
+        saslPanel.add(this.saslEnabled, BorderLayout.NORTH);
+
+        TransparentPanel saslControlsPanel = new TransparentPanel();
+        saslControlsPanel.setLayout(new BoxLayout(saslControlsPanel,
+            BoxLayout.Y_AXIS));
+        saslPanel.add(saslControlsPanel, BorderLayout.CENTER);
+
+        JLabel saslUserLabel = new JLabel(
+            Resources.getString("plugin.ircaccregwizz.SASL_USERNAME") + ":");
+        saslControlsPanel.add(horizontal(100,
+            saslUserLabel, this.saslUserIdField));
+        JLabel saslPassLabel = new JLabel(
+            Resources.getString("service.gui.PASSWORD") + ":");
+        saslControlsPanel.add(horizontal(100, saslPassLabel, new JLabel(
+            Resources.getString("plugin.ircaccregwizz.SASL_IRC_PASSWORD_USED"))));
+        JLabel saslRoleLabel = new JLabel(
+            Resources.getString("plugin.ircaccregwizz.SASL_AUTHZ_ROLE") + ":");
+        saslControlsPanel
+            .add(horizontal(100, saslRoleLabel, this.saslRoleField));
+
+        saslPanel.setBorder(BorderFactory.createTitledBorder(Resources
+            .getString("plugin.ircaccregwizz.SASL_AUTHENTICATION_TITLE")));
+
         mainPanel.add(userPassPanel);
         mainPanel.add(serverPanel);
         mainPanel.add(optionsPanel);
+        mainPanel.add(saslPanel);
 
         this.add(mainPanel, BorderLayout.NORTH);
-//        this.add(serverPanel, BorderLayout.SOUTH);
-//        this.add(optionsPanel, BorderLayout.AFTER_LAST_LINE);
     }
 
+    private JPanel horizontal(int width, Component cmp1, Component cmp2) {
+        TransparentPanel panel = new TransparentPanel(new BorderLayout(10, 10));
+        cmp1.setPreferredSize(new Dimension(width, cmp1.getHeight()));
+        panel.add(cmp1, BorderLayout.WEST);
+        panel.add(cmp2, BorderLayout.CENTER);
+        return panel;
+    }
     /**
      * Implements the <code>WizardPage.getIdentifier</code> to return
      * this page identifier.
@@ -345,6 +415,17 @@ public class FirstWizardPage
         registration.setAutoChangeNick(autoNickChange.isSelected());
         registration.setRequiredPassword(!passwordNotRequired.isSelected());
         registration.setSecureConnection(useSecureConnection.isSelected());
+        registration
+            .setContactPresenceTaskEnabled(this.enableContactPresenceTask
+                .isSelected());
+        registration.setChatRoomPresenceTaskEnabled(enableChatRoomPresenceTask
+            .isSelected());
+        registration.setSaslEnabled(!this.passwordNotRequired.isSelected()
+            && this.saslEnabled.isSelected());
+        registration.setSaslUser(this.saslUserIdField.getText());
+        registration.setSaslRole(this.saslRoleField.getText());
+        registration.setResolveDnsThroughProxy(this.resolveDnsThroughProxy
+            .isSelected());
 
         isCommitted = true;
     }
@@ -448,6 +529,28 @@ public class FirstWizardPage
             accountID.getAccountPropertyBoolean(
                 ProtocolProviderFactory.DEFAULT_ENCRYPTION, true);
 
+        boolean resolveDnsThroughProxy =
+            accountID.getAccountPropertyBoolean(
+                IrcAccountRegistrationWizard.RESOLVE_DNS_THROUGH_PROXY, true);
+
+        boolean contactPresenceTaskEnabled =
+            accountID.getAccountPropertyBoolean(
+                IrcAccountRegistrationWizard.CONTACT_PRESENCE_TASK, true);
+
+        boolean chatRoomPresenceTaskEnabled =
+            accountID.getAccountPropertyBoolean(
+                IrcAccountRegistrationWizard.CHAT_ROOM_PRESENCE_TASK, true);
+
+        final boolean enableSaslAuthentication =
+            accountID.getAccountPropertyBoolean(
+                IrcAccountRegistrationWizard.SASL_ENABLED, false);
+        final String saslUser =
+            accountID.getAccountPropertyString(
+                IrcAccountRegistrationWizard.SASL_USERNAME, "");
+        final String saslRole =
+            accountID.getAccountPropertyString(
+                IrcAccountRegistrationWizard.SASL_ROLE, "");
+
         this.userIDField.setEnabled(false);
         this.userIDField.setText(accountID.getUserID());
         this.serverField.setText(server);
@@ -475,17 +578,25 @@ public class FirstWizardPage
                 new Boolean(autoNickChange).booleanValue());
         }
 
+        this.resolveDnsThroughProxy.setSelected(resolveDnsThroughProxy);
+
         if (noPasswordRequired != null)
         {
-            boolean isPassRequired
-                = !(new Boolean(noPasswordRequired).booleanValue());
+            boolean isPassRequired = !Boolean.valueOf(noPasswordRequired);
 
             this.passwordNotRequired.setSelected(!isPassRequired);
-
+            this.rememberPassBox.setEnabled(isPassRequired);
             passField.setEnabled(isPassRequired);
         }
 
         this.useSecureConnection.setSelected(useSecureConnection);
+        this.enableContactPresenceTask.setSelected(contactPresenceTaskEnabled);
+        this.enableChatRoomPresenceTask
+            .setSelected(chatRoomPresenceTaskEnabled);
+
+        this.saslEnabled.setSelected(enableSaslAuthentication);
+        this.saslUserIdField.setText(saslUser);
+        this.saslRoleField.setText(saslRole);
     }
 
     /**
@@ -506,17 +617,25 @@ public class FirstWizardPage
             portField.setEnabled(true);
         }
 
-        if (passwordNotRequired.isSelected())
+        boolean passwordRequired = !this.passwordNotRequired.isSelected();
+        if (passwordRequired)
+        {
+            passField.setEnabled(true);
+            rememberPassBox.setEnabled(true);
+            this.saslEnabled.setEnabled(true);
+        }
+        else
         {
             passField.setText("");
             passField.setEnabled(false);
             rememberPassBox.setEnabled(false);
+            this.saslEnabled.setEnabled(false);
         }
-        else
-        {
-            passField.setEnabled(true);
-            rememberPassBox.setEnabled(true);
-        }
+
+        boolean enableSaslControls =
+            passwordRequired && this.saslEnabled.isSelected();
+        saslUserIdField.setEnabled(enableSaslControls);
+        saslRoleField.setEnabled(enableSaslControls);
 
         setNextButtonAccordingToUserID();
     }

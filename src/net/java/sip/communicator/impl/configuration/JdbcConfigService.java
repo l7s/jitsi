@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.configuration;
 
@@ -11,6 +22,7 @@ import java.io.*;
 import java.sql.*;
 import java.sql.Statement;
 import java.util.*;
+import java.util.regex.Pattern;
 
 import org.jitsi.service.configuration.*;
 import org.jitsi.service.fileaccess.*;
@@ -583,6 +595,35 @@ public final class JdbcConfigService
      * (non-Javadoc)
      * 
      * @see
+     * org.jitsi.service.configuration.ConfigurationService#getDouble(java.lang
+     * .String, double)
+     */
+    @Override
+    public double getDouble(String propertyName, double defaultValue)
+    {
+        Object value = this.getProperty(propertyName);
+        if (value == null || "".equals(value.toString()))
+        {
+            return defaultValue;
+        }
+
+        try
+        {
+            return Double.parseDouble(value.toString());
+        }
+        catch (NumberFormatException ex)
+        {
+            logger.error(String.format(
+                "'%s' for property %s not a double, returning default (%s)",
+                value, propertyName, defaultValue), ex);
+            return defaultValue;
+        }
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see
      * org.jitsi.service.configuration.ConfigurationService#getLong(java.lang
      * .String, long)
      */
@@ -939,6 +980,36 @@ public final class JdbcConfigService
         for (PropertyChangeListener l : listeners.get(null))
         {
             l.propertyChange(evt);
+        }
+    }
+
+    @Override
+    public void logConfigurationProperties(String excludePattern)
+    {
+        if (!logger.isInfoEnabled())
+            return;
+
+        Pattern exclusion = null;
+        if (!StringUtils.isNullOrEmpty(excludePattern))
+        {
+            exclusion = Pattern.compile(
+                excludePattern, Pattern.CASE_INSENSITIVE);
+        }
+
+        for (String p : getAllPropertyNames())
+        {
+            Object v = getProperty(p);
+
+            // Not sure if this can happen, but just in case...
+            if (v == null)
+                continue;
+
+            if (exclusion != null && exclusion.matcher(p).find())
+            {
+                v = "**********";
+            }
+
+            logger.info(p + "=" + v);
         }
     }
 }

@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.notificationwiring;
 
@@ -18,9 +29,10 @@ import net.java.sip.communicator.service.protocol.event.*;
 import net.java.sip.communicator.service.resources.*;
 import net.java.sip.communicator.util.*;
 
+import org.apache.commons.lang3.*;
 import org.jitsi.service.neomedia.*;
+import org.jitsi.service.neomedia.event.*;
 import org.jitsi.service.neomedia.recording.*;
-import org.jitsi.service.protocol.event.*;
 import org.jitsi.service.resources.*;
 import org.osgi.framework.*;
 
@@ -99,6 +111,11 @@ public class NotificationManager
     public static final String INCOMING_MESSAGE = "IncomingMessage";
 
     /**
+     * HTML content type.
+     */
+    private static final String HTML_CONTENT_TYPE = "text/html";
+
+    /**
      * The <tt>Logger</tt> used by the <tt>NotificationManager</tt> class and
      * its instances for logging output.
      */
@@ -130,6 +147,7 @@ public class NotificationManager
      * @param eventType the event type for which we fire a notification
      * @param messageTitle the title of the message
      * @param message the content of the message
+     * @param messageUID the message UID
      */
     public static void fireChatNotification(Object chatContact,
                                             String eventType,
@@ -900,10 +918,15 @@ public class NotificationManager
                 = fireNotification(
                         INCOMING_CALL,
                         "",
-                        NotificationWiringActivator.getResources()
-                                .getI18NString(
-                                        "service.gui.INCOMING_CALL",
-                                        new String[] { peerName }),
+                        ev.isDesktopStreaming() ?
+                            NotificationWiringActivator.getResources()
+                                    .getI18NString(
+                                            "service.gui.INCOMING_SCREEN_SHARE",
+                                            new String[] { peerName })
+                            : NotificationWiringActivator.getResources()
+                                    .getI18NString(
+                                            "service.gui.INCOMING_CALL",
+                                            new String[] { peerName }),
                         peerInfo,
                         new Callable<Boolean>()
                         {
@@ -1145,12 +1168,20 @@ public class NotificationManager
                     = NotificationWiringActivator.getResources().getI18NString(
                             "service.gui.MSG_RECEIVED",
                             new String[] { sourceParticipant.getDisplayName() });
-
+                final String htmlContent;
+                if (HTML_CONTENT_TYPE.equals(evt.getMessage().getContentType()))
+                {
+                    htmlContent = messageContent;
+                }
+                else
+                {
+                    htmlContent = StringEscapeUtils.escapeHtml4(messageContent);
+                }
                 fireChatNotification(
                     sourceChatRoom,
                     INCOMING_MESSAGE,
                     title,
-                    messageContent,
+                    htmlContent,
                     evt.getMessage().getMessageUID());
             }
         }
@@ -1178,7 +1209,8 @@ public class NotificationManager
             // Fire notification
             boolean fireChatNotification;
 
-            String messageContent = evt.getMessage().getContent();
+            final Message sourceMsg = evt.getMessage();
+            String messageContent = sourceMsg.getContent();
 
             /*
              * It is uncommon for IRC clients to display popup notifications for
@@ -1212,13 +1244,21 @@ public class NotificationManager
                     = NotificationWiringActivator.getResources().getI18NString(
                         "service.gui.MSG_RECEIVED",
                         new String[] { sourceMember.getName() });
-
+                final String htmlContent;
+                if (HTML_CONTENT_TYPE.equals(sourceMsg.getContentType()))
+                {
+                    htmlContent = messageContent;
+                }
+                else
+                {
+                    htmlContent = StringEscapeUtils.escapeHtml4(messageContent);
+                }
                 fireChatNotification(
                         sourceChatRoom,
                         INCOMING_MESSAGE,
                         title,
-                        messageContent,
-                        evt.getMessage().getMessageUID());
+                        htmlContent,
+                        sourceMsg.getMessageUID());
             }
         }
         catch(Throwable t)
@@ -1241,12 +1281,23 @@ public class NotificationManager
                 "service.gui.MSG_RECEIVED",
                 new String[]{evt.getSourceContact().getDisplayName()});
 
+            final Message sourceMsg = evt.getSourceMessage();
+            final String htmlContent;
+            if (HTML_CONTENT_TYPE.equals(sourceMsg.getContentType()))
+            {
+                htmlContent = sourceMsg.getContent();
+            }
+            else
+            {
+                htmlContent =
+                    StringEscapeUtils.escapeHtml4(sourceMsg.getContent());
+            }
             fireChatNotification(
                     evt.getSourceContact(),
                     INCOMING_MESSAGE,
                     title,
-                    evt.getSourceMessage().getContent(),
-                    evt.getSourceMessage().getMessageUID());
+                    htmlContent,
+                    sourceMsg.getMessageUID());
         }
         catch(Throwable t)
         {
@@ -1598,17 +1649,17 @@ public class NotificationManager
             switch (ev.getEventSeverity())
             {
             // Don't play alert sound for Info or warning.
-            case CallPeerSecurityMessageEvent.INFORMATION:
+            case SrtpListener.INFORMATION:
                 messageTitleKey = "service.gui.SECURITY_INFO";
                 break;
 
-            case CallPeerSecurityMessageEvent.WARNING:
+            case SrtpListener.WARNING:
                 messageTitleKey = "service.gui.SECURITY_WARNING";
                 break;
 
             // Security cannot be established! Play an alert sound.
-            case CallPeerSecurityMessageEvent.SEVERE:
-            case CallPeerSecurityMessageEvent.ERROR:
+            case SrtpListener.SEVERE:
+            case SrtpListener.ERROR:
                 messageTitleKey = "service.gui.SECURITY_ERROR";
                 fireNotification(CALL_SECURITY_ERROR);
                 break;

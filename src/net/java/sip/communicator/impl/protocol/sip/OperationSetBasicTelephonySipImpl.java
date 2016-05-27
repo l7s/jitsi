@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -95,6 +106,7 @@ public class OperationSetBasicTelephonySipImpl
         protocolProvider.registerMethodProcessor(Request.BYE, this);
         protocolProvider.registerMethodProcessor(Request.REFER, this);
         protocolProvider.registerMethodProcessor(Request.NOTIFY, this);
+        protocolProvider.registerMethodProcessor(Request.UPDATE, this);
 
         protocolProvider.registerEvent("refer");
 
@@ -172,7 +184,7 @@ public class OperationSetBasicTelephonySipImpl
      * @throws OperationFailedException with the corresponding code if we fail
      * to create the call.
      */
-    private synchronized CallSipImpl createOutgoingCall(
+    synchronized CallSipImpl createOutgoingCall(
             Address calleeAddress,
             javax.sip.message.Message cause,
             CallConference conference)
@@ -373,6 +385,12 @@ public class OperationSetBasicTelephonySipImpl
             if (logger.isDebugEnabled())
                 logger.debug("received NOTIFY");
             processed = processNotify(serverTransaction, request);
+        }
+        else if (requestMethod.equals(Request.UPDATE))
+        {
+            if (logger.isDebugEnabled())
+                logger.debug("received UPDATE");
+            processed = processUpdate(serverTransaction, request);
         }
 
         return processed;
@@ -1673,6 +1691,56 @@ public class OperationSetBasicTelephonySipImpl
     }
 
     /**
+     * Processes a specific <tt>Request.UPDATE</tt> request for the purposes of
+     * telephony.
+     *
+     * @param serverTransaction the <tt>ServerTransaction</tt> containing the
+     * <tt>Request.UPDATE</tt> request
+     * @param updateRequest the <tt>Request.UPDATE</tt> request to be processed
+     *
+     * @return <tt>true</tt> if we have processed/consumed the request and
+     * <tt>false</tt> otherwise.
+     */
+    private boolean processUpdate(ServerTransaction serverTransaction,
+                                  Request updateRequest)
+    {
+        // if there is content in update request, do not process
+        ContentLengthHeader cl = updateRequest.getContentLength();
+        if (cl != null && cl.getContentLength() > 0)
+            return false;
+
+        // some systems send update requests before call is established
+        // to update call screening, if we do not process them and just send
+        // 501 we end the dialog and the call will fail to establish,
+        // so we just send ok
+
+        // OK
+        Response ok;
+        try
+        {
+            ok = messageFactory.createResponse(Response.OK, updateRequest);
+            serverTransaction.sendResponse(ok);
+        }
+        catch (ParseException ex)
+        {
+            String message = "Failed to create OK response to UPDATE.";
+
+            logger.error(message, ex);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            String message =
+                "Failed to send OK response to UPDATE request.";
+
+            logger.error(message, ex);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Tracks the state changes of a specific <tt>Call</tt> and sends a
      * session-terminating NOTIFY request to the <tt>Dialog</tt> which referred
      * to the call in question as soon as the outcome of the refer is
@@ -1903,9 +1971,11 @@ public class OperationSetBasicTelephonySipImpl
     public String toString()
     {
         return getClass().getSimpleName() + "-[dn="
-            + protocolProvider.getOurDisplayName() + " addr=["
-            + protocolProvider.getRegistrarConnection().getAddressOfRecord()
-            + "]";
+            + protocolProvider.getOurDisplayName()
+            + (protocolProvider.getRegistrarConnection() != null ?
+                " addr=[" + protocolProvider.getRegistrarConnection()
+                    .getAddressOfRecord() + "]"
+                : "]");
     }
 
     /**
@@ -2108,10 +2178,11 @@ public class OperationSetBasicTelephonySipImpl
      * @throws OperationFailedException if the protocol provider that created us
      * is not registered.
      */
-    private void assertRegistered()
+    void assertRegistered()
         throws OperationFailedException
     {
-        if(!protocolProvider.isRegistered())
+        if(protocolProvider.isRegistrationRequiredForCalling() &&
+            !protocolProvider.isRegistered())
         {
             throw new OperationFailedException(
                     "The protocol provider should be registered before placing"

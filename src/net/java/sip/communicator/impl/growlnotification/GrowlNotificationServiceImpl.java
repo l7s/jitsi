@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.growlnotification;
 
@@ -10,6 +21,7 @@ import net.java.sip.communicator.service.systray.*;
 import net.java.sip.communicator.service.systray.event.*;
 import net.java.sip.communicator.util.*;
 
+import org.apache.commons.lang3.*;
 import org.growl4j.*;
 import org.jitsi.service.resources.*;
 import org.osgi.framework.*;
@@ -101,6 +113,10 @@ public class GrowlNotificationServiceImpl
         // remove eventual HTML code before showing the pop-up message
         messageBody = messageBody.replaceAll("</?\\w++[^>]*+>", "");
         messageTitle = messageTitle.replaceAll("</?\\w++[^>]*+>", "");
+
+        // unescape any chars that can be escaped inside the text
+        messageBody = StringEscapeUtils.unescapeHtml4(messageBody);
+        messageTitle = StringEscapeUtils.unescapeHtml4(messageTitle);
 
         growl.notifyGrowlOf(
                 messageTitle,

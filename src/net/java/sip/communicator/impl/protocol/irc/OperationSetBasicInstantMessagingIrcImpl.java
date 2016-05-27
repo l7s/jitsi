@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -120,15 +131,14 @@ public class OperationSetBasicInstantMessagingIrcImpl
                     continue;
                 }
 
-                String transformedContent =
-                    event.getSourceMessage().getContent();
+                final Message transformed = event.getSourceMessage();
 
                 // Note: can't set subject since it leaks information while
                 // message content actually did get encrypted.
-                // FIXME should get contentType and contentEncoding from
-                // transformed messages, just in case
-                MessageIrcImpl message = this.createMessage(transformedContent,
-                    original.getContentType(), original.getEncoding(), "");
+                MessageIrcImpl message =
+                    this.createMessage(transformed.getContent(),
+                        transformed.getContentType(),
+                        transformed.getEncoding(), "");
 
                 try
                 {
@@ -190,6 +200,12 @@ public class OperationSetBasicInstantMessagingIrcImpl
                 }
             }
             fireMessageDelivered(original, to);
+        }
+        catch (OperationFailedException e)
+        {
+            // Message delivery failed. Most obvious possibility is that the
+            // message was too large for the IRC network to handle.
+            fireMessageDeliveryFailed(original, to, e.getErrorCode());
         }
         catch (RuntimeException e)
         {

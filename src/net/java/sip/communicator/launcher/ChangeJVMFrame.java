@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.launcher;
 
@@ -45,17 +56,11 @@ public class ChangeJVMFrame
     private JEditorPane javaLinkPane = new JEditorPane();
 
     private String text = "Sorry. Your Java version is too old. The minimum"
-        + " Java version required is 1.5. Please folow the link below to install"
+        + " Java version required is 1.6. Please folow the link below to install"
         + " the newest version for your environment.";
 
-    private String macLink
-        = "<a href=\"http://www.apple.com/downloads/macosx/apple/application_updates/" +
-          "javaformacosx104release9.html\">Download Java 1.5 for MacOSX</a>";
-
-    private String defaultLink
-        = "<a href=\"https://cds.sun.com/is-bin/INTERSHOP.enfinity/" +
-        "WFS/CDS-CDS_Developer-Site/en_US/-/USD/ViewProductDetail-Start?" +
-        "ProductRef=jre-6u18-oth-JPR@CDS-CDS_Developer\">Download Java 1.6</a>";
+    private String defaultLink = "<a href=\"https://www.java.com/inc/"
+        + "BrowserRedirect1.jsp?locale=en\">Download Java</a>";
 
     private JPanel mainPanel = new JPanel(new BorderLayout());
 
@@ -69,7 +74,7 @@ public class ChangeJVMFrame
     {
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        this.setTitle("SIP Communicator requirements");
+        this.setTitle("Jitsi requirements");
 
         this.mainPanel.setPreferredSize(
             new Dimension(450, 150));
@@ -87,7 +92,7 @@ public class ChangeJVMFrame
         this.javaLinkPane.setContentType("text/html");
         this.javaLinkPane.setEditable(false);
 
-        this.javaLinkPane.setText(osName.equals(MAC_OSX) ? macLink : defaultLink);
+        this.javaLinkPane.setText(defaultLink);
 
         this.javaLinkPane.addHyperlinkListener(new HyperlinkListener()
         {

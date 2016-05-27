@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main;
 
@@ -72,47 +83,30 @@ public class GeneralDialPanel
     }
 
     /**
-     * Creates DTMF button.
-     *
-     * @param bgImage
-     * @param iconImage
-     * @param name
-     * @return the created dial button
-     */
-    private JButton createDialButton(Image bgImage, ImageID iconImage,
-        String name)
-    {
-        JButton button
-            = new SIPCommButton(bgImage, ImageLoader.getImage(iconImage));
-
-        button.setAlignmentY(JButton.LEFT_ALIGNMENT);
-        button.setName(name);
-        button.setOpaque(false);
-        button.addMouseListener(this);
-        return button;
-    }
-
-    /**
      * Initializes a new dial button which is to be used on Mac OS X.
      *
      * @param imageID
      * @param rolloverImageID
+     * @param pressedImageImageID
      * @param name
      * @return the newly-initialized dial button
      */
-    private JButton createMacOSXDialButton( ImageID imageID,
-                                            ImageID rolloverImageID,
-                                            String name)
+    private JButton createDialButton( ImageID imageID,
+                                      ImageID rolloverImageID,
+                                      ImageID pressedImageImageID,
+                                      String name)
     {
         JButton button
             = new SIPCommButton(
                     ImageLoader.getImage(imageID),
                     ImageLoader.getImage(rolloverImageID),
-                    ImageLoader.getImage(rolloverImageID),
+                    ImageLoader.getImage(pressedImageImageID),
                     null,
                     null,
                     null);
 
+        button.setAlignmentY(JButton.LEFT_ALIGNMENT);
+        button.setOpaque(false);
         button.setName(name);
         button.addMouseListener(this);
         return button;
@@ -140,8 +134,6 @@ public class GeneralDialPanel
     {
         dialPadPanel.removeAll();
 
-        Image bgImage = ImageLoader.getImage(ImageLoader.DIAL_BUTTON_BG);
-
         for (DTMFHandler.DTMFToneInfo info : DTMFHandler.AVAILABLE_TONES)
         {
             // We only add buttons with images.
@@ -150,13 +142,15 @@ public class GeneralDialPanel
 
             JComponent c
                 = OSUtils.IS_MAC
-                    ? createMacOSXDialButton(
+                    ? createDialButton(
                             info.macImageID,
+                            info.macImageRolloverID,
                             info.macImageRolloverID,
                             info.tone.getValue())
                     : createDialButton(
-                            bgImage,
                             info.imageID,
+                            info.imageIDPressed,
+                            info.imageIDRollover,
                             info.tone.getValue());
 
             dialPadPanel.add(c);

@@ -1,7 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license. See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.desktoputil.wizard;
 
@@ -20,8 +32,6 @@ import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.plugin.desktoputil.*;
 
 import org.jitsi.service.neomedia.*;
-
-import ch.imvs.sdes4j.srtp.*;
 
 /**
  * Contains the security settings for SIP media encryption.
@@ -44,7 +54,7 @@ public class SecurityPanel
     private JPanel pnlAdvancedSettings;
     private JCheckBox enableDefaultEncryption;
     private JCheckBox enableSipZrtpAttribute;
-    private JComboBox cboSavpOption;
+    private JComboBox<SavpOption> cboSavpOption;
     private JTable tabCiphers;
     private CipherTableModel cipherModel;
     private JLabel cmdExpandAdvancedSettings;
@@ -103,8 +113,10 @@ public class SecurityPanel
         private static final long serialVersionUID = 0L;
 
         private List<Entry> data = new ArrayList<Entry>();
-        private final String defaultCiphers = UtilActivator.getResources()
-            .getSettingsString(SDesControl.SDES_CIPHER_SUITES);
+
+        private final String defaultCiphers =
+            UtilActivator.getConfigurationService()
+                .getString(SDesControl.SDES_CIPHER_SUITES);
 
         CipherTableModel(String ciphers)
         {
@@ -120,13 +132,15 @@ public class SecurityPanel
 
             if(ciphers == null)
                 ciphers = defaultCiphers;
-            //TODO the available ciphers should come from SDesControlImpl
-            data.add(new Entry(SrtpCryptoSuite.AES_CM_128_HMAC_SHA1_80, ciphers
-                .contains(SrtpCryptoSuite.AES_CM_128_HMAC_SHA1_80)));
-            data.add(new Entry(SrtpCryptoSuite.AES_CM_128_HMAC_SHA1_32, ciphers
-                .contains(SrtpCryptoSuite.AES_CM_128_HMAC_SHA1_32)));
-            data.add(new Entry(SrtpCryptoSuite.F8_128_HMAC_SHA1_80, ciphers
-                .contains(SrtpCryptoSuite.F8_128_HMAC_SHA1_80)));
+
+            MediaService ms = DesktopUtilActivator.getMediaService();
+            SDesControl srtp =
+                (SDesControl) ms.createSrtpControl(SrtpControlType.SDES);
+            for (String cipher : srtp.getSupportedCryptoSuites())
+            {
+                data.add(new Entry(cipher, ciphers.contains(cipher)));
+            }
+
             fireTableDataChanged();
         }
 
@@ -398,7 +412,7 @@ public class SecurityPanel
             pnlAdvancedSettings.add(new JSeparator(), c);
         }
 
-        cboSavpOption = new JComboBox(new SavpOption[]{
+        cboSavpOption = new JComboBox<SavpOption>(new SavpOption[]{
             new SavpOption(0),
             new SavpOption(1),
             new SavpOption(2)

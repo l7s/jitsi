@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.ircaccregwizz;
 
@@ -11,6 +22,7 @@ package net.java.sip.communicator.plugin.ircaccregwizz;
  * through the <tt>IrcAccountRegistrationWizard</tt>.
  *
  * @author Lionel Ferreira & Michael Tarantino
+ * @author Danny van Heumen
  */
 public class IrcAccountRegistration
 {
@@ -22,6 +34,20 @@ public class IrcAccountRegistration
     private boolean autoChangeNick;
     private boolean isRequiredPassword;
     private boolean secureConnection;
+    private boolean saslEnabled;
+    private String saslUser;
+    private String saslRole;
+    private boolean resolveDnsThroughProxy;
+
+    /**
+     * Option for activating contact presence task.
+     */
+    private boolean contactPresenceTaskEnabled;
+
+    /**
+     * Option for activating chat room members presence task.
+     */
+    private boolean chatroomPresenceTaskEnabled;
 
     /**
      * Returns the User ID of the IRC registration account.
@@ -172,7 +198,7 @@ public class IrcAccountRegistration
     
     /**
      * Indicates if the the connection must be secure or not.
-     * 
+     *
      * @return returns <code>true</code> to indicate that the connection should
      *         be secure, or false for unsecured connection.
      */
@@ -183,12 +209,135 @@ public class IrcAccountRegistration
     
     /**
      * Set the <tt>useSecureConnection</tt> property.
-     * 
+     *
      * @param secureConnection true to require secure connection, or false
      *            for unsecured connections
      */
     public void setSecureConnection(boolean secureConnection)
     {
         this.secureConnection = secureConnection;
+    }
+
+    /**
+     * Get contact presence task enabled.
+     *
+     * @return returns <tt>true</tt> if task should be enabled
+     */
+    public boolean isContactPresenceTaskEnabled()
+    {
+        return this.contactPresenceTaskEnabled;
+    }
+
+    /**
+     * Set contact presence task.
+     *
+     * @param value value
+     */
+    public void setContactPresenceTaskEnabled(final boolean value)
+    {
+        this.contactPresenceTaskEnabled = value;
+    }
+
+    /**
+     * Get chat room presence task.
+     *
+     * @return returns <tt>true</tt> if task should be enabled
+     */
+    public boolean isChatRoomPresenceTaskEnabled()
+    {
+        return this.chatroomPresenceTaskEnabled;
+    }
+
+    /**
+     * Set chat room presence task.
+     *
+     * @param value value
+     */
+    public void setChatRoomPresenceTaskEnabled(final boolean value)
+    {
+        this.chatroomPresenceTaskEnabled = value;
+    }
+
+    /**
+     * Get SASL enable status.
+     *
+     * @return Returns <tt>true</tt> if SASL is enabled, or <tt>false</tt> if
+     *         SASL is disabled.
+     */
+    public boolean isSaslEnabled()
+    {
+        return this.saslEnabled;
+    }
+
+    /**
+     * Set SASL enabled.
+     *
+     * @param enabled <tt>true</tt> to enable SASL, <tt>false</tt> to disable
+     */
+    public void setSaslEnabled(final boolean enabled)
+    {
+        this.saslEnabled = enabled;
+    }
+
+    /**
+     * Get SASL user name.
+     *
+     * @return Returns SASL user name.
+     */
+    public String getSaslUser()
+    {
+        return this.saslUser;
+    }
+
+    /**
+     * Set SASL user name. (Mandatory)
+     *
+     * @param user SASL user name
+     */
+    public void setSaslUser(final String user)
+    {
+        this.saslUser = user;
+    }
+
+    /**
+     * Get SASL authorization role. (Optional)
+     *
+     * @return Returns the SASL authorization role if configured, of
+     *         <tt>null</tt> if no role known.
+     */
+    public String getSaslRole()
+    {
+        return this.saslRole;
+    }
+
+    /**
+     * Set SASL authorization role.
+     *
+     * @param role the SASL authorization role
+     */
+    public void setSaslRole(final String role)
+    {
+        this.saslRole = role;
+    }
+
+    /**
+     * Get property for resolving DNS names through configured proxy server.
+     * <tt>true</tt> to resolve DNS names through configured proxy server, or
+     * <tt>false</tt> to resolve using own DNS server.
+     */
+    public boolean isResolveDnsThroughProxy()
+    {
+        return this.resolveDnsThroughProxy;
+    }
+
+    /**
+     * Set property for resolving DNS through configured proxy server.
+     *
+     * @param value <tt>true</tt> to enable resolving through proxy server, or
+     *            <tt>false</tt> to resolve via local DNS server
+     */
+    public void setResolveDnsThroughProxy(final boolean value)
+    {
+        this.resolveDnsThroughProxy = value;
     }
 }

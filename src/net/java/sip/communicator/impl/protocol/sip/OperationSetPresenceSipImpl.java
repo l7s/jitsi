@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -2228,6 +2239,40 @@ public class OperationSetPresenceSipImpl
               Contact contact = resolveContactID(contactID);
               updateContactIcon((ContactSipImpl) contact, personStatusIcon);
          }
+
+        // search for a <note> that can define a more precise
+        // status this is not recommended by RFC3863 but some im
+        // clients use this.
+        NodeList presNoteList = getPidfChilds(presence, NOTE_ELEMENT);
+        if (presNoteList.getLength() >= 1)
+        {
+            Node noteNode = presNoteList.item(presNoteList.getLength() - 1);
+            if (noteNode.getNodeType() == Node.ELEMENT_NODE)
+            {
+                String state = getTextContent((Element)noteNode);
+                if (state != null)
+                {
+                    switch (state.toLowerCase())
+                    {
+                        case "ready":
+                        case "available":
+                            personStatus = sipStatusEnum
+                                .getStatus(SipStatusEnum.ONLINE);
+                            break;
+                        case "ringing":
+                        case "on the phone":
+                        case "on hold":
+                            personStatus = sipStatusEnum
+                                .getStatus(SipStatusEnum.ON_THE_PHONE);
+                            break;
+                        case "unavailable":
+                            personStatus = sipStatusEnum
+                                .getStatus(SipStatusEnum.OFFLINE);
+                            break;
+                    }
+                }
+            }
+        }
 
          // Vector containing the list of status to set for each contact in
          // the presence document ordered by priority (highest first).

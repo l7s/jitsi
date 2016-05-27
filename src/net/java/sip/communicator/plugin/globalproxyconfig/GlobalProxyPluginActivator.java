@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.globalproxyconfig;
 
@@ -257,10 +268,23 @@ public class GlobalProxyPluginActivator implements BundleActivator
             if(getRequestingProtocol().startsWith(type)
                 && getRequestingHost().equals(host)
                 && port == getRequestingPort()
-                && getRequestorType().equals(Authenticator.RequestorType.SERVER))
+                && getRequestorType().equals(Authenticator.RequestorType.SERVER)
+                && username != null)
             {
-                return new PasswordAuthentication(
-                    username, password.toCharArray());
+                // user name must be non-null, since otherwise SOCKS
+                // authenticate will fail immediately (HTTP authentication
+                // assumes non-null)
+                final char[] pass;
+                if (password == null)
+                {
+                    // empty password is not stored explicitly so will be null
+                    pass = new char[0];
+                }
+                else
+                {
+                    pass = password.toCharArray();
+                }
+                return new PasswordAuthentication(username, pass);
             }
             else
                 return super.getPasswordAuthentication();

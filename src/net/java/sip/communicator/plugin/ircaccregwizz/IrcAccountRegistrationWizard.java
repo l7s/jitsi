@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.ircaccregwizz;
 
@@ -17,8 +28,8 @@ import org.osgi.framework.*;
 
 /**
  * The <tt>IrcAccountRegistrationWizard</tt> is an implementation of the
- * <tt>AccountRegistrationWizard</tt> for the IRC protocol. It allows
- * the user to create and configure a new IRC account.
+ * <tt>AccountRegistrationWizard</tt> for the IRC protocol. It allows the user
+ * to create and configure a new IRC account.
  *
  * @author Lionel Ferreira & Michael Tarantino
  * @author Danny van Heumen
@@ -30,6 +41,47 @@ public class IrcAccountRegistrationWizard
 
     private static final int WIZARD_DIALOG_WIDTH = 600;
 
+    /**
+     * Repeated contact presence task configuration key from
+     * ProtocolProviderFactoryIrcImpl here to avoid having to import irc
+     * protocol package directly. See
+     * ProtocolProviderFactoryIrcImpl.CONTACT_PRESENCE_TASK.
+     */
+    public static final String CONTACT_PRESENCE_TASK = "CONTACT_PRESENCE_TASK";
+
+    /**
+     * Repeated chat room presence task configuration key from
+     * ProtocolProviderFactoryIrcImpl here to avoid having to import irc
+     * protocol package directly. See
+     * ProtocolProviderFactoryIrcImpl.CHAT_ROOM_PRESENCE_TASK.
+     */
+    public static final String CHAT_ROOM_PRESENCE_TASK =
+        "CHAT_ROOM_PRESENCE_TASK";
+
+    /**
+     * Property indicating SASL is enabled.
+     */
+    public static final String SASL_ENABLED = "SASL_ENABLED";
+
+    /**
+     * Property name for SASL user.
+     */
+    public static final String SASL_USERNAME = "SASL_USERNAME";
+
+    /**
+     * Property for SASL authorization role.
+     */
+    public static final String SASL_ROLE = "SASL_ROLE";
+
+    /**
+     * Property for resolving DNS names through configured proxy server.
+     */
+    public static final String RESOLVE_DNS_THROUGH_PROXY =
+        "RESOLVE_DNS_THROUGH_PROXY";
+
+    /**
+     * Logger.
+     */
     private final Logger logger
         = Logger.getLogger(IrcAccountRegistrationWizard.class);
 
@@ -134,8 +186,8 @@ public class IrcAccountRegistrationWizard
     @Override
     public Iterator<Map.Entry<String, String>> getSummary()
     {
-        Hashtable<String, String> summaryTable =
-            new Hashtable<String, String>();
+        LinkedHashMap<String, String> summaryTable =
+            new LinkedHashMap<String, String>();
         String pass = new String();
         String port = new String();
 
@@ -153,12 +205,38 @@ public class IrcAccountRegistrationWizard
         {
             port = ":" + port;
         }
+        
+        final String yes = Resources.getString("service.gui.YES");
+        final String no = Resources.getString("service.gui.NO");
 
-        summaryTable.put("Password", pass);
-        summaryTable.put("Nickname", registration.getUserID());
-        summaryTable.put("Server IRC", registration.getServer() + port);
-        summaryTable.put("Secure connection",
-            registration.isSecureConnection() ? "yes" : "no");
+        summaryTable.put(Resources.getString("plugin.ircaccregwizz.USERNAME"),
+            registration.getUserID());
+        summaryTable.put(Resources.getString("service.gui.PASSWORD"), pass);
+        summaryTable.put(
+            Resources.getString("plugin.ircaccregwizz.IRC_SERVER"),
+            registration.getServer() + port);
+        summaryTable.put(
+            Resources.getString("plugin.ircaccregwizz.USE_SECURE_CONNECTION"),
+            registration.isSecureConnection() ? yes : no);
+        summaryTable.put(Resources
+            .getString("plugin.ircaccregwizz.RESOLVE_DNS_THROUGH_PROXY"),
+            registration.isResolveDnsThroughProxy() ? yes : no);
+        summaryTable
+            .put(Resources
+                .getString("plugin.ircaccregwizz.ENABLE_CONTACT_PRESENCE"),
+                registration.isContactPresenceTaskEnabled() ? yes : no);
+        summaryTable.put(Resources
+            .getString("plugin.ircaccregwizz.ENABLE_CHAT_ROOM_PRESENCE"),
+            registration.isChatRoomPresenceTaskEnabled() ? yes : no);
+        summaryTable.put(Resources
+            .getString("plugin.ircaccregwizz.ENABLE_SASL_AUTHENTICATION"),
+            registration.isSaslEnabled() ? yes : no);
+        summaryTable.put(
+            "SASL " + Resources.getString("plugin.ircaccregwizz.USERNAME"),
+            registration.getSaslUser());
+        summaryTable.put("SASL "
+                + Resources.getString("plugin.ircaccregwizz.SASL_AUTHZ_ROLE"),
+            registration.getSaslRole());
 
         return summaryTable.entrySet().iterator();
     }
@@ -202,10 +280,7 @@ public class IrcAccountRegistrationWizard
     {
         ProtocolProviderFactory factory
             = IrcAccRegWizzActivator.getIrcProtocolProviderFactory();
-
-        return this.installAccount(factory,
-                                   userName,
-                                   password);
+        return this.installAccount(factory, userName, password);
     }
 
     /**
@@ -242,14 +317,30 @@ public class IrcAccountRegistrationWizard
 
         accountProperties.put(
                 ProtocolProviderFactory.AUTO_CHANGE_USER_NAME,
-                new Boolean(registration.isAutoChangeNick()).toString());
+                Boolean.toString(registration.isAutoChangeNick()));
+
+        accountProperties.put(
+            IrcAccountRegistrationWizard.RESOLVE_DNS_THROUGH_PROXY,
+            Boolean.toString(registration.isResolveDnsThroughProxy()));
 
         accountProperties.put(
                 ProtocolProviderFactory.NO_PASSWORD_REQUIRED,
-                new Boolean(!registration.isRequiredPassword()).toString());
+                Boolean.toString(!registration.isRequiredPassword()));
 
         accountProperties.put(ProtocolProviderFactory.DEFAULT_ENCRYPTION,
-            new Boolean(registration.isSecureConnection()).toString());
+            Boolean.toString(registration.isSecureConnection()).toString());
+
+        // Presence-based background tasks
+        accountProperties.put(CONTACT_PRESENCE_TASK,
+            Boolean.toString(registration.isContactPresenceTaskEnabled()));
+        accountProperties.put(CHAT_ROOM_PRESENCE_TASK,
+            Boolean.toString(registration.isChatRoomPresenceTaskEnabled()));
+
+        // SASL properties
+        accountProperties.put(SASL_ENABLED,
+            Boolean.toString(registration.isSaslEnabled()));
+        accountProperties.put(SASL_USERNAME, registration.getSaslUser());
+        accountProperties.put(SASL_ROLE, registration.getSaslRole());
 
         if (isModification())
         {

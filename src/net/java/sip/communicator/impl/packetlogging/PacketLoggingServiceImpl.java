@@ -1,14 +1,26 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.packetlogging;
 
 import java.io.*;
 import java.util.*;
 
+import com.google.common.collect.*;
 import net.java.sip.communicator.util.*;
 
 import org.jitsi.service.fileaccess.*;
@@ -28,6 +40,14 @@ public class PacketLoggingServiceImpl
      */
     private static final Logger logger
             = Logger.getLogger(PacketLoggingServiceImpl.class);
+
+    /**
+     * The max size of the <tt>EvictingQueue</tt> that the saver thread
+     * is using.
+     *
+     * TODO this needs to be configurable eventually.
+     */
+    private static final int EVICTING_QUEUE_MAX_SIZE = 1000;
 
     /**
      * The OutputStream we are currently writing to.
@@ -302,22 +322,22 @@ public class PacketLoggingServiceImpl
         {
             switch(protocol)
             {
-                case SIP:
-                    return cfg.isSipLoggingEnabled();
-                case JABBER:
-                    return cfg.isJabberLoggingEnabled();
-                case RTP:
-                    return cfg.isRTPLoggingEnabled();
-                case ICE4J:
-                    return cfg.isIce4JLoggingEnabled();
-                default:
-                    /*
-                     * It may seem like it was unnecessary to invoke
-                     * getConfiguration and isGlobalLoggingEnabled prior to
-                     * checking that the specified protocol is supported but,
-                     * actually, there are no other ProtocolName values.
-                     */
-                    return false;
+            case SIP:
+                return cfg.isSipLoggingEnabled();
+            case JABBER:
+                return cfg.isJabberLoggingEnabled();
+            case RTP:
+                return cfg.isRTPLoggingEnabled();
+            case ICE4J:
+                return cfg.isIce4JLoggingEnabled();
+            case ARBITRARY:
+                return cfg.isArbitraryLoggingEnabled();
+            default:
+                // It may seem like it was unnecessary to invoke
+                // getConfiguration and isGlobalLoggingEnabled prior to checking
+                // that the specified protocol is supported but, actually, there
+                // are no other ProtocolName values.
+                return false;
             }
         }
         else
@@ -756,7 +776,16 @@ public class PacketLoggingServiceImpl
         /**
          * List of packets queued to be written in the file.
          */
-        private final List<Packet> pktsToSave = new ArrayList<Packet>();
+        private final EvictingQueue<Packet> pktsToSave
+            = EvictingQueue.create(EVICTING_QUEUE_MAX_SIZE);
+
+        /**
+         * Initializes a new <tt>SaverThread</tt>.
+         */
+        SaverThread()
+        {
+            setName(PacketLoggingServiceImpl.class.getName() + " SaverThread");
+        }
 
         /**
          * Sends instant messages in separate thread so we don't block
@@ -784,7 +813,7 @@ public class PacketLoggingServiceImpl
                         continue;
                     }
 
-                    pktToSave = pktsToSave.remove(0);
+                    pktToSave = pktsToSave.poll();
                 }
 
                 if(pktToSave != null)
@@ -823,6 +852,11 @@ public class PacketLoggingServiceImpl
          */
         public synchronized void queuePacket(Packet packet)
         {
+            if (EVICTING_QUEUE_MAX_SIZE - pktsToSave.size() == 0)
+            {
+                logger.warn("Queue is full, packets are being evicted.");
+            }
+
             pktsToSave.add(packet);
             notifyAll();
         }

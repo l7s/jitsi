@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -48,6 +59,14 @@ public class SynchronizedIRCApi
         final Callback<IIRCState> aCallback)
     {
         this.irc.connect(aServerParameters, aCallback);
+    }
+
+    @Override
+    public synchronized void connect(final IServerParameters aServerParameters,
+        final Callback<IIRCState> aCallback,
+        final CapabilityNegotiator negotiator)
+    {
+        this.irc.connect(aServerParameters, aCallback, negotiator);
     }
 
     @Override
@@ -270,11 +289,29 @@ public class SynchronizedIRCApi
     }
 
     @Override
+    public synchronized void dccReceive(final File aFile, final Integer aSize,
+        final SocketAddress aAddress, final DCCReceiveCallback aCallback,
+        final Proxy aProxy)
+    {
+        this.irc.dccReceive(aFile, aSize, aAddress, aCallback, aProxy);
+    }
+
+    @Override
     public synchronized void dccResume(final File aFile,
         final Integer aResumePosition, final Integer aSize,
         final SocketAddress aAddress, final DCCReceiveCallback aCallback)
     {
         this.irc.dccResume(aFile, aResumePosition, aSize, aAddress, aCallback);
+    }
+
+    @Override
+    public synchronized void dccResume(final File aFile,
+        final Integer aResumePosition, final Integer aSize,
+        final SocketAddress aAddress, final DCCReceiveCallback aCallback,
+        final Proxy aProxy)
+    {
+        this.irc.dccResume(aFile, aResumePosition, aSize, aAddress, aCallback,
+            aProxy);
     }
 
     @Override

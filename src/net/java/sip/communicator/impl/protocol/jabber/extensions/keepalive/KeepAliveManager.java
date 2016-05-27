@@ -1,3 +1,20 @@
+/*
+ * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
+ *
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.java.sip.communicator.impl.protocol.jabber.extensions.keepalive;
 
 import java.util.*;
@@ -169,10 +186,14 @@ public class KeepAliveManager
         if(packet instanceof KeepAliveEvent)
         {
             // replay only to server pings, to avoid leak of presence
+            // skip if this is reply with error (like not supported)
+            // we can still receive errors, but as this is keep-alive ping
+            // we don't care for errors, as packets has already done its goal
             KeepAliveEvent evt = (KeepAliveEvent)packet;
             if(evt.getFrom() != null
                && evt.getFrom()
-                    .equals(parentProvider.getAccountID().getService()))
+                    .equals(parentProvider.getAccountID().getService())
+                && evt.getError() == null)
             {
                 parentProvider.getConnection().sendPacket(
                     IQ.createResultIQ(evt));

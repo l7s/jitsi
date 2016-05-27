@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -19,7 +30,6 @@ import com.ircclouds.irc.api.*;
 import com.ircclouds.irc.api.domain.*;
 import com.ircclouds.irc.api.domain.messages.*;
 import com.ircclouds.irc.api.domain.messages.interfaces.*;
-import com.ircclouds.irc.api.listeners.*;
 import com.ircclouds.irc.api.state.*;
 
 /**
@@ -55,6 +65,11 @@ public class ChannelManager
      * Provider.
      */
     private final ProtocolProviderServiceIrcImpl provider;
+
+    /**
+     * Client configuration.
+     */
+    private final ClientConfig config;
 
     /**
      * Container for joined channels.
@@ -100,14 +115,21 @@ public class ChannelManager
             = new HashMap<Character, Integer>();
 
     /**
+     * Flag for indicating availability of Away Notify capability.
+     */
+    private final boolean awayNotify;
+
+    /**
      * Constructor.
      *
      * @param irc thread-safe IRCApi instance
      * @param connectionState the connection state
      * @param provider the provider instance
+     * @param config client configuration
      */
     public ChannelManager(final IRCApi irc, final IIRCState connectionState,
-        final ProtocolProviderServiceIrcImpl provider)
+        final ProtocolProviderServiceIrcImpl provider,
+        final ClientConfig config, final boolean awayNotifyCapability)
     {
         if (irc == null)
         {
@@ -125,6 +147,11 @@ public class ChannelManager
             throw new IllegalArgumentException("provider cannot be null");
         }
         this.provider = provider;
+        if (config == null)
+        {
+            throw new IllegalArgumentException("client config cannot be null");
+        }
+        this.config = config;
         this.irc.addListener(new ManagerListener());
 
         // parse ISUPPORT parameters
@@ -135,6 +162,7 @@ public class ChannelManager
         this.isupportKickLen = parseISupportInteger(this.connectionState,
                 ISupport.KICKLEN);
         parseISupportChanLimit(this.isupportChanLimit, this.connectionState);
+        this.awayNotify = awayNotifyCapability;
     }
 
     /**
@@ -343,8 +371,10 @@ public class ChannelManager
                                 ChannelManager.this.joined.put(chatRoomId,
                                     chatroom);
                                 ChannelManager.this.irc
-                                    .addListener(
-                                        new ChatRoomListener(chatroom));
+                                    .addListener(new ChatRoomListener(chatroom,
+                                        ChannelManager.this.config
+                                            .isChannelPresenceTaskEnabled(),
+                                            ChannelManager.this.awayNotify));
                                 prepareChatRoom(chatroom, channel);
                             }
                             finally
@@ -452,12 +482,18 @@ public class ChannelManager
             final ChatRoomMemberIrcImpl member =
                 new ChatRoomMemberIrcImpl(this.provider, chatRoom,
                     user.getNick(), user.getIdent(), user.getHostname(),
-                    ChatRoomMemberRole.SILENT_MEMBER);
+                    ChatRoomMemberRole.SILENT_MEMBER, IrcStatusEnum.ONLINE);
             ChatRoomMemberRole role;
             for (final IRCUserStatus status : channel.getStatusesForUser(user))
             {
                 try
                 {
+                    if (LOGGER.isTraceEnabled())
+                    {
+                        LOGGER.trace("Processing role " + status.getPrefix()
+                            + " for member " + user.getNick() + " in channel "
+                            + channel.getName());
+                    }
                     role = convertMemberMode(status.getChanModeType());
                     member.addRole(role);
                 }
@@ -679,7 +715,7 @@ public class ChannelManager
      *
      * @author Danny van Heumen
      */
-    private final class ManagerListener extends VariousMessageListenerAdapter
+    private final class ManagerListener extends AbstractIrcMessageListener
     {
         /**
          * IRC reply code for end of list.
@@ -688,33 +724,11 @@ public class ChannelManager
             IRCServerNumerics.CHANNEL_NICKS_END_OF_LIST;
 
         /**
-         * Quit message event.
-         *
-         * @param msg QuitMessage
+         * Constructor.
          */
-        @Override
-        public void onUserQuit(final QuitMessage msg)
+        public ManagerListener()
         {
-            final String user = msg.getSource().getNick();
-            if (ChannelManager.this.connectionState.getNickname().equals(user))
-            {
-                LOGGER.debug("Local user QUIT message received: removing "
-                    + "channel manager listener.");
-                ChannelManager.this.irc.deleteListener(this);
-            }
-        }
-
-        /**
-         * In case a fatal error occurs, remove the ChannelManager listener.
-         */
-        @Override
-        public void onError(final ErrorMessage aMsg)
-        {
-            // Errors signal fatal situation, so unregister and assume
-            // connection lost.
-            LOGGER.debug("Local user received ERROR message: removing "
-                + "channel manager listener.");
-            ChannelManager.this.irc.deleteListener(this);
+            super(ChannelManager.this.irc, ChannelManager.this.connectionState);
         }
 
         /**
@@ -725,7 +739,7 @@ public class ChannelManager
         @Override
         public void onServerNumericMessage(final ServerNumericMessage msg)
         {
-            switch (msg.getNumericCode().intValue())
+            switch (msg.getNumericCode())
             {
             case RPL_LISTEND:
                 // CHANNEL_NICKS_END_OF_LIST indicates the end of a nick list as
@@ -753,20 +767,20 @@ public class ChannelManager
                     // We aren't currently attempting to join, so this join is
                     // unannounced.
                     LOGGER.trace("Starting unannounced join of chat room '"
-                        + channelName);
+                        + channelName + "'");
                     // Assuming that at the time that NICKS_END_OF_LIST is
                     // propagated, the channel join event has been completely
                     // handled by IRCApi.
                     channel =
-                        ChannelManager.this.connectionState
-                            .getChannelByName(channelName);
+                        this.connectionState.getChannelByName(channelName);
                     chatRoom =
                         new ChatRoomIrcImpl(channelName,
                             ChannelManager.this.provider);
                     ChannelManager.this.joined.put(channelName, chatRoom);
                 }
-                ChannelManager.this.irc.addListener(new ChatRoomListener(
-                    chatRoom));
+                this.irc.addListener(new ChatRoomListener(chatRoom,
+                    ChannelManager.this.config.isChannelPresenceTaskEnabled(),
+                    ChannelManager.this.awayNotify));
                 try
                 {
                     ChannelManager.this.provider.getMUC().openChatRoomWindow(
@@ -801,8 +815,13 @@ public class ChannelManager
      * @author Danny van Heumen
      */
     private final class ChatRoomListener
-        extends VariousMessageListenerAdapter
+        extends AbstractIrcMessageListener
     {
+        /**
+         * Indicator for those members whose AWAY message is set.
+         */
+        private static final String GONE = "G";
+
         /**
          * IRC error code for case when user cannot send a message to the
          * channel, for example when this channel is moderated and user does not
@@ -816,22 +835,88 @@ public class ChannelManager
         private static final int IRC_ERR_NOTONCHANNEL = 442;
 
         /**
+         * IRC reply code for WHO reply entry for an individual user.
+         */
+        private static final int IRC_RPL_WHOREPLY = 352;
+
+        /**
+         * IRC reply code for end of WHO reply list.
+         */
+        private static final int IRC_RPL_ENDOFWHO = 315;
+
+        /**
+         * Presence task period.
+         */
+        private static final long TASK_PERIOD = 60000L;
+
+        /**
+         * Presence task initial delay.
+         *
+         * The first WHO-request is fired during ChatRoomListener constructions,
+         * as we need at least 1 such request, even if away-notify capability is
+         * active.
+         */
+        private static final long TASK_INITIAL_DELAY = TASK_PERIOD;
+
+        /**
          * Chat room for which this listener is working.
          */
         private final ChatRoomIrcImpl chatroom;
 
         /**
+         * Presence task timer.
+         */
+        private final Timer presenceTaskTimer = new Timer();
+
+        /**
          * Constructor. Instantiate listener for the provided chat room.
          *
          * @param chatroom the chat room
+         * @param activatePresenceWatcher flag indicating whether or not to
+         *            activate the periodic presence watcher task
+         * @param awayNotifyCapability flag indicating whether or not away
+         *            notifications are active. If they are active, there is no
+         *            need to periodically query presence status.
          */
-        private ChatRoomListener(final ChatRoomIrcImpl chatroom)
+        private ChatRoomListener(final ChatRoomIrcImpl chatroom,
+            final boolean activatePresenceWatcher,
+            final boolean awayNotifyCapability)
         {
+            super(ChannelManager.this.irc, ChannelManager.this.connectionState);
             if (chatroom == null)
             {
                 throw new IllegalArgumentException("chatroom cannot be null");
             }
             this.chatroom = chatroom;
+            if (activatePresenceWatcher && !awayNotifyCapability)
+            {
+                createPeriodicPresenceWatcher();
+            }
+            else
+            {
+                LOGGER.info("Not activating periodic presence watcher. "
+                    + "(away-notify capability is " + awayNotifyCapability
+                    + ")");
+            }
+            this.irc.rawMessage("WHO " + chatroom.getIdentifier());
+        }
+
+        /**
+         * Create periodic task for updating channel presence statuses.
+         */
+        private void createPeriodicPresenceWatcher() {
+            final TimerTask task = new TimerTask()
+            {
+                @Override
+                public void run()
+                {
+                    irc.rawMessage("WHO " + chatroom.getIdentifier());
+                }
+            };
+            this.presenceTaskTimer.schedule(task, TASK_INITIAL_DELAY,
+                TASK_PERIOD);
+            LOGGER.debug("Scheduled periodic task for querying member presence "
+                + "for channel " + this.chatroom.getIdentifier());
         }
 
         /**
@@ -882,7 +967,7 @@ public class ChannelManager
             final ChatRoomMemberIrcImpl member =
                 new ChatRoomMemberIrcImpl(ChannelManager.this.provider,
                     this.chatroom, user, ident, host,
-                    ChatRoomMemberRole.SILENT_MEMBER);
+                    ChatRoomMemberRole.SILENT_MEMBER, IrcStatusEnum.ONLINE);
             this.chatroom.fireMemberPresenceEvent(member, null,
                 ChatRoomMemberPresenceChangeEvent.MEMBER_JOINED, null);
         }
@@ -901,7 +986,7 @@ public class ChannelManager
             }
 
             final IRCUser user = msg.getSource();
-            if (isMe(user))
+            if (localUser(user))
             {
                 leaveChatRoom();
                 return;
@@ -943,7 +1028,7 @@ public class ChannelManager
                 return;
             }
             final String raw = msg.getText();
-            switch (code.intValue())
+            switch (code)
             {
             case IRC_ERR_NOTONCHANNEL:
                 final String channel = raw.substring(0, raw.indexOf(" "));
@@ -975,9 +1060,46 @@ public class ChannelManager
                 }
                 break;
 
+            case IRC_RPL_WHOREPLY:
+                final String[] messageComponents = msg.getText().split(" ");
+                if (messageComponents.length < 6
+                    || !isThisChatRoom(messageComponents[0]))
+                {
+                    // We need at least 6 components in order to process this
+                    // message correctly, so stop processing if this is not the
+                    // case. Or if this reply was not targeted at this channel.
+                    return;
+                }
+                final String nick = messageComponents[4];
+                final ChatRoomMemberIrcImpl member =
+                    (ChatRoomMemberIrcImpl) this.chatroom
+                        .getChatRoomMember(nick);
+                if (member != null)
+                {
+                    final IrcStatusEnum status =
+                        determineStatus(messageComponents[5]);
+                    updateMemberPresence(member, status);
+                }
+                break;
+
             default:
                 break;
             }
+        }
+
+        /**
+         * Determine the presence status by the code in the IRC WHO reply.
+         *
+         * @param presenceReply presence code
+         * @return returns corresponding IrcStatusEnum instance
+         */
+        private IrcStatusEnum determineStatus(final String presenceReply)
+        {
+            if (presenceReply != null && presenceReply.startsWith(GONE))
+            {
+                return IrcStatusEnum.AWAY;
+            }
+            return IrcStatusEnum.ONLINE;
         }
 
         /**
@@ -993,7 +1115,7 @@ public class ChannelManager
                 return;
             }
 
-            if (!ChannelManager.this.connectionState.isConnected())
+            if (!this.connectionState.isConnected())
             {
                 LOGGER.error("Not currently connected to IRC Server. "
                     + "Aborting message handling.");
@@ -1011,11 +1133,11 @@ public class ChannelManager
                     ChatRoomMemberPresenceChangeEvent.MEMBER_KICKED,
                     msg.getText());
             }
-            if (isMe(kickedUser))
+            if (localUser(kickedUser))
             {
                 LOGGER.debug(
                     "Local user is kicked. Removing chat room listener.");
-                ChannelManager.this.irc.deleteListener(this);
+                this.irc.deleteListener(this);
                 ChannelManager.this.joined
                     .remove(this.chatroom.getIdentifier());
                 ChannelManager.this.provider.getMUC()
@@ -1033,38 +1155,45 @@ public class ChannelManager
         @Override
         public void onUserQuit(final QuitMessage msg)
         {
-            String user = msg.getSource().getNick();
-            if (user == null)
+            final String user = msg.getSource().getNick();
+            if (localUser(user))
             {
-                return;
+                this.presenceTaskTimer.cancel();
             }
-            if (isMe(user))
+            else
             {
-                LOGGER.debug("Local user QUIT message received: removing chat "
-                    + "room listener.");
-                ChannelManager.this.irc.deleteListener(this);
-                return;
+                final ChatRoomMember member =
+                    this.chatroom.getChatRoomMember(user);
+                if (member != null)
+                {
+                    this.chatroom.fireMemberPresenceEvent(member, null,
+                        ChatRoomMemberPresenceChangeEvent.MEMBER_QUIT,
+                        msg.getQuitMsg());
+                }
             }
-            final ChatRoomMember member = this.chatroom.getChatRoomMember(user);
-            if (member != null)
-            {
-                this.chatroom.fireMemberPresenceEvent(member, null,
-                    ChatRoomMemberPresenceChangeEvent.MEMBER_QUIT,
-                    msg.getQuitMsg());
-            }
+            super.onUserQuit(msg);
         }
 
         /**
-         * In case a fatal error occurs, remove the ChatRoomListener.
+         * Event in case of error. Cancel running timer then do the regular
+         * onError stuff.
          */
         @Override
-        public void onError(final ErrorMessage aMsg)
+        public void onError(final ErrorMessage msg)
         {
-            // Errors signal fatal situation, so unregister and assume
-            // connection lost.
-            LOGGER.debug("Local user received ERROR message: removing "
-                + "chat room listener.");
-            ChannelManager.this.irc.deleteListener(this);
+            this.presenceTaskTimer.cancel();
+            super.onError(msg);
+        }
+
+        /**
+         * Event in case of client-side error. Cancel running timer then do the
+         * regular onClientError stuff.
+         */
+        @Override
+        public void onClientError(final ClientErrorMessage msg)
+        {
+            this.presenceTaskTimer.cancel();
+            super.onClientError(msg);
         }
 
         /**
@@ -1118,7 +1247,7 @@ public class ChannelManager
                 new ChatRoomMemberIrcImpl(ChannelManager.this.provider,
                     this.chatroom, msg.getSource().getNick(), msg.getSource()
                         .getIdent(), msg.getSource().getHostname(),
-                    ChatRoomMemberRole.MEMBER);
+                    ChatRoomMemberRole.MEMBER, IrcStatusEnum.ONLINE);
             this.chatroom.fireMessageReceivedEvent(message, member, new Date(),
                 ChatRoomMessageReceivedEvent.CONVERSATION_MESSAGE_RECEIVED);
         }
@@ -1140,11 +1269,12 @@ public class ChannelManager
             ChatRoomMemberIrcImpl member =
                 new ChatRoomMemberIrcImpl(ChannelManager.this.provider,
                     this.chatroom, userNick, msg.getSource().getIdent(), msg
-                        .getSource().getHostname(), ChatRoomMemberRole.MEMBER);
+                        .getSource().getHostname(), ChatRoomMemberRole.MEMBER,
+                    IrcStatusEnum.ONLINE);
             MessageIrcImpl message =
                 MessageIrcImpl.newActionFromIRC(msg.getText());
             this.chatroom.fireMessageReceivedEvent(message, member, new Date(),
-                ChatRoomMessageReceivedEvent.CONVERSATION_MESSAGE_RECEIVED);
+                ChatRoomMessageReceivedEvent.ACTION_MESSAGE_RECEIVED);
         }
 
         /**
@@ -1164,7 +1294,8 @@ public class ChannelManager
             final ChatRoomMemberIrcImpl member =
                 new ChatRoomMemberIrcImpl(ChannelManager.this.provider,
                     this.chatroom, userNick, msg.getSource().getIdent(), msg
-                        .getSource().getHostname(), ChatRoomMemberRole.MEMBER);
+                        .getSource().getHostname(), ChatRoomMemberRole.MEMBER,
+                    IrcStatusEnum.ONLINE);
             final MessageIrcImpl message =
                 MessageIrcImpl.newNoticeFromIRC(member, msg.getText());
             this.chatroom.fireMessageReceivedEvent(message, member, new Date(),
@@ -1172,11 +1303,54 @@ public class ChannelManager
         }
 
         /**
+         * Event in case of user away message (CAP away-notify)
+         *
+         * @param aMsg away message
+         */
+        @Override
+        public void onUserAway(AwayMessage msg)
+        {
+            final ChatRoomMemberIrcImpl member =
+                (ChatRoomMemberIrcImpl) this.chatroom.getChatRoomMember(msg
+                    .getSource().getNick());
+            if (member != null)
+            {
+                final IrcStatusEnum status =
+                    msg.isAway() ? IrcStatusEnum.AWAY : IrcStatusEnum.ONLINE;
+                updateMemberPresence(member, status);
+            }
+        }
+
+        /**
+         * Update member presence status.
+         *
+         * @param member the member
+         * @param newStatus the new presence status
+         */
+        private void updateMemberPresence(ChatRoomMemberIrcImpl member,
+            IrcStatusEnum newStatus)
+        {
+            final IrcStatusEnum previous = member.setPresenceStatus(newStatus);
+            if (previous == newStatus) {
+                // if there is no change in status, do not fire member
+                // property change event
+                return;
+            }
+            final ChatRoomMemberPropertyChangeEvent presenceEvent =
+                new ChatRoomMemberPropertyChangeEvent(member,
+                    this.chatroom,
+                    ChatRoomMemberPropertyChangeEvent.MEMBER_PRESENCE,
+                    previous, newStatus);
+            this.chatroom.fireMemberPropertyChangeEvent(presenceEvent);
+        }
+
+        /**
          * Leave this chat room.
          */
         private void leaveChatRoom()
         {
-            ChannelManager.this.irc.deleteListener(this);
+            this.presenceTaskTimer.cancel();
+            this.irc.deleteListener(this);
             ChannelManager.this.joined.remove(this.chatroom.getIdentifier());
             LOGGER.debug("Leaving chat room " + this.chatroom.getIdentifier()
                 + ". Chat room listener removed.");
@@ -1286,7 +1460,7 @@ public class ChannelManager
                 final ChatRoomLocalUserRoleChangeEvent event =
                     new ChatRoomLocalUserRoleChangeEvent(this.chatroom,
                         originalRole, newRole, false);
-                if (isMe(targetMember.getContactAddress()))
+                if (localUser(targetMember.getContactAddress()))
                 {
                     this.chatroom.fireLocalUserRoleChangedEvent(event);
                 }
@@ -1391,7 +1565,7 @@ public class ChannelManager
                 member =
                     new ChatRoomMemberIrcImpl(ChannelManager.this.provider,
                         this.chatroom, "", "", "",
-                        ChatRoomMemberRole.ADMINISTRATOR);
+                        ChatRoomMemberRole.ADMINISTRATOR, IrcStatusEnum.ONLINE);
             }
             else if (source instanceof IRCUser)
             {
@@ -1425,26 +1599,9 @@ public class ChannelManager
          * @param user the source user
          * @return returns true if this use, or false otherwise
          */
-        private boolean isMe(final IRCUser user)
+        private boolean localUser(final IRCUser user)
         {
-            return isMe(user.getNick());
-        }
-
-        /**
-         * Test whether the user nick is this user.
-         *
-         * @param name nick of the user
-         * @return returns true if so, false otherwise
-         */
-        private boolean isMe(final String name)
-        {
-            final String userNick =
-                ChannelManager.this.connectionState.getNickname();
-            if (userNick == null)
-            {
-                return false;
-            }
-            return userNick.equals(name);
+            return localUser(user.getNick());
         }
     }
 }
