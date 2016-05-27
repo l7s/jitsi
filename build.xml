@@ -1096,7 +1096,7 @@
         bundle-desktoputil,bundle-globaldisplaydetails, 
     	bundle-usersearch,
         bundle-plugin-propertieseditor,
-        bundle-plugin-balance,bundle-plugin-sms,bundle-plugin-fax"/>
+        bundle-plugin-balance,bundle-plugin-sms,bundle-plugin-fax,
         bundle-bundles"/>
 
     <!-- Copying of all unmodified libraries that are already bundles -->
@@ -1125,7 +1125,6 @@
         <copy file="${lib.noinst}/java-sdp-nist-bridge-1.2.jar" tofile="${bundles.dest}/java-sdp-nist-bridge.jar"/>
         <copy file="${lib.noinst}/jain-sip-ri-ossonly-1.2.279-jitsi-oss1.jar" tofile="${bundles.dest}/jain-sip-ri.jar"/>
     </target>
->>>>>>> level7
 
     <!--BUNDLE-SC-LAUNCHER-->
     <target name="bundle-sc-launcher">
