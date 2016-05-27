@@ -1078,8 +1078,6 @@
         bundle-plugin-googletalkaccregwizz,bundle-argdelegation-service,
         bundle-argdelegation,bundle-zrtp4j,bundle-json,
         bundle-filehistory,bundle-metahistory,bundle-metahistory-slick,
-        bundle-plugin-facebookaccregwizz,
-        bundle-bouncycastle,
         bundle-contactsource,bundle-plugin-reconnect,bundle-plugin-securityconfig,
         bundle-plugin-advancedconfig,
         bundle-credentialsstorage,bundle-credentialsstorage-slick,
@@ -1097,7 +1095,7 @@
         bundle-demuxcontactsource, bundle-muc,
         bundle-desktoputil,bundle-globaldisplaydetails, 
         bundle-usersearch,
-        bundle-plugin-propertieseditor,bundle-plugin-accountinfo,
+        bundle-plugin-propertieseditor,
         bundle-plugin-connectioninfo,
         bundle-bundles"/>
 
