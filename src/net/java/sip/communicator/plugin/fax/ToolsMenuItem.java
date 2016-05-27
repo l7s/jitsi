@@ -7,6 +7,8 @@ import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.net.URLEncoder;
+import java.io.UnsupportedEncodingException;
 
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -75,13 +77,13 @@ public class ToolsMenuItem
         return false;
     }
     
-    public String getNumber(String url)
+    public String getNumber(String url) throws UnsupportedEncodingException
     {
         System.out.println("\tGetting fax numbers array from server");
         HttpUtils.HTTPResponseResult res = null;
         
-        String provUsername=FAXPluginActivator.getProvisioningService().getProvisioningUsername();
-        String provPassword=FAXPluginActivator.getProvisioningService().getProvisioningPassword();
+        String provUsername=URLEncoder.encode(FAXPluginActivator.getProvisioningService().getProvisioningUsername(), "UTF-8");
+        String provPassword=URLEncoder.encode(FAXPluginActivator.getProvisioningService().getProvisioningPassword(), "UTF-8");
         
         if(provUsername==null || provPassword==null)
         {
@@ -189,8 +191,16 @@ public class ToolsMenuItem
             protected Void doInBackground()
             {
                 isWorkerRunning=true;
-                error = getNumber( FAXPluginActivator.getResources().getSettingsString(
-                    "net.java.sip.communicator.l7s.USER_INFO_URL"));
+				try
+				{
+					error = getNumber( FAXPluginActivator.getResources().getSettingsString(
+						"net.java.sip.communicator.l7s.USER_INFO_URL"));
+				}
+				catch (UnsupportedEncodingException ex)
+                {
+                    System.out.println("\tHttp Post encoding error");
+                    ex.printStackTrace();
+                }	
                 return null;
             }
             
