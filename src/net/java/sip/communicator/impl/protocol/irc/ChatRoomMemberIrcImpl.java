@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -59,6 +70,11 @@ public class ChatRoomMemberIrcImpl
         new TreeSet<ChatRoomMemberRole>();
 
     /**
+     * Member's presence status in the chat room.
+     */
+    private IrcStatusEnum status;
+
+    /**
      * Creates an instance of <tt>ChatRoomMemberIrcImpl</tt>, by specifying the
      * protocol provider, the corresponding chat room, where this member is
      * joined, the identifier of the contact (the nickname), the login, the
@@ -71,12 +87,14 @@ public class ChatRoomMemberIrcImpl
      * @param ident ident of member
      * @param hostname host name of member
      * @param chatRoomMemberRole the role that this member has in the
+     * @param status current presence status
      * corresponding chat room
      */
     public ChatRoomMemberIrcImpl(
         final ProtocolProviderServiceIrcImpl parentProvider,
         final ChatRoom chatRoom, final String contactID, final String ident,
-        final String hostname, final ChatRoomMemberRole chatRoomMemberRole)
+        final String hostname, final ChatRoomMemberRole chatRoomMemberRole,
+        final IrcStatusEnum status)
     {
         if (parentProvider == null)
         {
@@ -110,6 +128,11 @@ public class ChatRoomMemberIrcImpl
             throw new IllegalArgumentException("member role cannot be null");
         }
         this.roles.add(chatRoomMemberRole);
+        if (status == null)
+        {
+            throw new IllegalArgumentException("status cannot be null");
+        }
+        this.status = status;
     }
 
     /**
@@ -297,5 +320,28 @@ public class ChatRoomMemberIrcImpl
         if (!parentProvider.equals(other.parentProvider))
             return false;
         return true;
+    }
+
+    /**
+     * Return the chat room member's most recent presence status.
+     *
+     * @return returns the most recent presence status
+     */
+    @Override
+    public PresenceStatus getPresenceStatus()
+    {
+        return this.status;
+    }
+
+    /**
+     * Set a new presence status.
+     *
+     * @param status the new presence status
+     */
+    IrcStatusEnum setPresenceStatus(final IrcStatusEnum status)
+    {
+        final IrcStatusEnum previous = this.status;
+        this.status = status;
+        return previous;
     }
 }

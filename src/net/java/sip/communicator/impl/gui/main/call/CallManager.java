@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.call;
 
@@ -309,7 +320,8 @@ public class CallManager
             receivedCallDialog = new ReceivedCallDialog(
                 sourceCall,
                 isVideoCall,
-                (CallManager.getInProgressCalls().size() > 0));
+                (CallManager.getInProgressCalls().size() > 0),
+                ev.isDesktopStreaming());
 
             receivedCallDialog.setVisible(true);
 
@@ -543,7 +555,8 @@ public class CallManager
                     protocolProvider,
                     contact,
                     uiContact,
-                    desktopDevices.get(0));
+                    desktopDevices.get(0),
+                    true);
         }
         else if (deviceNumber > 1)
         {
@@ -556,7 +569,8 @@ public class CallManager
                         protocolProvider,
                         contact,
                         uiContact,
-                        selectDialog.getSelectedDevice());
+                        selectDialog.getSelectedDevice(),
+                        true);
         }
     }
 
@@ -623,7 +637,8 @@ public class CallManager
                         width,
                         height,
                         x,
-                        y));
+                        y),
+                    false);
         }
     }
 
@@ -635,17 +650,20 @@ public class CallManager
      * @param contact the contact to call to
      * @param uiContact the <tt>UIContactImpl</tt> we're calling
      * @param mediaDevice the media device corresponding to the screen to share
+     * @param fullscreen whether we are sharing the fullscreen
      */
     private static void createDesktopSharing(
                                     ProtocolProviderService protocolProvider,
                                     String contact,
                                     UIContactImpl uiContact,
-                                    MediaDevice mediaDevice)
+                                    MediaDevice mediaDevice,
+                                    boolean fullscreen)
     {
         new CreateDesktopSharingThread( protocolProvider,
                                         contact,
                                         uiContact,
-                                        mediaDevice).start();
+                                        mediaDevice,
+                                        fullscreen).start();
     }
 
     /**
@@ -665,6 +683,8 @@ public class CallManager
             List<MediaDevice> desktopDevices
                 = mediaService.getDevices(MediaType.VIDEO, MediaUseCase.DESKTOP);
             int deviceNumber = desktopDevices.size();
+
+            new FullScreenShareIndicator(call);
 
             if (deviceNumber == 1)
                 enableDesktopSharing(call, null, enable);
@@ -2092,7 +2112,7 @@ public class CallManager
                         qualityControl.setPreferredRemoteSendMaxPreset(
                                 qualityPreset);
                     }
-                    catch(org.jitsi.service.protocol.OperationFailedException e)
+                    catch(Exception e)
                     {
                         logger.info("Unable to change video quality.", e);
 
@@ -2781,6 +2801,11 @@ public class CallManager
         private final UIContactImpl uiContact;
 
         /**
+         * Whether user has selected sharing full screen or region.
+         */
+        private boolean fullscreen = false;
+
+        /**
          * Creates a desktop sharing session thread.
          *
          * @param protocolProvider protocol provider through which we share our
@@ -2795,12 +2820,14 @@ public class CallManager
                                     ProtocolProviderService protocolProvider,
                                     String contact,
                                     UIContactImpl uiContact,
-                                    MediaDevice mediaDevice)
+                                    MediaDevice mediaDevice,
+                                    boolean fullscreen)
         {
             this.protocolProvider = protocolProvider;
             this.stringContact = contact;
             this.uiContact = uiContact;
             this.mediaDevice = mediaDevice;
+            this.fullscreen = fullscreen;
         }
 
         @Override
@@ -2857,6 +2884,12 @@ public class CallManager
 
             if (uiContact != null && createdCall != null)
                 addUIContactCall(uiContact, createdCall);
+
+
+            if(createdCall != null && fullscreen)
+            {
+                new FullScreenShareIndicator(createdCall);
+            }
         }
     }
 

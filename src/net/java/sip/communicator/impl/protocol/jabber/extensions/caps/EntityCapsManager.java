@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber.extensions.caps;
 
@@ -232,6 +243,7 @@ public class EntityCapsManager
         if ((user != null) && (node != null) && (hash != null) && (ver != null))
         {
             Caps caps = userCaps.get(user);
+            String bareJid=StringUtils.parseBareAddress(user);
 
             if ((caps == null)
                     || !caps.node.equals(node)
@@ -259,7 +271,9 @@ public class EntityCapsManager
                 String nodeVer = caps.getNodeVer();
 
                 for (UserCapsNodeListener listener : listeners)
-                    listener.userCapsNodeAdded(user, nodeVer, online);
+                    listener.userCapsNodeAdded(user,
+                        getFullJidsByBareJid(bareJid),
+                        nodeVer, online);
             }
         }
     }
@@ -294,6 +308,8 @@ public class EntityCapsManager
     {
         Caps caps = null;
         String lastRemovedJid = null;
+        String bareJid=StringUtils.parseBareAddress(
+            contact.getAddress());
 
         Iterator<String> iter = userCaps.keySet().iterator();
         while(iter.hasNext())
@@ -326,7 +342,9 @@ public class EntityCapsManager
 
                 for (UserCapsNodeListener listener : listeners)
                     listener.userCapsNodeRemoved(
-                        lastRemovedJid, nodeVer, false);
+                        lastRemovedJid,
+                        getFullJidsByBareJid(bareJid),
+                        nodeVer, false);
             }
         }
     }
@@ -339,6 +357,7 @@ public class EntityCapsManager
     public void removeUserCapsNode(String user)
     {
         Caps caps = userCaps.remove(user);
+        String bareJid=StringUtils.parseBareAddress(user);
 
         // Fire userCapsNodeRemoved.
         if (caps != null)
@@ -356,7 +375,9 @@ public class EntityCapsManager
                 String nodeVer = caps.getNodeVer();
 
                 for (UserCapsNodeListener listener : listeners)
-                    listener.userCapsNodeRemoved(user, nodeVer, false);
+                    listener.userCapsNodeRemoved(user,
+                    getFullJidsByBareJid(bareJid),
+                    nodeVer, false);
             }
         }
     }
@@ -392,6 +413,24 @@ public class EntityCapsManager
     public Caps getCapsByUser(String user)
     {
         return userCaps.get(user);
+    }
+    
+    /**
+     * Gets the full Jids (with resources) as Strings.
+     *
+     * @param the bare Jid
+     * @return the full Jids as an ArrayList <tt>user</tt>
+     */
+    public ArrayList<String> getFullJidsByBareJid(String bareJid)
+    {
+        ArrayList<String> jids = new ArrayList<String>();
+        for(String jid: userCaps.keySet())
+        {
+            if(bareJid.equals(StringUtils.parseBareAddress(jid))){
+                jids.add(jid);
+            }
+        }
+        return jids;
     }
 
     /**

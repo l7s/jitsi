@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -82,13 +93,16 @@ public class OperationSetJitsiMeetToolsSipImpl
      * @param call the incoming {@link Call} instance.
      * @param jitsiMeetRoom the name of the chat room of Jitsi Meet conference
      *                      to be joined.
+     * @param jitsiMeetRoomPass optional password required to join conference
+     *                          room(if room is protected)
      */
-    public void notifyJoinJitsiMeetRoom(Call call, String jitsiMeetRoom)
+    public void notifyJoinJitsiMeetRoom(
+        Call call, String jitsiMeetRoom, String jitsiMeetRoomPass)
     {
         boolean handled = false;
         for (JitsiMeetRequestListener l : requestHandlers)
         {
-            l.onJoinJitsiMeetRequest(call, jitsiMeetRoom);
+            l.onJoinJitsiMeetRequest(call, jitsiMeetRoom, jitsiMeetRoomPass);
             handled = true;
         }
         if (!handled)
@@ -104,6 +118,12 @@ public class OperationSetJitsiMeetToolsSipImpl
      */
     @Override
     public void addSupportedFeature(String featureName)
+    {
+        throw new RuntimeException("Not implemented for SIP");
+    }
+
+    @Override
+    public void removeSupportedFeature(String featureName)
     {
         throw new RuntimeException("Not implemented for SIP");
     }

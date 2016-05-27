@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber.extensions.colibri;
 
@@ -11,6 +22,7 @@ import java.util.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.*;
 import net.java.sip.communicator.impl.protocol.jabber.extensions.jingle.*;
 
+import org.jitsi.util.*;
 import org.jitsi.service.neomedia.*;
 
 import org.jivesoftware.smack.packet.*;
@@ -40,11 +52,24 @@ public class ColibriConferenceIQ
     public static final String ID_ATTR_NAME = "id";
 
     /**
+     * The XML name of the <tt>name</tt> attribute of the Jitsi Videobridge
+     * <tt>conference</tt> IQ which represents the value of the <tt>name</tt>
+     * property of <tt>ColibriConferenceIQ</tt> if available.
+     */
+    public static final String NAME_ATTR_NAME = "name";
+
+    /**
      * The XML COnferencing with LIghtweight BRIdging namespace of the Jitsi
      * Videobridge <tt>conference</tt> IQ.
      */
     public static final String NAMESPACE
         = "http://jitsi.org/protocol/colibri";
+
+    /**
+     * The logger instance used by this class.
+     */
+    private final static Logger logger
+            = Logger.getLogger(ColibriConferenceIQ.class);
 
     /**
      * An array of <tt>int</tt>s which represents the lack of any (RTP) SSRCs
@@ -89,6 +114,11 @@ public class ColibriConferenceIQ
     private boolean gracefulShutdown;
 
     /**
+     * World readable name for the conference.
+     */
+    private String name;
+
+    /**
      * Returns an error response for given <tt>IQ</tt> that is returned by
      * the videobridge after it has entered graceful shutdown mode and new
      * conferences can no longer be created.
@@ -131,7 +161,7 @@ public class ColibriConferenceIQ
             throw new NullPointerException("channelBundle");
 
         return
-            channelBundles.contains(channelBundles)
+            channelBundles.contains(channelBundle)
                ? false
                : channelBundles.add(channelBundle);
     }
@@ -232,6 +262,10 @@ public class ColibriConferenceIQ
 
         if (id != null)
             xml.append(' ').append(ID_ATTR_NAME).append("='").append(id)
+                    .append('\'');
+
+        if (name != null)
+            xml.append(' ').append(NAME_ATTR_NAME).append("='").append(name)
                     .append('\'');
 
         List<Content> contents = getContents();
@@ -419,6 +453,24 @@ public class ColibriConferenceIQ
     }
 
     /**
+     * The world readable name of the conference.
+     * @return name of the conference.
+     */
+    public String getName()
+    {
+        return name;
+    }
+
+    /**
+     * Sets name.
+     * @param name the name to set.
+     */
+    public void setName(String name)
+    {
+        this.name = name;
+    }
+
+    /**
      * Represents a <tt>channel</tt> included into a <tt>content</tt> of a Jitsi
      * Videobridge <tt>conference</tt> IQ.
      */
@@ -473,6 +525,13 @@ public class ColibriConferenceIQ
                 = "adaptive-simulcast";
 
         /**
+         * The XML name of the <tt>simulcast-mode</tt> attribute of a video
+         * <tt>channel</tt>.
+         */
+        public static final String SIMULCAST_MODE_ATTR_NAME
+                = "simulcast-mode";
+
+        /**
          * The XML name of the <tt>receive-simulcast-layer</tt> attribute of a
          * video <tt>Channel</tt> which specifies the target quality of the
          * simulcast substreams to be sent from Jitsi Videobridge to the
@@ -482,6 +541,14 @@ public class ColibriConferenceIQ
          */
         public static final String RECEIVING_SIMULCAST_LAYER
                 = "receive-simulcast-layer";
+
+        /**
+         * The XML name of the <tt>packet-delay</tt> attribute of
+         * a <tt>channel</tt> of a <tt>content</tt> of a <tt>conference</tt> IQ
+         * which represents the value of the {@link #packetDelay} property of
+         * <tt>ColibriConferenceIQ.Channel</tt>.
+         */
+        public static final String PACKET_DELAY_ATTR_NAME = "packet-delay";
 
         /**
          * The XML name of the <tt>rtcpport</tt> attribute of a <tt>channel</tt>
@@ -549,11 +616,28 @@ public class ColibriConferenceIQ
         private Boolean adaptiveSimulcast;
 
         /**
+         * The 'simulcast-mode' flag.
+         */
+        private SimulcastMode simulcastMode;
+
+        /**
+         * The amount of delay added to the RTP stream in a number of packets.
+         */
+        private Integer packetDelay;
+
+        /**
          * The <tt>payload-type</tt> elements defined by XEP-0167: Jingle RTP
          * Sessions associated with this <tt>channel</tt>.
          */
         private final List<PayloadTypePacketExtension> payloadTypes
             = new ArrayList<PayloadTypePacketExtension>();
+
+        /**
+         * The <tt>rtp-hdrext</tt> elements defined by XEP-0294: Jingle RTP
+         * Header Extensions Negotiation associated with this channel.
+         */
+        private final Map<Integer, RTPHdrExtPacketExtension> rtpHeaderExtensions
+            = new HashMap<Integer, RTPHdrExtPacketExtension>();
 
         /**
          * The target quality of the simulcast substreams to be sent from Jitsi
@@ -638,6 +722,48 @@ public class ColibriConferenceIQ
                 payloadTypes.contains(payloadType)
                     ? false
                     : payloadTypes.add(payloadType);
+        }
+
+        /**
+         * Adds an <tt>rtp-hdrext</tt> element defined by XEP-0294: Jingle RTP
+         * Header Extensions Negotiation to this <tt>Channel</tt>.
+         *
+         * @param ext the <tt>payload-type</tt> element to be added to
+         * this <tt>channel</tt>
+         * @return <tt>true</tt> if the list of <tt>rtp-hdrext</tt> elements
+         * associated with this <tt>channel</tt> has been modified as part of
+         * the method call; otherwise, <tt>false</tt>
+         * @throws NullPointerException if the specified <tt>ext</tt> is
+         * <tt>null</tt>
+         */
+        public void addRtpHeaderExtension(RTPHdrExtPacketExtension ext)
+        {
+            if (ext == null)
+                throw new NullPointerException("payloadType");
+
+            // Create a new instance, because we are going to modify the NS
+            RTPHdrExtPacketExtension newExt = new RTPHdrExtPacketExtension(ext);
+
+            // Make sure that the parent namespace (COLIBRI) is used.
+            newExt.setNamespace(null);
+
+            int id = -1;
+            try
+            {
+                id = Integer.valueOf(newExt.getID());
+            }
+            catch (NumberFormatException nfe)
+            {}
+
+            // Only accept valid extension IDs (4-bits, 0xF reserved)
+            if (id < 0 || id > 14)
+            {
+                logger.warn("Failed to add an RTP header extension element "
+                                    + "with an invalid ID: " + newExt.getID());
+                return;
+            }
+
+            rtpHeaderExtensions.put(id, newExt);
         }
 
         /**
@@ -771,6 +897,27 @@ public class ColibriConferenceIQ
         }
 
         /**
+         * Gets the value of the 'simulcast-mode' flag.
+         * @return the value of the 'simulcast-mode' flag.
+         */
+        public SimulcastMode getSimulcastMode()
+        {
+            return simulcastMode;
+        }
+
+        /**
+         * Returns an <tt>Integer</tt> which stands for the amount of delay
+         * added to the RTP stream in a number of packets.
+         *
+         * @return <tt>Integer</tt> with the value or <tt>null</tt> if
+         * unspecified.
+         */
+        public Integer getPacketDelay()
+        {
+            return packetDelay;
+        }
+
+        /**
          * Gets a list of <tt>payload-type</tt> elements defined by XEP-0167:
          * Jingle RTP Sessions added to this <tt>channel</tt>.
          *
@@ -781,6 +928,21 @@ public class ColibriConferenceIQ
         public List<PayloadTypePacketExtension> getPayloadTypes()
         {
             return Collections.unmodifiableList(payloadTypes);
+        }
+
+        /**
+         * Gets a list of <tt>rtp-hdrext</tt> elements defined by XEP-0294:
+         * Jingle RTP Header Extensions Negotiation added to this
+         * <tt>channel</tt>.
+         *
+         * @return an unmodifiable <tt>List</tt> of <tt>rtp-hdrext</tt>
+         * elements defined by XEP-0294: Jingle RTP Header Extensions
+         * Negotiation added to this <tt>channel</tt>
+         */
+        public Collection<RTPHdrExtPacketExtension> getRtpHeaderExtensions()
+        {
+            return Collections
+                    .unmodifiableCollection(rtpHeaderExtensions.values());
         }
 
         /**
@@ -932,6 +1094,35 @@ public class ColibriConferenceIQ
                         .append(lastN).append('\'');
             }
 
+            if (adaptiveLastN != null)
+            {
+                xml.append(' ').append(ADAPTIVE_LAST_N_ATTR_NAME).append("='")
+                        .append(adaptiveLastN).append('\'');
+            }
+
+            if (adaptiveSimulcast != null)
+            {
+                xml.append(' ').append(ADAPTIVE_SIMULCAST_ATTR_NAME)
+                        .append("='").append(adaptiveSimulcast).append('\'');
+            }
+
+            // packet-delay
+            Integer packetDelay = getPacketDelay();
+            if (packetDelay != null)
+            {
+                xml.append(' ').append(PACKET_DELAY_ATTR_NAME).append("='")
+                    .append(packetDelay).append('\'');
+            }
+
+            // simulcastMode
+            SimulcastMode simulcastMode = getSimulcastMode();
+
+            if (simulcastMode != null)
+            {
+                xml.append(' ').append(SIMULCAST_MODE_ATTR_NAME).append("='")
+                        .append(simulcastMode).append('\'');
+            }
+
             // rtcpPort
             int rtcpPort = getRTCPPort();
 
@@ -964,18 +1155,23 @@ public class ColibriConferenceIQ
         protected void printContent(StringBuilder xml)
         {
             List<PayloadTypePacketExtension> payloadTypes = getPayloadTypes();
+            Collection<RTPHdrExtPacketExtension> rtpHdrExtPacketExtensions
+                    = getRtpHeaderExtensions();
             List<SourcePacketExtension> sources = getSources();
-            List<SourceGroupPacketExtension> souceGroups = getSourceGroups();
+            List<SourceGroupPacketExtension> sourceGroups = getSourceGroups();
             int[] ssrcs = getSSRCs();
 
             for (PayloadTypePacketExtension payloadType : payloadTypes)
                 xml.append(payloadType.toXML());
 
+            for (RTPHdrExtPacketExtension ext : rtpHdrExtPacketExtensions)
+                xml.append(ext.toXML());
+
             for (SourcePacketExtension source : sources)
                 xml.append(source.toXML());
 
-            if (souceGroups != null && souceGroups.size() != 0)
-                for (SourceGroupPacketExtension sourceGroup : souceGroups)
+            if (sourceGroups != null && sourceGroups.size() != 0)
+                for (SourceGroupPacketExtension sourceGroup : sourceGroups)
                     xml.append(sourceGroup.toXML());
 
             for (int i = 0; i < ssrcs.length; i++)
@@ -1000,6 +1196,32 @@ public class ColibriConferenceIQ
         public boolean removePayloadType(PayloadTypePacketExtension payloadType)
         {
             return payloadTypes.remove(payloadType);
+        }
+
+        /**
+         * Removes a <tt>rtp-hdrext</tt> element defined by XEP-0294: Jingle
+         * RTP Header Extensions Negotiation from this <tt>channel</tt>.
+         *
+         * @param ext the <tt>rtp-hdrext</tt> element to be removed
+         * from this <tt>channel</tt>
+         * @return <tt>true</tt> if the list of <tt>rtp-hdrext</tt> elements
+         * associated with this <tt>channel</tt> has been modified as part of
+         * the method call; otherwise, <tt>false</tt>
+         */
+        public void removeRtpHeaderExtension(RTPHdrExtPacketExtension ext)
+        {
+            int id = -1;
+            try
+            {
+                id = Integer.valueOf(ext.getID());
+            }
+            catch (NumberFormatException nfe)
+            {
+                logger.warn("Invalid ID: " + ext.getID());
+                return;
+            }
+
+            rtpHeaderExtensions.remove(id);
         }
 
         /**
@@ -1122,6 +1344,26 @@ public class ColibriConferenceIQ
         public void setAdaptiveSimulcast(Boolean adaptiveSimulcast)
         {
             this.adaptiveSimulcast = adaptiveSimulcast;
+        }
+
+        /**
+         * Configures channel's packet delay which tells by how many packets
+         * the RTP streams will be delayed.
+         * @param packetDelay an <tt>Integer</tt> value which stands for
+         * the packet delay that will be set or <tt>null</tt> to leave undefined
+         */
+        public void setPacketDelay(Integer packetDelay)
+        {
+            this.packetDelay = packetDelay;
+        }
+
+        /**
+         * Sets the value of the 'simulcast-mode' flag.
+         * @param simulcastMode the value to set.
+         */
+        public void setSimulcastMode(SimulcastMode simulcastMode)
+        {
+            this.simulcastMode = simulcastMode;
         }
 
         /**
@@ -1727,6 +1969,25 @@ public class ColibriConferenceIQ
         }
 
         /**
+         * Adds <tt>ChannelCommon</tt> to this <tt>Content</tt>.
+         * @param channelCommon {@link ChannelCommon} instance to be added to
+         *        this content.
+         * @return <tt>true</tt> if given <tt>channelCommon</tt> has been
+         *         actually added to this <tt>Content</tt> instance.
+         */
+        public boolean addChannelCommon(ChannelCommon channelCommon)
+        {
+            if (channelCommon instanceof Channel)
+            {
+                return addChannel((Channel) channelCommon);
+            }
+            else
+            {
+                return addSctpConnection((SctpConnection) channelCommon);
+            }
+        }
+
+        /**
          * Adds a specific <tt>SctpConnection</tt> to the list of
          * <tt>SctpConnection</tt>s included into this <tt>Content</tt>.
          *
@@ -2022,18 +2283,54 @@ public class ColibriConferenceIQ
          */
         public static final String TOKEN_ATTR_NAME = "token";
 
+        /**
+         * The target directory.
+         */
         private String directory;
 
-        private boolean state;
+        /**
+         * State of the recording..
+         */
+        private State state;
 
+        /**
+         * Access token.
+         */
         private String token;
 
-        public Recording(boolean state)
+        /**
+         * Construct new recording element.
+         * @param state the state as string
+         */
+        public Recording(String state)
+        {
+            this.state = State.parseString(state);
+        }
+
+        /**
+         * Construct new recording element.
+         * @param state
+         */
+        public Recording(State state)
         {
             this.state = state;
         }
 
-        public Recording(boolean state, String token)
+        /**
+         * Construct new recording element.
+         * @param state the state as string
+         * @param token the token to authenticate
+         */
+        public Recording(String state, String token)
+        {
+            this(State.parseString(state), token);
+        }
+        /**
+         * Construct new recording element.
+         * @param state the state
+         * @param token the token to authenticate
+         */
+        public Recording(State state, String token)
         {
             this(state);
 
@@ -2045,7 +2342,7 @@ public class ColibriConferenceIQ
             return directory;
         }
 
-        public boolean getState()
+        public State getState()
         {
             return state;
         }
@@ -2081,6 +2378,63 @@ public class ColibriConferenceIQ
                         .append(directory).append('\'');
             }
             xml.append("/>");
+        }
+
+        /**
+         * The recording state.
+         */
+        public enum State
+        {
+            /**
+             * Recording is started.
+             */
+            ON("on"),
+            /**
+             * Recording is stopped.
+             */
+            OFF("off"),
+            /**
+             * Recording is pending. Record has been requested but no conference
+             * has been established and it will be started once this is done.
+             */
+            PENDING("pending");
+
+            /**
+             * The name.
+             */
+            private String name;
+
+            /**
+             * Constructs new state.
+             * @param name
+             */
+            private State(String name)
+            {
+                this.name = name;
+            }
+
+            /**
+             * Returns state name.
+             * @return returns state name.
+             */
+            public String toString()
+            {
+                return name;
+            }
+
+            /**
+             * Parses state.
+             * @param s state name.
+             * @return the state found.
+             */
+            public static State parseString(String s)
+            {
+                if (ON.toString().equalsIgnoreCase(s))
+                    return ON;
+                else if (PENDING.toString().equalsIgnoreCase(s))
+                    return PENDING;
+                return OFF;
+            }
         }
     }
 

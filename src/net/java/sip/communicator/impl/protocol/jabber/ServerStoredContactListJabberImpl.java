@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
@@ -82,6 +93,26 @@ public class ServerStoredContactListJabberImpl
      * Retrieve contact information.
      */
     private InfoRetreiver infoRetreiver = null;
+
+    /**
+     * Whether roster has been requested and dispatched.
+     */
+    private boolean isRosterInitialized = false;
+
+    /**
+     * Lock object for the isRosterInitialized variable.
+     */
+    private Object rosterInitLock = new Object();
+
+    /**
+     * The initial status saved.
+     */
+    private PresenceStatus initialStatus = null;
+
+    /**
+     * The initial status message saved.
+     */
+    private String initialStatusMessage = null;
 
     /**
      * Creates a ServerStoredContactList wrapper for the specified BuddyList.
@@ -868,10 +899,48 @@ public class ServerStoredContactListJabberImpl
         this.roster.setSubscriptionMode(Roster.SubscriptionMode.manual);
 
         initRoster();
+
+        // roster has been requested and dispatched, mark this
+        synchronized(rosterInitLock)
+        {
+            this.isRosterInitialized = true;
+        }
+        // no send initial status
+        sendInitialStatus();
+
         presenceChangeListener.processStoredEvents();
 
         rosterChangeListener = new ChangeListener();
         this.roster.addRosterListener(rosterChangeListener);
+    }
+
+    /**
+     * Sends the initial presence to server. RFC 6121 says:
+     * a client SHOULD request the roster before sending initial presence
+     * We extend this and send it after we have dispatched the roster
+     */
+    void sendInitialStatus()
+    {
+        // if we have initial status saved use it
+        if(initialStatus != null)
+        {
+            try
+            {
+                parentOperationSet.publishPresenceStatus(
+                    initialStatus, initialStatusMessage);
+            }
+            catch(OperationFailedException ex)
+            {
+                logger.error("Error publishing initial presence", ex);
+            }
+        }
+        else
+            getParentProvider().getConnection()
+                .sendPacket(new Presence(Presence.Type.available));
+
+        // clean
+        initialStatus = null;
+        initialStatusMessage = null;
     }
 
     /**
@@ -890,6 +959,11 @@ public class ServerStoredContactListJabberImpl
 
         this.rosterChangeListener = null;
         this.roster = null;
+
+        synchronized(rosterInitLock)
+        {
+            this.isRosterInitialized = false;
+        }
     }
 
     /**
@@ -954,11 +1028,11 @@ public class ServerStoredContactListJabberImpl
                 try
                 {
                     // process status if any that was received
-                    // while the roaster reply packet was received and
+                    // while the roster reply packet was received and
                     // added our presence listener
                     // Fixes a problem where Presence packets can be received
-                    // before the roaster items packet, and we miss it,
-                    // cause we add our listener after roaster is received
+                    // before the roster items packet, and we miss it,
+                    // cause we add our listener after roster is received
                     // and smack don't allow to add our listener earlier
                     parentOperationSet.firePresenceStatusChanged(
                         roster.getPresence(item.getUser()));
@@ -1901,5 +1975,41 @@ public class ServerStoredContactListJabberImpl
     public Iterator<Presence> getPresences(String user)
     {
         return roster.getPresences(user);
+    }
+
+    /**
+     * Returns whether roster is initialized.
+     * @return whether roster is initialized.
+     */
+    boolean isRosterInitialized()
+    {
+        return isRosterInitialized;
+    }
+
+    /**
+     * The lock around isRosterInitialized variable.
+     * @return the lock around isRosterInitialized variable.
+     */
+    Object getRosterInitLock()
+    {
+        return rosterInitLock;
+    }
+
+    /**
+     * Saves the initial status for later dispatching.
+     * @param initialStatus to be dispatched later.
+     */
+    void setInitialStatus(PresenceStatus initialStatus)
+    {
+        this.initialStatus = initialStatus;
+    }
+
+    /**
+     * Saves the initial status message for later dispatching.
+     * @param initialStatusMessage to be dispatched later.
+     */
+    void setInitialStatusMessage(String initialStatusMessage)
+    {
+        this.initialStatusMessage = initialStatusMessage;
     }
 }

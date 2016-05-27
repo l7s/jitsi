@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
@@ -42,8 +53,13 @@ import net.java.sip.communicator.impl.protocol.irc.exception.*;
  * (other) events.
  * </p>
  *
- * FIXME Additionally, describe the AbstractIrcMessageListener type once this
- * implementation is merged with Jitsi main line.
+ * <p>
+ * In the case of more advanced commands that register message listeners, please
+ * base your listeners on the AbstractIrcMessageListener or ensure by yourself
+ * that listeners get unregistered upon ERROR or QUIT events. It is expected
+ * that a listener that gets registered can determine for themselves when to
+ * unregister itself in order to properly dispose of it.
+ * </p>
  *
  * @author Danny van Heumen
  */

@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.generalconfig;
 
@@ -97,6 +108,14 @@ public class GeneralConfigPluginActivator
         "net.java.sip.communicator.plugin.generalconfig.sipconfig.DISABLED";
 
     /**
+     * Indicates if the XMPP configuration form should be disabled, i.e.
+     * not visible to the user.
+     */
+    private static final String XMPP_CONFIG_DISABLED_PROP
+        =
+        "net.java.sip.communicator.plugin.generalconfig.xmppconfig.DISABLED";
+
+    /**
      * Starts this bundle.
      */
     @Override
@@ -141,6 +160,22 @@ public class GeneralConfigPluginActivator
                     getClass().getClassLoader(),
                     null,
                     "plugin.generalconfig.SIP_CALL_CONFIG",
+                    52, true),
+                properties);
+        }
+        if (!getConfigurationService()
+            .getBoolean(XMPP_CONFIG_DISABLED_PROP, false))
+        {
+            // Registers the XMPP config panel as advanced configuration form.
+            properties.put( ConfigurationForm.FORM_TYPE,
+                            ConfigurationForm.ADVANCED_TYPE);
+            bundleContext.registerService(
+                ConfigurationForm.class.getName(),
+                new LazyConfigurationForm(
+                    XMPPConfigForm.class.getName(),
+                    getClass().getClassLoader(),
+                    null,
+                    "plugin.generalconfig.XMPP_CONFIG",
                     52, true),
                 properties);
         }

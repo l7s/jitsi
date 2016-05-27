@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
@@ -16,6 +27,7 @@ import net.java.sip.communicator.util.*;
 import org.jivesoftware.smack.*;
 import org.jivesoftware.smack.filter.*;
 import org.jivesoftware.smack.packet.*;
+import org.jivesoftware.smack.util.*;
 import org.jivesoftware.smackx.*;
 import org.jivesoftware.smackx.packet.*;
 
@@ -42,10 +54,10 @@ public class ScServiceDiscoveryManager
     /**
      * The flag which indicates whether we are currently storing non-caps.
      */
-    private static final boolean CACHE_NON_CAPS = true;
+    private final boolean cacheNonCaps;
 
     /**
-     * The cache of non-caps. Used only if {@link #CACHE_NON_CAPS} is
+     * The cache of non-caps. Used only if {@link #cacheNonCaps} is
      * <tt>true</tt>.
      */
     private final Map<String, DiscoverInfo> nonCapsCache
@@ -113,12 +125,15 @@ public class ScServiceDiscoveryManager
      * features to be added to the new instance and to the
      * <tt>ServiceDiscoveryManager</tt> of the specified <tt>connection</tt>
      * which is to be wrapped by the new instance
+     * @param cacheNonCaps <tt>true</tt> if we want to cache entity features
+     *                     even though it does not support XEP-0115
      */
     public ScServiceDiscoveryManager(
             ProtocolProviderService parentProvider,
             XMPPConnection connection,
             String[] featuresToRemove,
-            String[] featuresToAdd)
+            String[] featuresToAdd,
+            boolean cacheNonCaps)
     {
         this.parentProvider = parentProvider;
         this.connection = connection;
@@ -129,6 +144,8 @@ public class ScServiceDiscoveryManager
         this.features = new ArrayList<String>();
         this.unmodifiableFeatures = Collections.unmodifiableList(this.features);
         this.identities = new ArrayList<DiscoverInfo.Identity>();
+
+        this.cacheNonCaps = cacheNonCaps;
 
         DiscoverInfo.Identity identity
             = new DiscoverInfo.Identity(
@@ -484,7 +501,7 @@ public class ScServiceDiscoveryManager
         EntityCapsManager.Caps caps = capsManager.getCapsByUser(entityID);
 
         // if caps is not valid, has empty hash
-        if (CACHE_NON_CAPS && (caps == null || !caps.isValid(discoverInfo)))
+        if (cacheNonCaps && (caps == null || !caps.isValid(discoverInfo)))
         {
             discoverInfo = nonCapsCache.get(entityID);
             if (discoverInfo != null)
@@ -509,7 +526,7 @@ public class ScServiceDiscoveryManager
 
         if (caps == null)
         {
-            if (CACHE_NON_CAPS)
+            if (cacheNonCaps)
                 nonCapsCache.put(entityID, discoverInfo);
         }
         else
@@ -536,7 +553,7 @@ public class ScServiceDiscoveryManager
         EntityCapsManager.Caps caps = capsManager.getCapsByUser(entityID);
 
         // if caps is not valid, has empty hash
-        if (CACHE_NON_CAPS && (caps == null || !caps.isValid(discoverInfo)))
+        if (cacheNonCaps && (caps == null || !caps.isValid(discoverInfo)))
         {
             discoverInfo = nonCapsCache.get(entityID);
             if (discoverInfo != null)
@@ -756,11 +773,11 @@ public class ScServiceDiscoveryManager
                     caps = null;
                 }
 
-                boolean fireEvent;
+                boolean fireEvent = false;
 
                 if (caps == null)
                 {
-                    if (CACHE_NON_CAPS)
+                    if (cacheNonCaps)
                     {
                         nonCapsCache.put(entityID, discoverInfo);
                         fireEvent = true;
@@ -775,7 +792,11 @@ public class ScServiceDiscoveryManager
                 // fire event
                 if(fireEvent && capabilitiesOpSet != null)
                 {
-                    capabilitiesOpSet.fireContactCapabilitiesChanged(entityID);
+                    capabilitiesOpSet.fireContactCapabilitiesChanged(
+                        entityID,
+                        capsManager.getFullJidsByBareJid(
+                            StringUtils.parseBareAddress(entityID))
+                        );
                 }
             }
             catch(XMPPException ex)

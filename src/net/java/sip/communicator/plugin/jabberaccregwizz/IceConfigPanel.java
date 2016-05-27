@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.plugin.jabberaccregwizz;
 
@@ -38,12 +49,6 @@ public class IceConfigPanel
      */
     private final JCheckBox iceBox = new SIPCommCheckBox(
         Resources.getString("plugin.jabberaccregwizz.USE_ICE"));
-
-    /**
-     * The check box allowing the user to choose to use ICE.
-     */
-    private final JCheckBox googleIceBox = new SIPCommCheckBox(
-        Resources.getString("plugin.jabberaccregwizz.USE_GOOGLE_ICE"));
 
     /**
      * The check box allowing the user to choose to automatically discover
@@ -110,7 +115,6 @@ public class IceConfigPanel
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
         iceBox.setAlignmentX(Component.LEFT_ALIGNMENT);
-        googleIceBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         autoDiscoverBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         defaultStunBox.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -122,7 +126,6 @@ public class IceConfigPanel
         autoDiscoverBox.setSelected(true);
         defaultStunBox.setSelected(true);
 
-        googleIceBox.setSelected(true);
 
         jnBox.setSelected(true);
         jnAutoDiscoverBox.setSelected(true);
@@ -131,7 +134,6 @@ public class IceConfigPanel
 
         JPanel checkBoxPanel = new TransparentPanel(new GridLayout(0, 1));
         checkBoxPanel.add(iceBox);
-        checkBoxPanel.add(googleIceBox);
         checkBoxPanel.add(upnpBox);
         checkBoxPanel.add(autoDiscoverBox);
         checkBoxPanel.add(defaultStunBox);
@@ -761,26 +763,6 @@ public class IceConfigPanel
     protected void setUseIce(boolean isUseIce)
     {
         iceBox.setSelected(isUseIce);
-    }
-
-    /**
-     * Indicates if ice should be used for this account.
-     * @return <tt>true</tt> if Google ICE should be used for this account,
-     * otherwise returns <tt>false</tt>
-     */
-    protected boolean isUseGoogleIce()
-    {
-        return googleIceBox.isSelected();
-    }
-
-    /**
-     * Sets the <tt>useGoogleIce</tt> property.
-     * @param isUseIce <tt>true</tt> to indicate that Google ICE should be used
-     * for this account, <tt>false</tt> - otherwise.
-     */
-    protected void setUseGoogleIce(boolean isUseIce)
-    {
-        googleIceBox.setSelected(isUseIce);
     }
 
     /**

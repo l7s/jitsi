@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.service.protocol.event;
 
@@ -63,6 +74,12 @@ public class CallEvent
      * the futur for the UI (i.e to release the call panel),
      */
     private final CallConference conference;
+
+    /**
+     * Indicate whether the call is recognized to be video call and
+     * desktop streaming call.
+     */
+    private boolean isDesktopStreaming = false;
 
     /**
      * Creates an event instance indicating that an incoming/outgoing call
@@ -172,6 +189,25 @@ public class CallEvent
             (direction == null)
                 ? false
                 : (direction == MediaDirection.SENDRECV);
+    }
+
+    /**
+     * Returns whether the current event is for video call and desktop streaming
+     * one.
+     * @return true if this is video call and desktop streaming one.
+     */
+    public boolean isDesktopStreaming()
+    {
+        return isDesktopStreaming;
+    }
+
+    /**
+     * Change the desktop streaming indication for this event.
+     * @param value the new value.
+     */
+    public void setDesktopStreaming(boolean value)
+    {
+        this.isDesktopStreaming = value;
     }
 
     /**

@@ -1,14 +1,27 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.slick.protocol.sip;
 
 import java.util.*;
 
+import javax.sip.address.*;
 import junit.framework.*;
+import net.java.sip.communicator.impl.protocol.sip.*;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.event.*;
 import net.java.sip.communicator.util.*;
@@ -139,7 +152,7 @@ public class TestProtocolProviderServiceSipImpl
 
 
     /**
-     * Verifies that all operation sets have the type they are declarded to
+     * Verifies that all operation sets have the type they are declared to
      * have.
      *
      * @throws java.lang.Exception if a class indicated in one of the keys
@@ -161,6 +174,27 @@ public class TestProtocolProviderServiceSipImpl
             assertTrue(opSet + " was not an instance of " + setName
                 + " as declared", Class.forName(setName).isInstance(opSet));
         }
+    }
+
+    /**
+     * Tests the <tt>equals()</tt> implementation of the SIP Contact class
+     */
+    public void testContactSipImpl() throws Exception
+    {
+        ProtocolProviderServiceSipImpl provider =
+            (ProtocolProviderServiceSipImpl) fixture.provider1;
+        Address reference =
+            provider.parseAddressString("sip:User@Host");
+        Contact referenceContact = new ContactSipImpl(reference, provider);
+
+        assertTrue("Cannot find user-only part in a SIP Contact compare",
+            referenceContact.equals("User"));
+        assertTrue("Cannot find SIP Contact using strings",
+            referenceContact.equals("sip:User@Host"));
+        assertTrue("Cannot find SIP Contact when protocol is secure",
+            referenceContact.equals("sips:User@Host"));
+        assertTrue("Cannot find SIP Contact when port is specified",
+            referenceContact.equals("sip:User@Host:5060"));
     }
 
     /**
