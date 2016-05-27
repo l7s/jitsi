@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.chatroomslist;
 
@@ -42,6 +53,13 @@ public class ChatRoomTableDialog
     private static final String REMOVE_ROOM_ON_FIRST_JOIN_FAILED
          = "net.java.sip.communicator.impl.gui.main.chatroomslist." +
                 "REMOVE_ROOM_ON_FIRST_JOIN_FAILED";
+
+    /**
+     * Whether we should make rooms autojoin by default.
+     */
+    private static final String ENABLE_ROOM_AUTO_JOIN_ON_CREATION
+         = "net.java.sip.communicator.impl.gui.main.chatroomslist." +
+                "ENABLE_ROOM_AUTO_JOIN_ON_CREATION";
 
     /**
      * The global/shared <code>ChatRoomTableDialog</code> currently showing.
@@ -414,6 +432,12 @@ public class ChatRoomTableDialog
                         chatRoomWrapper.getChatRoomID(),
                         chatRoomWrapper.getChatRoomID(),
                         chatRoomWrapper.getChatRoomName());
+
+                    if(GuiActivator.getConfigurationService()
+                        .getBoolean(ENABLE_ROOM_AUTO_JOIN_ON_CREATION, false))
+                    {
+                        chatRoomWrapper.setAutoJoin(true);
+                    }
                 }
 
                 String nickName = nicknameField.getText().trim();

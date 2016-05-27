@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 #include "OutOfProcessServer.h"
 
@@ -20,7 +31,7 @@ JNIEXPORT jint JNICALL
 Java_net_java_sip_communicator_plugin_msofficecomm_OutOfProcessServer_start
     (JNIEnv *env, jclass clazz)
 {
-    LPSTR functionName = ::strdup(__FUNCTION__);
+    LPSTR functionName = ::_strdup(__FUNCTION__);
     LPSTR packageName;
 
     if (functionName)
@@ -233,6 +244,11 @@ HRESULT OutOfProcessServer::loadRegTypeLib()
     LPTYPELIB iTypeLib;
     HRESULT hr = ::LoadRegTypeLib(LIBID_CommunicatorUA, 1, 0, 0, &iTypeLib);
 
+    Log::d(
+        _T("OutOfProcessServer::loadRegTypeLib:")
+        _T(" LoadRegTypeLib=%08X;")
+        _T("\n"),
+        hr);
     if (SUCCEEDED(hr))
         _iTypeLib = iTypeLib;
     else
@@ -250,50 +266,41 @@ HRESULT OutOfProcessServer::loadRegTypeLib()
             WCHAR path[MAX_PATH + 1];
             DWORD pathCapacity = sizeof(path) / sizeof(WCHAR);
             DWORD pathLength = ::GetModuleFileNameW(module, path, pathCapacity);
-
             if (pathLength && (pathLength < pathCapacity))
             {
                 hr = ::LoadTypeLibEx(path, REGKIND_NONE, &iTypeLib);
+                Log::d(
+                    _T("OutOfProcessServer::loadRegTypeLib:")
+                    _T(" LoadTypeLibEx(%s)=%08X;")
+                    _T("\n"),
+                    path,
+                    hr);
                 if (SUCCEEDED(hr))
                 {
-                    HMODULE oleaut32 = ::GetModuleHandle(_T("oleaut32.dll"));
-
-                    if (oleaut32)
+                    hr = ::RegisterTypeLibForUser(iTypeLib, path, NULL);
+                    Log::d(
+                        _T("OutOfProcessServer::loadRegTypeLib:")
+                        _T(" RegisterTypeLibForUser=%08X;")
+                        _T("\n"),
+                        hr);
+                    if (SUCCEEDED(hr))
                     {
-                        typedef HRESULT (WINAPI *RTLFU)(LPTYPELIB,LPOLESTR,LPOLESTR);
-                        RTLFU registerTypeLibForUser
-                            = (RTLFU)
-                                ::GetProcAddress(
-                                        oleaut32,
-                                        "RegisterTypeLibForUser");
-
-                        if (registerTypeLibForUser)
-                        {
-                            hr = registerTypeLibForUser(iTypeLib, path, NULL);
-                            if (SUCCEEDED(hr))
-                            {
-                                /*
-                                 * The whole point of what has been done till
-                                 * now is securing the success of future calls
-                                 * to LoadRegTypeLib. Make sure that is indeed
-                                 * the case.
-                                 */
-
-                                iTypeLib->Release();
-
-                                hr
-                                    = ::LoadRegTypeLib(
-                                            LIBID_CommunicatorUA,
-                                            1,
-                                            0,
-                                            0,
-                                            &iTypeLib);
-                                if (SUCCEEDED(hr))
-                                    _iTypeLib = iTypeLib;
-                            }
-                        }
-                        else
-                            hr = E_UNEXPECTED;
+                        /*
+                        * The whole point of what has been done till
+                        * now is securing the success of future calls
+                        * to LoadRegTypeLib. Make sure that is indeed
+                        * the case.
+                        */
+                        iTypeLib->Release();
+                        hr = ::LoadRegTypeLib(
+                                    LIBID_CommunicatorUA, 1, 0, 0, &iTypeLib);
+                        Log::d(
+                            _T("OutOfProcessServer::loadRegTypeLib:")
+                            _T(" LoadRegTypeLib=%08X;")
+                            _T("\n"),
+                            hr);
+                        if (SUCCEEDED(hr))
+                            _iTypeLib = iTypeLib;
                     }
                     else
                         hr = E_UNEXPECTED;
@@ -418,12 +425,28 @@ unsigned __stdcall OutOfProcessServer::run(void *)
     HRESULT hr = ::CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     unsigned ret = 0;
 
+    Log::d(
+        _T("OutOfProcessServer::run:")
+        _T(" CoInitializeEx=%08X;")
+        _T("\n"), 
+        hr);
     if (SUCCEEDED(hr))
     {
         hr = loadRegTypeLib();
+        Log::d(
+            _T("OutOfProcessServer::run:")
+            _T(" loadRegTypeLib=%08X;")
+            _T("\n"),
+            hr);
         if (SUCCEEDED(hr))
         {
-            if (ERROR_SUCCESS == setIMProvidersCommunicatorUpAndRunning(1))
+            hr = setIMProvidersCommunicatorUpAndRunning(1);
+            Log::d(
+                _T("OutOfProcessServer::run:")
+                _T(" setIMProvidersCommunicatorUpAndRunning(1)=%08X;")
+                _T("\n"),
+                hr);
+            if (ERROR_SUCCESS == hr)
             {
                 MSG msg;
 
@@ -435,10 +458,20 @@ unsigned __stdcall OutOfProcessServer::run(void *)
                 ::PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
 
                 hr = registerClassObjects();
+                Log::d(
+                    _T("OutOfProcessServer::run:")
+                    _T(" registerClassObjects=%08X;")
+                    _T("\n"),
+                    hr);
                 if (SUCCEEDED(hr))
                 {
-                    if (ERROR_SUCCESS
-                            == setIMProvidersCommunicatorUpAndRunning(2))
+                    hr = setIMProvidersCommunicatorUpAndRunning(2);
+                    Log::d(
+                        _T("OutOfProcessServer::run:")
+                        _T(" setIMProvidersCommunicatorUpAndRunning(2)=%08X;")
+                        _T("\n"),
+                        hr);
+                    if (ERROR_SUCCESS == hr)
                     {
                         HANDLE threadHandle = _threadHandle;
                         BOOL logMsgWaitForMultipleObjectsExFailed = TRUE;
@@ -515,51 +548,12 @@ unsigned __stdcall OutOfProcessServer::run(void *)
 
 DWORD OutOfProcessServer::setIMProvidersCommunicatorUpAndRunning(DWORD dw)
 {
-    DWORD lastError;
-
-    if (dw)
-    {
-        /*
-         * Testing on various machines/setups has shown that the following may
-         * or may not succeed without affecting the presence integration so just
-         * try them and then go on with the rest regardless of their success.
-         */
-        lastError = ERROR_SUCCESS;
-        regCreateKeyAndSetValue(
-                _T("Software\\Microsoft\\Office\\11.0\\Common\\PersonaMenu"),
-                _T("RTCApplication"),
-                3);
-        regCreateKeyAndSetValue(
-                _T("Software\\Microsoft\\Office\\12.0\\Common\\PersonaMenu"),
-                _T("RTCApplication"),
-                3);
-        regCreateKeyAndSetValue(
-                _T("Software\\Microsoft\\Office\\11.0\\Common\\PersonaMenu"),
-                _T("QueryServiceForStatus"),
-                2);
-        regCreateKeyAndSetValue(
-                _T("Software\\Microsoft\\Office\\12.0\\Common\\PersonaMenu"),
-                _T("QueryServiceForStatus"),
-                2);
-        regCreateKeyAndSetValue(
-                _T("Software\\Microsoft\\Office\\11.0\\Outlook\\IM"),
-                _T("SetOnlineStatusLevel"),
-                3);
-        regCreateKeyAndSetValue(
-                _T("Software\\Microsoft\\Office\\12.0\\Outlook\\IM"),
-                _T("SetOnlineStatusLevel"),
-                3);
-    }
-    else
-        lastError = ERROR_SUCCESS;
-    if (ERROR_SUCCESS == lastError)
-    {
-        lastError
+    DWORD lastError
             = regCreateKeyAndSetValue(
-                    _T("Software\\IM Providers\\Communicator"),
+                    _T("Software\\IM Providers\\Jitsi"),
                     _T("UpAndRunning"),
                     dw);
-    }
+
     return lastError;
 }
 
@@ -568,7 +562,7 @@ HRESULT OutOfProcessServer::start(JNIEnv *env, jclass clazz, LPCSTR packageName)
     HRESULT hr;
 
     if (packageName)
-        hr = ((_packageName = ::strdup(packageName))) ? S_OK : E_OUTOFMEMORY;
+        hr = ((_packageName = ::_strdup(packageName))) ? S_OK : E_OUTOFMEMORY;
     else
     {
         _packageName = NULL;

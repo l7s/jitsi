@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -52,6 +63,37 @@ public class CallSipImpl
      */
     public static final String JITSI_MEET_ROOM_HEADER
             = "Jitsi-Conference-Room";
+
+    /**
+     * Name of extra INVITE header which specifies password required to enter
+     * MUC room that is hosting the Jitsi Meet conference.
+     */
+    public static final String JITSI_MEET_ROOM_PASS_HEADER
+            = "Jitsi-Conference-Room-Pass";
+
+    /**
+     * Custom header included in initial desktop sharing call creation.
+     * Not included when we are upgrading an ongoing audio/video call.
+     */
+    public static final String DS_SHARING_HEADER = "X-Desktop-Share";
+
+    /**
+     * Custom header name prefix that can be added to the call instance.
+     * Several headers can be specified in the form of:
+     * EXTRA_HEADER_NAME.1=...
+     * EXTRA_HEADER_NAME.2=...
+     * Index starting from 1.
+     */
+    public static final String EXTRA_HEADER_NAME = "EXTRA_HEADER_NAME";
+
+    /**
+     * Custom header value prefix that can be added to the call instance.
+     * Several headers can be specified in the form of:
+     * EXTRA_HEADER_VALUE.1=...
+     * EXTRA_HEADER_VALUE.2=...
+     * Index starting from 1.
+     */
+    public static final String EXTRA_HEADER_VALUE = "EXTRA_HEADER_VALUE";
 
     /**
      * When starting call we may have quality preferences we must use
@@ -284,12 +326,12 @@ public class CallSipImpl
                 logger.warn("Error getting media types", t);
             }
 
-            getParentOperationSet().fireCallEvent(
-                    incomingCall
-                        ? CallEvent.CALL_RECEIVED
-                        : CallEvent.CALL_INITIATED,
-                    this,
-                    mediaDirections);
+            fireCallEvent(
+                incomingCall
+                    ? CallEvent.CALL_RECEIVED
+                    : CallEvent.CALL_INITIATED,
+                this,
+                mediaDirections);
 
             if(hasZrtp)
             {
@@ -304,6 +346,45 @@ public class CallSipImpl
         }
 
         return callPeer;
+    }
+
+    /**
+     * Creates and dispatches a <tt>CallEvent</tt> notifying registered
+     * listeners that an event with id <tt>eventID</tt> has occurred on
+     * <tt>sourceCall</tt>.
+     *
+     * @param eventID the ID of the event to dispatch
+     * @param sourceCall the call on which the event has occurred.
+     * @param mediaDirections direction map for media types
+     */
+    protected void fireCallEvent(
+        int eventID,
+        Call sourceCall,
+        Map<MediaType, MediaDirection> mediaDirections)
+    {
+        CallEvent callEvent
+            = new CallEvent(sourceCall, eventID, mediaDirections);
+
+        // just checks for existence of the custom desktop share header
+        // and indicate it in the call event
+        if(sourceCall.getCallPeerCount() == 1)
+        {
+            CallSipImpl callSip = (CallSipImpl)sourceCall;
+
+            CallPeerSipImpl callPeer = callSip.getCallPeers().next();
+
+            Request request
+                = callPeer.getLatestInviteTransaction().getRequest();
+
+            Header dsHeader = request.getHeader(DS_SHARING_HEADER);
+
+            if(dsHeader != null)
+            {
+                callEvent.setDesktopStreaming(true);
+            }
+        }
+
+        getParentOperationSet().fireCallEvent(callEvent);
     }
 
     /**
@@ -501,6 +582,10 @@ public class CallSipImpl
         // Parses Jitsi Meet room name header
         SIPHeader joinRoomHeader
             = (SIPHeader) invite.getHeader(JITSI_MEET_ROOM_HEADER);
+        // Optional password header
+        SIPHeader passwordHeader
+            = (SIPHeader) invite.getHeader(JITSI_MEET_ROOM_PASS_HEADER);
+
         if (joinRoomHeader != null)
         {
             OperationSetJitsiMeetToolsSipImpl jitsiMeetTools
@@ -508,7 +593,8 @@ public class CallSipImpl
                         .getOperationSet(OperationSetJitsiMeetTools.class);
 
             jitsiMeetTools.notifyJoinJitsiMeetRoom(
-                this, joinRoomHeader.getValue());
+                this, joinRoomHeader.getValue(),
+                passwordHeader != null ? passwordHeader.getValue() : null);
         }
 
         //send a ringing response
@@ -638,6 +724,22 @@ public class CallSipImpl
     protected void processExtraHeaders(javax.sip.message.Message message)
         throws ParseException
     {
+        // If there are custom headers added to the call instance, add those
+        // headers
+        int extraHeaderIx = 1;
+
+        Object name = getData(EXTRA_HEADER_NAME + "." + extraHeaderIx);
+        while(name != null)
+        {
+            Object value = getData(EXTRA_HEADER_VALUE + "." + extraHeaderIx);
+
+            Header header = getProtocolProvider().getHeaderFactory()
+                .createHeader((String) name, (String) value);
+            message.setHeader(header);
+
+            extraHeaderIx++;
+            name = getData(EXTRA_HEADER_NAME + "." + extraHeaderIx);
+        }
     }
 
     /**

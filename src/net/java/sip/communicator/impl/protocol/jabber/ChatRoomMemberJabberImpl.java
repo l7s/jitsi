@@ -1,13 +1,25 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.jabber.*;
+import net.java.sip.communicator.service.protocol.jabberconstants.*;
 
 import org.jivesoftware.smack.util.*;
 import org.jivesoftware.smackx.muc.*;
@@ -51,12 +63,6 @@ public class ChatRoomMemberJabberImpl
      * The avatar of this chat room member.
      */
     private byte[] avatar;
-
-    /**
-     * The <tt>ConferenceDescription</tt> published by this
-     * <tt>ChatRoomMember</tt>
-     */
-    private ConferenceDescription conferenceDescription = null;
 
     /**
      * Creates a jabber chat room member with the specified containing chat
@@ -249,5 +255,18 @@ public class ChatRoomMemberJabberImpl
      public void setContact(Contact contact)
      {
          this.contact = contact;
+     }
+
+     /**
+      * Current presence status of chat room member.
+      *
+      * @return returns current presence status
+      */
+     @Override
+     public PresenceStatus getPresenceStatus()
+     {
+         // TODO implement current presence status for chat room member
+         return ((ProtocolProviderServiceJabberImpl) getProtocolProvider())
+             .getJabberStatusEnum().getStatus(JabberStatusEnum.AVAILABLE);
      }
 }

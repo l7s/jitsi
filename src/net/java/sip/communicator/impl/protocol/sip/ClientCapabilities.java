@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -15,8 +26,10 @@ import javax.sip.*;
 import javax.sip.address.*;
 import javax.sip.header.*;
 import javax.sip.message.*;
+import javax.sip.message.Message;
 
 import gov.nist.javax.sip.*;
+import gov.nist.javax.sip.header.*;
 
 import net.java.sip.communicator.impl.protocol.sip.net.*;
 import net.java.sip.communicator.service.protocol.*;
@@ -107,15 +120,7 @@ public class ClientCapabilities
                                     method));
             }
 
-            Iterable<String> knownEventsList = provider.getKnownEventsList();
-
-            synchronized (knownEventsList)
-            {
-                for (String event : knownEventsList)
-                    optionsOK.addHeader(
-                            provider.getHeaderFactory().createAllowEventsHeader(
-                                    event));
-            }
+            addAllowEventsHeader(optionsOK);
         }
         catch (ParseException ex)
         {
@@ -156,6 +161,32 @@ public class ClientCapabilities
         }
 
         return true;
+    }
+
+    /**
+     * Creates a list of known events and add them to the value of
+     * Allow-Events header
+     * @param message the message to set the newly created header
+     * @throws ParseException error on creating header
+     */
+    private void addAllowEventsHeader(Message message)
+        throws ParseException
+    {
+        Iterable<String> knownEventsList = provider.getKnownEventsList();
+
+        AllowEventsList eventsList = new AllowEventsList();
+
+        synchronized (knownEventsList)
+        {
+            for (String event : knownEventsList)
+            {
+                eventsList.add(
+                    (AllowEvents)provider.getHeaderFactory()
+                        .createAllowEventsHeader(event));
+            }
+        }
+
+        message.setHeader(eventsList);
     }
 
     /**
@@ -323,19 +354,7 @@ public class ClientCapabilities
                         provider.getHeaderFactory().createAllowHeader(method));
                 }
 
-                Iterator<String> events
-                                    = provider.getKnownEventsList().iterator();
-
-                synchronized (provider.getKnownEventsList())
-                {
-                    while (events.hasNext())
-                    {
-                        String event = events.next();
-
-                        request.addHeader(provider.getHeaderFactory()
-                                .createAllowEventsHeader(event));
-                    }
-                }
+                addAllowEventsHeader(request);
 
                 //Transaction
                 ClientTransaction optionsTrans = null;

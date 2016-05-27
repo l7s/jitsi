@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package net.java.sip.communicator.impl.gui.main.chat.conference;
@@ -31,6 +42,16 @@ import net.java.sip.communicator.service.protocol.ServerStoredDetails.GenericDet
 public class ChatContactCellRenderer
     extends ContactListCellRenderer
 {
+    /**
+     * Color constant for contacts that are at least available.
+     */
+    private static final Color COLOR_AVAILABILITY_THRESHOLD = Color.BLACK;
+
+    /**
+     * Color constant for contacts that are at least away.
+     */
+    private static final Color COLOR_AWAY_THRESHOLD = Color.GRAY;
+
     /**
      * Implements the <tt>ListCellRenderer</tt> method. Returns this panel that
      * has been configured to display a chat contact.
@@ -91,9 +112,18 @@ public class ChatContactCellRenderer
             if(memberRole != null)
                 this.nameLabel.setIcon(
                     ChatContactRoleIcon.getRoleIcon(memberRole));
-        }
 
-        if (contactForegroundColor != null)
+            final int presenceStatus = member.getPresenceStatus().getStatus();
+            if (presenceStatus >= PresenceStatus.AVAILABLE_THRESHOLD)
+            {
+                this.nameLabel.setForeground(COLOR_AVAILABILITY_THRESHOLD);
+            }
+            else if (presenceStatus >= PresenceStatus.AWAY_THRESHOLD)
+            {
+                this.nameLabel.setForeground(COLOR_AWAY_THRESHOLD);
+            }
+        }
+        else if (contactForegroundColor != null)
             this.nameLabel.setForeground(contactForegroundColor);
 
         this.setBorder(BorderFactory.createEmptyBorder(1, 5, 1, 1));

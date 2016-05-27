@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.util;
 
@@ -22,12 +33,52 @@ import java.util.logging.*;
 public class ScLogFormatter
     extends java.util.logging.Formatter
 {
-    static long startTime = System.currentTimeMillis();
 
+    /**
+     * Program name logging property name
+     */
+    private static final String PROGRAM_NAME_PROPERTY = ".programname";
+    
+    /**
+     * Disable timestamp logging property name.
+     */
+    private static final String DISABLE_TIMESTAMP_PROPERTY
+        = ".disableTimestamp";
+
+    /**
+     * Line separator used by current platform
+     */
     private static String lineSeparator = System.getProperty("line.separator");
+    
+    /**
+     * Two digit <tt>DecimalFormat</tt> instance, used to format datetime
+     */
     private static DecimalFormat twoDigFmt = new DecimalFormat("00");
+
+    /**
+     * Three digit <tt>DecimalFormat</tt> instance, used to format datetime
+     */
     private static DecimalFormat threeDigFmt = new DecimalFormat("000");
 
+    /**
+     * The application name used to generate this log
+     */
+    private static String programName;
+
+    /**
+     * Whether logger will add date to the logs, enabled by default.
+     */
+    private static boolean timestampDisabled = false;
+
+    /**
+     * The default constructor for <tt>ScLogFormatter</tt> which loads 
+     * program name property from logging.properties file, if it exists
+     */
+    public ScLogFormatter()
+    {
+        loadConfigProperties();
+    }
+    
     /**
      * Format the given LogRecord.
      * @param record the log record to be formatted.
@@ -37,18 +88,36 @@ public class ScLogFormatter
     public synchronized String format(LogRecord record)
     {
         StringBuffer sb = new StringBuffer();
+        
+        
+        if (programName != null)
+        {
+            // Program name
+            sb.append(programName);
 
-        //current time
-        Calendar cal = Calendar.getInstance();
-        int hour = cal.get(Calendar.HOUR_OF_DAY);
-        int minutes = cal.get(Calendar.MINUTE);
-        int seconds = cal.get(Calendar.SECOND);
-        int millis = cal.get(Calendar.MILLISECOND);
+            sb.append(' ');
+        }
 
-        sb.append(twoDigFmt.format(hour)).append(':');
-        sb.append(twoDigFmt.format(minutes)).append(':');
-        sb.append(twoDigFmt.format(seconds)).append('.');
-        sb.append(threeDigFmt.format(millis)).append(' ');
+        if(!timestampDisabled)
+        {
+            //current time
+            Calendar cal = Calendar.getInstance();
+            int year = cal.get(Calendar.YEAR);
+            int month = cal.get(Calendar.MONTH) + 1;
+            int day = cal.get(Calendar.DAY_OF_MONTH);
+            int hour = cal.get(Calendar.HOUR_OF_DAY);
+            int minutes = cal.get(Calendar.MINUTE);
+            int seconds = cal.get(Calendar.SECOND);
+            int millis = cal.get(Calendar.MILLISECOND);
+
+            sb.append(year).append('-');
+            sb.append(twoDigFmt.format(month)).append('-');
+            sb.append(twoDigFmt.format(day)).append(' ');
+            sb.append(twoDigFmt.format(hour)).append(':');
+            sb.append(twoDigFmt.format(minutes)).append(':');
+            sb.append(twoDigFmt.format(seconds)).append('.');
+            sb.append(threeDigFmt.format(millis)).append(' ');
+        }
 
         //log level
         sb.append(record.getLevel().getLocalizedName());
@@ -131,7 +200,8 @@ public class ScLogFormatter
             }
             ix++;
         }
-        // Now search for the first frame before the SIP Communicator Logger class.
+        // Now search for the first frame 
+        // before the SIP Communicator Logger class.
         while (ix < stack.length)
         {
             StackTraceElement frame = stack[ix];
@@ -149,4 +219,36 @@ public class ScLogFormatter
 
         return lineNumber;
     }
+
+    /**
+     * Loads all config properties.
+     */
+    private void loadConfigProperties()
+    {
+        loadProgramNameProperty();
+        loadTimestampDisabledProperty();
+    }
+
+    /**
+     * Checks and loads timestamp disabled property if any.
+     */
+    private static void loadTimestampDisabledProperty()
+    {
+        LogManager manager = LogManager.getLogManager();
+        String cname = ScLogFormatter.class.getName();
+        timestampDisabled = Boolean.parseBoolean(
+            manager.getProperty(cname + DISABLE_TIMESTAMP_PROPERTY));
+    }
+
+    /**
+     * Load the programname property to be used in logs to identify Jitsi-based
+     * application which produced the logs
+     */
+    private static void loadProgramNameProperty()
+    {
+        LogManager manager = LogManager.getLogManager();
+        String cname = ScLogFormatter.class.getName();
+        programName = manager.getProperty(cname + PROGRAM_NAME_PROPERTY);
+    }
+    
 }

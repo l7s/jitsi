@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.contactlist;
 
@@ -1044,10 +1055,12 @@ public class MclStorageManager
     }
 
     /**
-     * Creates a node element corresponding to <tt>protoContact</tt>.
+     * Creates a node element corresponding to <tt>protoContact</tt>. If
+     * required data is missing returns null.
      *
      * @param protoContact the Contact whose element we'd like to create
-     * @return a XML Element corresponding to <tt>protoContact</tt>.
+     * @return a XML Element corresponding to <tt>protoContact</tt>
+     * or <tt>null</tt> if required data is not present.
      */
     private Element createProtoContactNode(Contact protoContact)
     {
@@ -1061,14 +1074,17 @@ public class MclStorageManager
         protoContactElement.setAttribute(ACCOUNT_ID_ATTR_NAME, protoContact
             .getProtocolProvider().getAccountID().getAccountUniqueID());
 
-        if(logger.isTraceEnabled()
+        if(logger.isInfoEnabled()
                         && protoContact.getParentContactGroup() == null)
         {
-            if (logger.isTraceEnabled())
-                logger.trace("the following contact looks weird:" + protoContact);
-            if (logger.isTraceEnabled())
-                logger.trace("group:" + protoContact.getParentContactGroup());
+            if (logger.isInfoEnabled())
+                logger.info("the following contact looks weird:" + protoContact);
+            if (logger.isInfoEnabled())
+                logger.info("group:" + protoContact.getParentContactGroup());
         }
+
+        if(protoContact.getParentContactGroup() == null)
+            return null;
 
         protoContactElement.setAttribute(PARENT_PROTO_GROUP_UID_ATTR_NAME,
             protoContact.getParentContactGroup().getUID());
@@ -1176,7 +1192,9 @@ public class MclStorageManager
         {
             Contact contact = contacts.next();
             Element contactElement = createProtoContactNode(contact);
-            metaContactElement.appendChild(contactElement);
+
+            if(contactElement != null)
+                metaContactElement.appendChild(contactElement);
         }
 
         return metaContactElement;
@@ -1941,6 +1959,13 @@ public class MclStorageManager
         }
 
         Element protoNode = createProtoContactNode(evt.getProtoContact());
+
+        if(protoNode == null)
+        {
+            logger.error("Failed to create proto contact node for: "
+                + evt.getProtoContact());
+            return;
+        }
 
         mcNode.appendChild(protoNode);
 

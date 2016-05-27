@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.call;
 
@@ -53,15 +64,25 @@ public class ReceivedCallDialog
      * @param video if the call is a video call
      * @param existingCall true to answer the call in an existing call (thus
      * obtaining a conference call)
+     * @param desktopStreaming whether the incoming call is desktop streaming
      */
-    public ReceivedCallDialog(Call call, boolean video, boolean existingCall)
+    public ReceivedCallDialog(
+        Call call,
+        boolean video,
+        boolean existingCall,
+        boolean desktopStreaming)
     {
         super(GuiActivator.getResources()
             .getSettingsString("service.gui.APPLICATION_NAME")
             + " "
-            + GuiActivator.getResources()
-                .getI18NString("service.gui.INCOMING_CALL_STATUS")
-                    .toLowerCase(), video, existingCall);
+            + (desktopStreaming ?
+                GuiActivator.getResources()
+                    .getI18NString("service.gui.INCOMING_SCREEN_SHARE_STATUS")
+                    .toLowerCase()
+             : GuiActivator.getResources()
+                    .getI18NString("service.gui.INCOMING_CALL_STATUS")
+                    .toLowerCase())
+            , video, existingCall);
 
         this.incomingCall = call;
 

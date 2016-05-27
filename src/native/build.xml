@@ -1,4 +1,4 @@
-<project name="jitsi-native" default="help-native">
+<project name="jitsi-native" default="help-native" xmlns:if="ant:if">
   <import file="../../build.xml"/>
 
   <!-- additionnal property -->
@@ -451,8 +451,12 @@
     </target>
 
     <target name="globalshortcut" description="Build globalshortcut"
-            depends="init-native,globalshortcut-windows" unless="is.running.windows">
-
+            depends="init-native,globalshortcut-windows,globalshortcut-mac" unless="is.running.windows"/>
+    <target name="globalshortcut-mac" unless="is.running.linux"
+            depends="globalshortcut-linux">
+        <echo message="For building mac os x binary checkout: https://github.com/jitsi/DDHotKey"/>
+    </target>
+    <target name="globalshortcut-linux" if="is.running.linux">
     <cc outtype="shared" name="gcc" outfile="${native_install_dir}/globalshortcut"
         objdir="${obj}">
         <!-- common compiler flags -->
@@ -557,8 +561,8 @@
         </cc>
     </target>
 
-  <!-- Cleanup object file and shared libraries -->
-  <target name="clean-native" description="Clean all object file and libraries.">
+  <!-- Cleanup object files and shared libraries -->
+  <target name="clean-native" description="Clean all object files and libraries.">
     <delete failonerror="false" includeemptydirs="true">
         <fileset dir="${obj}" />
         <fileset dir="${src}/native/" includes="*.dll *.so *.dyld *.jnilib *.manifest *.o *.obj *.lib *.exp history.xml" />
@@ -588,6 +592,9 @@
        can directly use command prompt
        When changing idl file in visual studio console execute
        midl <idl file>.
+       
+       Microsoft MAPI headers won't compile with gcc. See:
+       http://lists.jitsi.org/pipermail/dev/2013-April/001313.html
   -->
   <target
       name="msoutlookaddrbook"
@@ -627,6 +634,68 @@
     <exec executable="strip">
       <arg value="-x"/>
       <arg value="${native_install_dir}/jmsoutlookaddrbook.dll"/>
+    </exec>
+  </target>
+
+  <!--
+       Compile jmsofficecomm library for Windows
+       - install tdm-gcc-64 for both 32 and 64 bit
+       - install the OCS 2007 SDK from: 
+         http://www.microsoft.com/en-us/download/details.aspx?id=10176
+       - compile the tlb:
+         cd src/native/windows/msofficecomm
+         midl "C:\Program Files (x86)\Microsoft Office Communicator\SDK\msgrua.idl"
+       - run ant:
+         ant msofficecomm -DOCS2007SDK=<path here, escape \ with \\> -Darch=32
+         ant msofficecomm -DOCS2007SDK=<path here, escape \ with \\> -Darch=64
+  -->
+  <target
+      name="msofficecomm"
+      description="Build jmsofficecomm shared library for Windows"
+      if="is.running.windows"
+      depends="init-native">
+    <fail message="OCS 2007 SDK not set!" unless="OCS2007SDK" />
+    <exec executable="windres">
+        <arg value="-i"/>
+        <arg value="${src}\native\windows\msofficecomm\Resources.rc"/>
+        <arg value="-o"/>
+        <arg value="${obj}\jmsofficecommtlb.o"/>
+        <arg value="-F"/>
+        <arg value="pe-i386" if:set="cross_32"/>
+        <arg value="pe-x86-64" if:set="cross_64"/>
+    </exec>
+    <cc
+        name="gcc"
+        objdir="${obj}"
+        outfile="${native_install_dir}/jmsofficecomm"
+        outtype="shared">
+      <compilerarg value="-D_JNI_IMPLEMENTATION_" />
+      <compilerarg value="-D_WIN32_WINNT=0x0502" />
+      <compilerarg value="-DWINVER=0x0502" />
+      <compilerarg value="-DUNICODE" />
+      <compilerarg value="-D_UNICODE" />
+      <compilerarg value="-I${system.JAVA_HOME}/include" />
+      <compilerarg value="-I${system.JAVA_HOME}/include/win32" />
+      <compilerarg value="-I${OCS2007SDK}" />
+      <compilerarg value="-m32" if="cross_32" />
+      <compilerarg value="-m64" if="cross_64" />
+      <compilerarg value="-O2" />
+      <compilerarg value="-Wall" />
+
+      <linkerarg value="-ojmsofficecomm.dll" />
+      <linkerarg value="-m32" if="cross_32" />
+      <linkerarg value="-m64" if="cross_64" />
+      <linkerarg value="-Wl,--kill-at" />
+      <linkerarg value="-Wl,--subsystem,windows" />
+      <linkerarg value="-Wl,-Bstatic" location="end" if="is.running.windows" />
+      <libset libs="advapi32, uuid, ole32, oleaut32, msi, stdc++" />
+
+      <fileset dir="${src}\native\windows\msofficecomm" includes="*.cxx" />
+      <fileset dir="${obj}" includes="jmsofficecommtlb.o"/>
+    </cc>
+    <exec executable="strip">
+      <arg value="-x"/>
+      <arg value="${native_install_dir}/jmsofficecomm.dll"/>
     </exec>
   </target>
 
@@ -720,13 +789,18 @@
         <compilerarg value="-O2" />
         <compilerarg value="-arch" />
         <compilerarg value="x86_64" />
+        <!--<compilerarg value="-arch" />-->
+        <!--<compilerarg value="i386" />-->
         <compilerarg value="-I${system.JAVA_HOME}/include" />
         <compilerarg value="-I${system.JAVA_HOME}/include/darwin" />
         <compilerarg value="-I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers" />
         <compilerarg value="-mmacosx-version-min=10.6"/>
+        <!--<compilerarg value="-D_JITSI_USE_1_6_"/>-->
 
         <linkerarg value="-arch" />
         <linkerarg value="x86_64" />
+        <!--<linkerarg value="-arch" />-->
+        <!--<linkerarg value="i386" />-->
         <linkerarg value="-framework" />
         <linkerarg value="Cocoa" />
 

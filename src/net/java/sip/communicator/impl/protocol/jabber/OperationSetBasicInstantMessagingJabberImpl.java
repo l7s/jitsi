@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber;
 
@@ -472,7 +483,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
 
             // msg.addExtension(new Version());
 
-            if (event.isMessageEncrypted())
+            if (event.isMessageEncrypted() && isCarbonEnabled)
             {
                 msg.addExtension(new CarbonPacketExtension.PrivateExtension());
             }
@@ -626,31 +637,14 @@ public class OperationSetBasicInstantMessagingJabberImpl
             }
             else if (evt.getNewState() == RegistrationState.REGISTERED)
             {
-                //subscribe for Google (Gmail or Google Apps) notifications
-                //for new mail messages.
-                boolean enableGmailNotifications
-                   = jabberProvider
-                       .getAccountID()
-                           .getAccountPropertyBoolean(
-                               "GMAIL_NOTIFICATIONS_ENABLED",
-                               false);
-
-                if (enableGmailNotifications)
-                    subscribeForGmailNotifications();
-
-                boolean enableCarbon
-                    = isCarbonSupported() && !jabberProvider.getAccountID()
-                            .getAccountPropertyBoolean(
-                                ProtocolProviderFactory.IS_CARBON_DISABLED,
-                                false);
-                if(enableCarbon)
+                new Thread(new Runnable()
                 {
-                    enableDisableCarbon(true);
-                }
-                else
-                {
-                    isCarbonEnabled = false;
-                }
+                    @Override
+                    public void run()
+                    {
+                        initAdditionalServices();
+                    }
+                }).start();
             }
             else if(evt.getNewState() == RegistrationState.UNREGISTERED
                 || evt.getNewState() == RegistrationState.CONNECTION_FAILED
@@ -666,9 +660,40 @@ public class OperationSetBasicInstantMessagingJabberImpl
                 smackMessageListener = null;
             }
         }
-
     }
 
+    /**
+     * Initialize additional services, like gmail notifications and message
+     * carbons.
+     */
+    private void initAdditionalServices()
+    {
+        //subscribe for Google (Gmail or Google Apps) notifications
+        //for new mail messages.
+        boolean enableGmailNotifications
+            = jabberProvider
+            .getAccountID()
+            .getAccountPropertyBoolean(
+                "GMAIL_NOTIFICATIONS_ENABLED",
+                false);
+
+        if (enableGmailNotifications)
+            subscribeForGmailNotifications();
+
+        boolean enableCarbon
+            = isCarbonSupported() && !jabberProvider.getAccountID()
+            .getAccountPropertyBoolean(
+                ProtocolProviderFactory.IS_CARBON_DISABLED,
+                false);
+        if(enableCarbon)
+        {
+            enableDisableCarbon(true);
+        }
+        else
+        {
+            isCarbonEnabled = false;
+        }
+    }
 
     /**
      * Sends enable or disable carbon packet to the server.
@@ -730,7 +755,6 @@ public class OperationSetBasicInstantMessagingJabberImpl
         {
             isCarbonEnabled = true;
         }
-
     }
 
     /**
@@ -748,7 +772,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
         }
         catch (XMPPException e)
         {
-           logger.error("Failed to retrieve carbon support.",e);
+           logger.warn("Failed to retrieve carbon support." + e.getMessage());
         }
         return false;
     }

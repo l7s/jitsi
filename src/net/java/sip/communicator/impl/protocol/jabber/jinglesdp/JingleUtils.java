@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.jabber.jinglesdp;
 
@@ -168,12 +179,17 @@ public class JingleUtils
             else
                 paramsMap.put(paramName, param.getValue());
         }
-
-        // video-related attributes in payload-type element
+        
         for(String attr : payloadType.getAttributeNames())
         {
+            //video-related attributes in payload-type element
             if(attr.equals("width") || attr.equals("height"))
                 paramsMap.put(attr, payloadType.getAttributeAsString(attr));
+
+            //update ptime with the actual value from the payload
+            if (attr.equals(PayloadTypePacketExtension.PTIME_ATTR_NAME))
+                advancedMap.put(PayloadTypePacketExtension.PTIME_ATTR_NAME,
+                        Integer.toString(payloadType.getPtime()));
         }
 
         //now create the format.
@@ -230,7 +246,7 @@ public class JingleUtils
      *
      * @param desc the {@link RtpDescriptionPacketExtension} that we'd like to
      * probe for a list of {@link RTPExtension}s
-     * @param extMap a reference to the <tt>DynamycRTPExtensionsRegistry</tt>
+     * @param extMap a reference to the <tt>DynamicRTPExtensionsRegistry</tt>
      * where we should be registering newly added extension mappings.
      *
      * @return a <tt>List</tt> of {@link RTPExtension}s advertised in the
@@ -257,8 +273,7 @@ public class JingleUtils
                             getDirection(extmap.getSenders(), false),
                             extmap.getAttributes());
 
-            if(rtpExtension != null)
-                extensionsList.add( rtpExtension );
+            extensionsList.add(rtpExtension);
         }
 
         return extensionsList;

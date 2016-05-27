@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip;
 
@@ -232,6 +243,85 @@ public class ProtocolProviderServiceSipImpl
     public AccountID getAccountID()
     {
         return accountID;
+    }
+
+    /**
+     * Validates the contact identifier and returns an error message if
+     * applicable and a suggested correction
+     * 
+     * @param contactId the contact identifier to validate
+     * @param result Must be supplied as an empty a list. Implementors add
+     *            items:
+     *            <ol>
+     *            <li>is the error message if applicable
+     *            <li>a suggested correction. Index 1 is optional and can only
+     *            be present if there was a validation failure.
+     *            </ol>
+     * @return true if the contact id is valid, false otherwise
+     */
+    @Override
+    public boolean validateContactAddress(String contactId, List<String> result)
+    {
+        if (result == null)
+        {
+            throw new IllegalArgumentException("result must be an empty list");
+        }
+
+        result.clear();
+        try
+        {
+            Address address = parseAddressString(contactId);
+            if (address.toString().equals(contactId))
+            {
+                return true;
+            }
+            else if (((SipUri) address.getURI()).getUser().equals(contactId))
+            {
+                return true;
+            }
+            else
+            {
+                result.add(SipActivator.getResources().getI18NString(
+                    "impl.protocol.sip.INVALID_ADDRESS", new String[]
+                { contactId }));
+                result.add(((SipUri) address.getURI()).getUser());
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.error("Validating SIP address failed for " + contactId, ex);
+            result.add(SipActivator.getResources()
+                .getI18NString("impl.protocol.sip.INVALID_ADDRESS", new String[]
+            { contactId }));
+
+            String user = contactId;
+            String remainder = "";
+            int at = contactId.indexOf('@');
+            if (at > -1)
+            {
+                user = contactId.substring(0, at);
+                remainder = contactId.substring(at);
+            }
+
+            // replace invalid characters in user part with hex encoding
+            String banned = "([^a-z0-9-_.!~*'()&=+$,;?/])+";
+            result.add(user.replaceAll(banned, "") + remainder);
+        }
+
+        return false;
+    }
+
+    /**
+     * Indicates whether or not this provider must registered
+     * when placing outgoing calls.
+     *
+     * @return <tt>true</tt> if the provider must be registered when placing a
+     * call and <tt>false</tt> otherwise.
+     */
+    public boolean isRegistrationRequiredForCalling()
+    {
+        return getAccountID().getAccountPropertyBoolean(
+                        ProtocolProviderFactory.MUST_REGISTER_TO_CALL, true);
     }
 
     /**
@@ -559,6 +649,17 @@ public class ProtocolProviderServiceSipImpl
                 addSupportedOperationSet(
                     OperationSetJitsiMeetTools.class,
                     new OperationSetJitsiMeetToolsSipImpl());
+
+                boolean isParkingEnabled
+                    = accountID.getAccountPropertyBoolean(
+                        OperationSetTelephonyPark.IS_CALL_PARK_ENABLED,
+                        false);
+                if(isParkingEnabled)
+                {
+                    addSupportedOperationSet(
+                        OperationSetTelephonyPark.class,
+                        new OperationSetTelephonyParkSipImpl(this));
+                }
             }
 
             //init presence op set.
@@ -576,50 +677,50 @@ public class ProtocolProviderServiceSipImpl
                 addSupportedOperationSet(
                     OperationSetPresence.class,
                     opSetPersPresence);
-
-                // Only init messaging and typing if enabled.
-                boolean isMessagingDisabled
-                    = SipActivator.getConfigurationService()
-                        .getBoolean(IS_MESSAGING_DISABLED, false);
-
-                if (!isMessagingDisabled)
-                {
-                    // init instant messaging
-                    this.opSetBasicIM =
-                        new OperationSetBasicInstantMessagingSipImpl(this);
-
-                    addSupportedOperationSet(
-                        OperationSetBasicInstantMessaging.class,
-                        opSetBasicIM);
-
-                    // init typing notifications
-                    this.opSetTypingNotif
-                        = new OperationSetTypingNotificationsSipImpl(
-                            this, opSetBasicIM);
-                    addSupportedOperationSet(
-                        OperationSetTypingNotifications.class,
-                        opSetTypingNotif);
-
-                    addSupportedOperationSet(
-                        OperationSetInstantMessageTransform.class,
-                        new OperationSetInstantMessageTransformImpl());
-                }
-
-                this.opSetSSAccountInfo =
-                    new OperationSetServerStoredAccountInfoSipImpl(this);
-
-                // Set the display name.
-                opSetSSAccountInfo.setOurDisplayName(ourDisplayName);
-
-                // init avatar
-                addSupportedOperationSet(
-                    OperationSetServerStoredAccountInfo.class,
-                    opSetSSAccountInfo);
-
-                addSupportedOperationSet(
-                    OperationSetAvatar.class,
-                    new OperationSetAvatarSipImpl(this, opSetSSAccountInfo));
             }
+
+            // Only init messaging and typing if enabled.
+            boolean isMessagingDisabled
+                = SipActivator.getConfigurationService()
+                    .getBoolean(IS_MESSAGING_DISABLED, false);
+
+            if (!isMessagingDisabled)
+            {
+                // init instant messaging
+                this.opSetBasicIM =
+                    new OperationSetBasicInstantMessagingSipImpl(this);
+
+                addSupportedOperationSet(
+                    OperationSetBasicInstantMessaging.class,
+                    opSetBasicIM);
+
+                // init typing notifications
+                this.opSetTypingNotif
+                    = new OperationSetTypingNotificationsSipImpl(
+                        this, opSetBasicIM);
+                addSupportedOperationSet(
+                    OperationSetTypingNotifications.class,
+                    opSetTypingNotif);
+
+                addSupportedOperationSet(
+                    OperationSetInstantMessageTransform.class,
+                    new OperationSetInstantMessageTransformImpl());
+            }
+
+            this.opSetSSAccountInfo =
+                new OperationSetServerStoredAccountInfoSipImpl(this);
+
+            // Set the display name.
+            opSetSSAccountInfo.setOurDisplayName(ourDisplayName);
+
+            // init avatar
+            addSupportedOperationSet(
+                OperationSetServerStoredAccountInfo.class,
+                opSetSSAccountInfo);
+
+            addSupportedOperationSet(
+                OperationSetAvatar.class,
+                new OperationSetAvatarSipImpl(this, opSetSSAccountInfo));
 
             // MWI is enabled by default
             if(accountID.getAccountPropertyBoolean(
@@ -638,6 +739,15 @@ public class ProtocolProviderServiceSipImpl
                 addSupportedOperationSet(
                     OperationSetCusaxUtils.class,
                     new OperationSetCusaxUtilsSipImpl(this));
+            }
+
+            if(accountID.getAccountPropertyBoolean(
+                OperationSetTelephonyBLFSipImpl.BLF_ENABLED_ACC_PROP,
+                false))
+            {
+                addSupportedOperationSet(
+                    OperationSetTelephonyBLF.class,
+                    new OperationSetTelephonyBLFSipImpl(this));
             }
 
             //initialize our OPTIONS handler
@@ -2347,22 +2457,39 @@ public class ProtocolProviderServiceSipImpl
     {
         uriStr = uriStr.trim();
 
-        //we don't know how to handle the "tel:" scheme ... or rather we handle
-        //it same as sip so replace:
+        //we don't know how to handle the "tel:" and "callto:" schemes ... or
+        // rather we handle them same as sip so replace:
         if(uriStr.toLowerCase().startsWith("tel:"))
-            uriStr = "sip:" + uriStr.substring("tel:".length());
+            uriStr = uriStr.substring("tel:".length());
+        else if(uriStr.toLowerCase().startsWith("callto:"))
+            uriStr = uriStr.substring("callto:".length());
+        else if(uriStr.toLowerCase().startsWith("sips:"))
+            uriStr = uriStr.substring("sips:".length());
+
+        String user = uriStr;
+        String remainder = "";
+        int at = uriStr.indexOf('@');
+        if (at > -1)
+        {
+            user = uriStr.substring(0, at);
+            remainder = uriStr.substring(at);
+        }
+
+        //replace invalid characters in user part with hex encoding
+        String banned = "([^a-z0-9-_.!~*'()&=+$,;?/])+";
+        user = user.replaceAll(banned, "") + remainder;
 
         //Handle default domain name (i.e. transform 1234 -> 1234@sip.com)
         //assuming that if no domain name is specified then it should be the
         //same as ours.
-        if (uriStr.indexOf('@') == -1)
+        if (at == -1)
         {
             //if we have a registrar, then we could append its domain name as
             //default
             SipRegistrarConnection src = sipRegistrarConnection;
             if(src != null && !src.isRegistrarless() )
             {
-                uriStr = uriStr + "@"
+                uriStr = user + "@"
                     + ((SipURI)src.getAddressOfRecord().getURI()).getHost();
             }
 

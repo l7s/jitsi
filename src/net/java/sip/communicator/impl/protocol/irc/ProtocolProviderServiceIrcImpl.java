@@ -1,14 +1,30 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.irc;
 
+import java.net.*;
+
+import net.java.sip.communicator.impl.protocol.irc.ClientConfigImpl.SASLImpl;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.event.*;
 import net.java.sip.communicator.util.*;
+
+import org.jitsi.service.configuration.*;
 
 /**
  * An IRC implementation of the ProtocolProviderService.
@@ -247,12 +263,28 @@ public class ProtocolProviderServiceIrcImpl
         boolean autoNickChange =
             accountID.getAccountPropertyBoolean(
                 ProtocolProviderFactory.AUTO_CHANGE_USER_NAME, true);
+        boolean resolveDnsThroughProxy =
+            accountID.getAccountPropertyBoolean(
+                ProtocolProviderFactoryIrcImpl.RESOLVE_DNS_THROUGH_PROXY, true);
         boolean passwordRequired =
             !accountID.getAccountPropertyBoolean(
                 ProtocolProviderFactory.NO_PASSWORD_REQUIRED, true);
         boolean secureConnection =
             accountID.getAccountPropertyBoolean(
                 ProtocolProviderFactory.DEFAULT_ENCRYPTION, true);
+        boolean channelPresenceTask =
+            accountID.getAccountPropertyBoolean(
+                ProtocolProviderFactoryIrcImpl.CHAT_ROOM_PRESENCE_TASK, true);
+        boolean contactPresenceTask =
+            accountID.getAccountPropertyBoolean(
+                ProtocolProviderFactoryIrcImpl.CONTACT_PRESENCE_TASK, true);
+
+        boolean saslEnabled = accountID.getAccountPropertyBoolean(
+                ProtocolProviderFactoryIrcImpl.SASL_ENABLED, false);
+        String saslUser = accountID.getAccountPropertyString(
+            ProtocolProviderFactoryIrcImpl.SASL_USERNAME);
+        String saslRole = accountID.getAccountPropertyString(
+            ProtocolProviderFactoryIrcImpl.SASL_ROLE);
 
         //if we don't - retrieve it from the user through the security authority
         if (serverPassword == null && passwordRequired)
@@ -295,10 +327,29 @@ public class ProtocolProviderServiceIrcImpl
             }
         }
 
+        // configure client options according to account properties
+        final ClientConfigImpl config = new ClientConfigImpl();
+        config.setVersion3Allowed(true);
+        config.setContactPresenceTaskEnabled(contactPresenceTask);
+        config.setChannelPresenceTaskEnabled(channelPresenceTask);
+        final Proxy proxy = loadProxy();
+        config.setProxy(proxy);
+        config.setResolveByProxy(resolveDnsThroughProxy);
+        if (saslEnabled)
+        {
+            final SASLImpl sasl =
+                new ClientConfigImpl.SASLImpl(saslUser, serverPassword,
+                    saslRole);
+            config.setSASL(sasl);
+        }
+
+        // FIXME fix 'replacement' plugins which now (probably) don't use global
+        // proxy configuration when contacting URLs on the internet
+
         try
         {
             this.ircstack.connect(serverAddress, serverPort, serverPassword,
-                secureConnection, autoNickChange);
+                secureConnection, autoNickChange, config);
         }
         catch (OperationFailedException e)
         {
@@ -310,6 +361,48 @@ public class ProtocolProviderServiceIrcImpl
             throw new OperationFailedException(e.getMessage(),
                 OperationFailedException.GENERAL_ERROR, e);
         }
+    }
+
+    /**
+     * Get proxy instance based on Jitsi's global proxy configuration.
+     *
+     * @return returns configured proxy instance
+     */
+    private Proxy loadProxy() throws OperationFailedException
+    {
+        final ConfigurationService configSvc =
+            IrcActivator.getConfigurationService();
+        if (configSvc == null)
+        {
+            return null;
+        }
+        final String globalProxyType =
+            configSvc.getString(ProxyInfo.CONNECTION_PROXY_TYPE_PROPERTY_NAME);
+        if (globalProxyType == null
+            || (!globalProxyType.equals(ProxyInfo.ProxyType.SOCKS4.name())
+                &&!globalProxyType.equals(ProxyInfo.ProxyType.SOCKS5.name())))
+        {
+            // Only SOCKS proxy is supported. The appropriate proxy type is not
+            // configured, so we're done.
+            return null;
+        }
+        final String globalProxyAddress =
+            configSvc
+                .getString(ProxyInfo.CONNECTION_PROXY_ADDRESS_PROPERTY_NAME);
+        final String globalProxyPortStr =
+            configSvc.getString(ProxyInfo.CONNECTION_PROXY_PORT_PROPERTY_NAME);
+        final int globalProxyPort;
+        try
+        {
+            globalProxyPort = Integer.parseInt(globalProxyPortStr);
+        }
+        catch (NumberFormatException e)
+        {
+            throw new OperationFailedException("invalid proxy port",
+                OperationFailedException.INVALID_ACCOUNT_PROPERTIES, e);
+        }
+        return new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(
+            globalProxyAddress, globalProxyPort));
     }
 
     /**

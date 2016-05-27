@@ -1,7 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license. See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.gui.main.chat;
 
@@ -55,7 +67,8 @@ public class ChatWritePanel
                 UndoableEditListener,
                 DocumentListener,
                 PluginComponentListener,
-                Skinnable
+                Skinnable,
+                ChatSessionChangeListener
 {
     /**
      * The <tt>Logger</tt> used by the <tt>ChatWritePanel</tt> class and its
@@ -122,6 +135,12 @@ public class ChatWritePanel
      * when available.
      */
     private boolean isOutdatedResource = true;
+
+    /**
+     * List of plugin components that are registered for updates.
+     */
+    private List<PluginComponent> pluginComponents = Collections
+        .synchronizedList(new ArrayList<PluginComponent>());
 
     /**
      * Creates an instance of <tt>ChatWritePanel</tt>.
@@ -1621,6 +1640,7 @@ public class ChatWritePanel
                     = GuiActivator.bundleContext.getService(serRef);
                 PluginComponent component
                     = factory.getPluginComponentInstance(this);
+                this.pluginComponents.add(component);
 
                 ChatSession chatSession = chatPanel.getChatSession();
 
@@ -1677,6 +1697,7 @@ public class ChatWritePanel
             return;
 
         PluginComponent component = factory.getPluginComponentInstance(this);
+        this.pluginComponents.add(component);
 
         ChatSession chatSession = chatPanel.getChatSession();
         if (chatSession != null)
@@ -1724,8 +1745,78 @@ public class ChatWritePanel
         Component c =
             (Component)factory.getPluginComponentInstance(this)
                 .getComponent();
+        this.pluginComponents.remove(c);
 
         this.centerPanel.remove(c);
         this.centerPanel.repaint();
+    }
+
+    /**
+     * Event in case of chat transport changed, for example because a different
+     * transport was selected.
+     *
+     * @param chatSession the chat session
+     */
+    @Override
+    public void currentChatTransportChanged(ChatSession chatSession)
+    {
+        List<PluginComponent> components;
+        synchronized (this.pluginComponents)
+        {
+            components = new ArrayList<PluginComponent>(this.pluginComponents);
+        }
+        // determine contact instance to use in event handling when calling
+        // setCurrentContact
+        final Contact contact;
+        final Object descriptor = chatSession.getDescriptor();
+        if (descriptor instanceof MetaContact)
+        {
+            contact = ((MetaContact) descriptor).getDefaultContact();
+        }
+        else if (descriptor instanceof Contact)
+        {
+            contact = (Contact) descriptor;
+        }
+        else if (descriptor == null)
+        {
+            // In case of null contact, just call setCurrentContact for
+            // null Contact and get out. Nothing else to do here.
+            for (PluginComponent c : components)
+            {
+                c.setCurrentContact((Contact) null);
+            }
+            return;
+        }
+        else
+        {
+            logger.warn(String.format("Unsupported descriptor type %s (%s),"
+                + "this event will not be propagated.", descriptor, descriptor
+                .getClass().getCanonicalName()));
+            return;
+        }
+        // Call setCurrentContact on all registered pluginComponents such that
+        // all get updated on the new state of the chat session
+        final String resourceName =
+            chatSession.getCurrentChatTransport().getResourceName();
+        for (PluginComponent c : components)
+        {
+            try
+            {
+                c.setCurrentContact(contact, resourceName);
+            }
+            catch (RuntimeException e)
+            {
+                logger.error(
+                    "BUG: setCurrentContact of PluginComponent instance: "
+                        + c.getClass().getCanonicalName()
+                        + " throws a RuntimeException.", e);
+            }
+        }
+    }
+
+    @Override
+    public void currentChatTransportUpdated(int eventID)
+    {
+        // Nothing to do here, since we do not need to communicate update events
     }
 }

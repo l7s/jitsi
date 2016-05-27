@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.service.protocol.media;
 
@@ -27,7 +38,7 @@ import org.jitsi.util.event.*;
  * A utility class implementing media control code shared between current
  * telephony implementations. This class is only meant for use by protocol
  * implementations and should not be accessed by bundles that are simply using
- * the telephony functionalities.
+ * the telephony functionality.
  *
  * @param <T> the peer extension class like for example <tt>CallPeerSipImpl</tt>
  * or <tt>CallPeerJabberImpl</tt>
@@ -1035,7 +1046,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
         case VIDEO:
             return videoStream;
         default:
-            throw new IllegalArgumentException("mediaType");
+            return null;
         }
     }
 
@@ -1806,6 +1817,11 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
                 if (srtpListener != null)
                     this.mediaHandler.removeSrtpListener(srtpListener);
                 this.mediaHandler.removeVideoListener(videoStreamVideoListener);
+
+                // We intentionally do not remove our Call from the list of
+                // DTMF listeners. It should stay there as long as the
+                // MediaHandler is used by at least one CallPeer/CPMH.
+                //this.mediaHandler.removeDtmfListener(getPeer().getCall());
             }
 
             this.mediaHandler = mediaHandler;
@@ -1843,6 +1859,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
                 if (srtpListener != null)
                     this.mediaHandler.addSrtpListener(srtpListener);
                 this.mediaHandler.addVideoListener(videoStreamVideoListener);
+                this.mediaHandler.addDtmfListener(getPeer().getCall());
             }
         }
     }

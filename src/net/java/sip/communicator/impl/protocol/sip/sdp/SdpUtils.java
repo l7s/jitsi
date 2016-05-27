@@ -1,8 +1,19 @@
 /*
  * Jitsi, the OpenSource Java VoIP and Instant Messaging client.
  *
- * Distributable under LGPL license.
- * See terms of license at gnu.org.
+ * Copyright @ 2015 Atlassian Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package net.java.sip.communicator.impl.protocol.sip.sdp;
 
@@ -25,6 +36,7 @@ import org.jitsi.service.neomedia.*;
 import org.jitsi.service.neomedia.MediaType;
 import org.jitsi.service.neomedia.format.*;
 import org.jitsi.util.*;
+import org.opentelecoms.javax.sdp.*;
 
 /**
  * The class contains a number of utility methods that are meant to facilitate
@@ -53,7 +65,7 @@ public class SdpUtils
     /**
      * A reference to the currently valid SDP factory instance.
      */
-    private static final SdpFactory sdpFactory = SdpFactory.getInstance();
+    private static final SdpFactory sdpFactory = new NistSdpFactory();
 
     /**
      * The name of the SDP attribute that defines zrtp hello hash.
