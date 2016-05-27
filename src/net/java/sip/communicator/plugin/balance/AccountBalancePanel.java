@@ -8,7 +8,9 @@ package net.java.sip.communicator.plugin.balance;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.net.URLEncoder;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 import javax.swing.*;
 import javax.swing.SwingWorker;
@@ -77,7 +79,15 @@ public class AccountBalancePanel
             protected Void doInBackground()
             {
                 isWorkerRunning=true;
-                getBalance(BalancePluginActivator.userInfoUrl );
+				try
+				{
+					getBalance(BalancePluginActivator.userInfoUrl );
+				}
+				catch (UnsupportedEncodingException ex)
+                {
+                    System.out.println("\tBalance: Http Post encoding error");
+                    ex.printStackTrace();
+                }	
                 return null;
             }
             
@@ -120,14 +130,14 @@ public class AccountBalancePanel
         setBalanceView();
     }
     
-    private String getBalance(String url)
+    private String getBalance(String url) throws UnsupportedEncodingException
     {
         System.out.println("\tGetting balance from server");
         
         HttpUtils.HTTPResponseResult res = null;
         
-        String provUsername=BalancePluginActivator.getProvisioningService().getProvisioningUsername();
-        String provPassword=BalancePluginActivator.getProvisioningService().getProvisioningPassword();
+        String provUsername = URLEncoder.encode(BalancePluginActivator.getProvisioningService().getProvisioningUsername(), "UTF-8");
+        String provPassword = URLEncoder.encode(BalancePluginActivator.getProvisioningService().getProvisioningPassword(), "UTF-8");
         
         if(provUsername==null || provPassword==null)
         {
