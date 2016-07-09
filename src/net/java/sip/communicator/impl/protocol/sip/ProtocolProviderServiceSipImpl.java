@@ -304,8 +304,10 @@ public class ProtocolProviderServiceSipImpl
             }
 
             // replace invalid characters in user part with hex encoding
+            /* #TEMPORARY SOULTION
             String banned = "([^a-z0-9-_.!~*'()&=+$,;?/])+";
-            result.add(user.replaceAll(banned, "") + remainder);
+            result.add(user.replaceAll(banned, "") + remainder);*/
+            result.add(user + remainder);
         }
 
         return false;
@@ -2476,8 +2478,10 @@ public class ProtocolProviderServiceSipImpl
         }
 
         //replace invalid characters in user part with hex encoding
+        /* #TEMPORARY SOULTION
         String banned = "([^a-z0-9-_.!~*'()&=+$,;?/])+";
-        user = user.replaceAll(banned, "") + remainder;
+        user = user.replaceAll(banned, "") + remainder;*/
+        user = user + remainder;
 
         //Handle default domain name (i.e. transform 1234 -> 1234@sip.com)
         //assuming that if no domain name is specified then it should be the
