@@ -19,20 +19,25 @@ package net.java.sip.communicator.impl.osdependent.jdic;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.*;
 import java.net.*;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.*;
 import javax.swing.event.*;
 
 import net.java.sip.communicator.impl.osdependent.*;
-import net.java.sip.communicator.impl.osdependent.SystemTray;
-import net.java.sip.communicator.impl.osdependent.TrayIcon;
+import net.java.sip.communicator.impl.osdependent.systemtray.SystemTray;
+import net.java.sip.communicator.impl.osdependent.systemtray.TrayIcon;
+import net.java.sip.communicator.impl.osdependent.windows.*;
 import net.java.sip.communicator.service.gui.*;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.systray.*;
 import net.java.sip.communicator.service.systray.event.*;
 import net.java.sip.communicator.util.Logger;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.jitsi.util.*;
 import org.osgi.framework.*;
 
@@ -51,7 +56,6 @@ import com.apple.eawt.*;
 public class SystrayServiceJdicImpl
     extends AbstractSystrayService
 {
-
     /**
      * The systray.
      */
@@ -93,10 +97,6 @@ public class SystrayServiceJdicImpl
 
     private ImageIcon logoIconWhite;
 
-    private ImageIcon envelopeIcon;
-
-    private ImageIcon envelopeIconWhite;
-
     /**
      * The dock Icons used only in Mac version
      */
@@ -131,10 +131,9 @@ public class SystrayServiceJdicImpl
         super(OsDependentActivator.bundleContext);
 
         SystemTray systray;
-
         try
         {
-            systray = SystemTray.getDefaultSystemTray();
+            systray = SystemTray.getSystemTray();
         }
         catch (Throwable t)
         {
@@ -147,10 +146,39 @@ public class SystrayServiceJdicImpl
                     logger.error("Failed to create a systray!", t);
             }
         }
-        this.systray = systray;
 
+        this.systray = systray;
         if (this.systray != null)
+        {
             initSystray();
+        }
+    }
+
+    @Override
+    public Map<String, String> getSystrayModes()
+    {
+        return new HashMap<String, String>()
+        {{
+            put("disabled", "service.systray.mode.DISABLED");
+            if (java.awt.SystemTray.isSupported())
+            {
+                put("native", "service.systray.mode.NATIVE");
+            }
+
+            if (!OSUtils.IS_MAC && !OSUtils.IS_WINDOWS)
+            {
+                put("appindicator",
+                    "service.systray.mode.APPINDICATOR");
+                put("appindicator_static",
+                    "service.systray.mode.APPINDICATOR_STATIC");
+            }
+        }};
+    }
+
+    @Override
+    public String getActiveSystrayMode()
+    {
+        return SystemTray.getSystemTrayMode();
     }
 
     /**
@@ -187,53 +215,33 @@ public class SystrayServiceJdicImpl
             return;
         }
 
-        menu = TrayMenuFactory.createTrayMenu(this, systray.isSwing());
+        Pair<Object, Object> createdMenu = TrayMenuFactory.createTrayMenu(
+            this,
+            systray.useSwingPopupMenu(),
+            systray.supportsDynamicMenu());
+        menu = createdMenu.getLeft();
 
         boolean isMac = OSUtils.IS_MAC;
 
-        // If we're running under Windows, we use a special icon without
-        // background.
-        if (OSUtils.IS_WINDOWS)
-        {
-            logoIcon = Resources.getImage("service.systray.TRAY_ICON_WINDOWS");
-            logoIconOffline = Resources.getImage(
-                "service.systray.TRAY_ICON_WINDOWS_OFFLINE");
-            logoIconAway = Resources.getImage(
-                "service.systray.TRAY_ICON_WINDOWS_AWAY");
-            logoIconExtendedAway = Resources.getImage(
-                "service.systray.TRAY_ICON_WINDOWS_EXTENDED_AWAY");
-            logoIconFFC = Resources.getImage(
-                "service.systray.TRAY_ICON_WINDOWS_FFC");
-            logoIconDND = Resources.getImage(
-                "service.systray.TRAY_ICON_WINDOWS_DND");
-            envelopeIcon = Resources.getImage(
-                "service.systray.MESSAGE_ICON_WINDOWS");
-        }
-        /*
-         * If we're running under Mac OS X, we use special black and white icons
-         * without background.
-         */
-        else if (isMac)
+        logoIcon = Resources.getImage("service.systray.TRAY_ICON_WINDOWS");
+        logoIconOffline = Resources.getImage(
+            "service.systray.TRAY_ICON_WINDOWS_OFFLINE");
+        logoIconAway = Resources.getImage(
+            "service.systray.TRAY_ICON_WINDOWS_AWAY");
+        logoIconExtendedAway = Resources.getImage(
+            "service.systray.TRAY_ICON_WINDOWS_EXTENDED_AWAY");
+        logoIconFFC = Resources.getImage(
+            "service.systray.TRAY_ICON_WINDOWS_FFC");
+        logoIconDND = Resources.getImage(
+            "service.systray.TRAY_ICON_WINDOWS_DND");
+
+        // If we're running under Mac OS X, we use special black and white
+        // icons without background.
+        if (isMac)
         {
             logoIcon = Resources.getImage("service.systray.TRAY_ICON_MACOSX");
             logoIconWhite = Resources.getImage(
                 "service.systray.TRAY_ICON_MACOSX_WHITE");
-            envelopeIcon = Resources.getImage(
-                "service.systray.MESSAGE_ICON_MACOSX");
-            envelopeIconWhite = Resources.getImage(
-                "service.systray.MESSAGE_ICON_MACOSX_WHITE");
-        }
-        else
-        {
-            logoIcon = Resources.getImage("service.systray.TRAY_ICON");
-            logoIconOffline = Resources.getImage(
-                "service.systray.TRAY_ICON_OFFLINE");
-            logoIconAway = Resources.getImage("service.systray.TRAY_ICON_AWAY");
-            logoIconExtendedAway = Resources.getImage(
-                "service.systray.TRAY_ICON_EXTENDED_AWAY");
-            logoIconFFC = Resources.getImage("service.systray.TRAY_ICON_FFC");
-            logoIconDND = Resources.getImage("service.systray.TRAY_ICON_DND");
-            envelopeIcon = Resources.getImage("service.systray.MESSAGE_ICON");
         }
 
         /*
@@ -243,7 +251,7 @@ public class SystrayServiceJdicImpl
         currentIcon = isMac ? logoIcon : logoIconOffline;
 
         trayIcon
-            = new TrayIcon(
+            = systray.createTrayIcon(
                     currentIcon,
                     Resources.getApplicationString(
                             "service.gui.APPLICATION_NAME"),
@@ -268,21 +276,15 @@ public class SystrayServiceJdicImpl
         }
 
         //Show/hide the contact list when user clicks on the systray.
-        trayIcon.addActionListener(
-                new ActionListener()
-                {
-                    public void actionPerformed(ActionEvent e)
-                    {
-                        UIService uiService
-                            = OsDependentActivator.getUIService();
-                        ExportedWindow mainWindow
-                            = uiService.getExportedWindow(
-                                    ExportedWindow.MAIN_WINDOW);
-                        boolean setIsVisible = !mainWindow.isVisible();
-
-                        uiService.setVisible(setIsVisible);
-                    }
-                });
+        final Object defaultActionItem;
+        if (systray.useSwingPopupMenu())
+        {
+            defaultActionItem = ((JMenuItem) createdMenu.getRight());
+        }
+        else
+        {
+            defaultActionItem = ((MenuItem) createdMenu.getRight());
+        }
 
         /*
          * Change the Mac OS X icon with the white one when the pop-up menu
@@ -296,11 +298,7 @@ public class SystrayServiceJdicImpl
                     {
                         public void popupMenuWillBecomeVisible(PopupMenuEvent e)
                         {
-                            ImageIcon newIcon
-                                = (currentIcon == envelopeIcon)
-                                    ? envelopeIconWhite
-                                    : logoIconWhite;
-
+                            ImageIcon newIcon = logoIconWhite;
                             trayIcon.setIcon(newIcon);
                             currentIcon = newIcon;
                         }
@@ -308,11 +306,7 @@ public class SystrayServiceJdicImpl
                         public void popupMenuWillBecomeInvisible(
                                 PopupMenuEvent e)
                         {
-                            ImageIcon newIcon
-                                = (currentIcon == envelopeIconWhite)
-                                    ? envelopeIcon
-                                    : logoIcon;
-
+                            ImageIcon newIcon = logoIcon;
                             getTrayIcon().setIcon(newIcon);
                             currentIcon = newIcon;
                         }
@@ -353,12 +347,12 @@ public class SystrayServiceJdicImpl
             public void run()
             {
                 systray.addTrayIcon(trayIcon);
+                trayIcon.setDefaultAction(defaultActionItem);
             }
         });
 
         initialized = true;
-
-        uiService.setExitOnMainWindowClose(false);
+        uiService.setMainWindowCanHide(true);
     }
 
     /**
@@ -401,12 +395,6 @@ public class SystrayServiceJdicImpl
         case SystrayService.SC_IMG_DND_TYPE:
             if (!isMac)
                 systrayIconToSet = logoIconDND;
-            break;
-        case SystrayService.ENVELOPE_IMG_TYPE:
-            systrayIconToSet
-                = (isMac && TrayMenuFactory.isVisible(menu))
-                    ? envelopeIconWhite
-                    : envelopeIcon;
             break;
         }
 
@@ -469,11 +457,87 @@ public class SystrayServiceJdicImpl
         }
     }
 
-    private boolean checkInitialized()
+    @Override
+    public boolean checkInitialized()
     {
-        if (!initialized)
-            logger.error("Systray not init");
         return initialized;
+    }
+
+    /**
+     * Set the number of pending notifications to the the application icon
+     * (Dock on OSX, TaskBar on Windows, nothing on Linux currently).
+     */
+    @Override
+    public void setNotificationCount(int count)
+    {
+        if (OSUtils.IS_MAC)
+        {
+            Application application = Application.getApplication();
+            application.setDockIconBadge(new Integer(count).toString());
+        }
+        else if (OSUtils.IS_WINDOWS)
+        {
+            UIService uiService = OsDependentActivator.getUIService();
+            if (uiService == null)
+            {
+                return;
+            }
+
+            ExportedWindow mainWindow =
+                uiService.getExportedWindow(ExportedWindow.MAIN_WINDOW);
+            if (mainWindow == null
+                || !(mainWindow.getSource() instanceof Component))
+            {
+                return;
+            }
+
+            BufferedImage img = null;
+            if (count > 0)
+            {
+                img = createOverlayImage(new Integer(count).toString());
+            }
+
+            try
+            {
+                TaskBarList3.getInstance().SetOverlayIcon(
+                    (Component) mainWindow.getSource(), img, null);
+            }
+            catch (Exception ex)
+            {
+                logger.error("Could not set the notification count.", ex);
+            }
+        }
+    }
+
+    private BufferedImage createOverlayImage(String text)
+    {
+        int size = 16;
+        BufferedImage image =
+            new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+            RenderingHints.VALUE_ANTIALIAS_ON);
+
+        //background
+        g.setPaint(new Color(0, 0, 0, 102));
+        g.fillRoundRect(0, 0, size, size, size, size);
+
+        //filling
+        int mainRadius = 14;
+        g.setPaint(new Color(255, 98, 89));
+        g.fillRoundRect(size / 2 - mainRadius / 2, size / 2 - mainRadius / 2,
+            mainRadius, mainRadius, size, size);
+
+        //text
+        Font font = g.getFont();
+        g.setFont(new Font(font.getName(), Font.BOLD, 9));
+        FontMetrics fontMetrics = g.getFontMetrics();
+        int textWidth = fontMetrics.stringWidth(text);
+        g.setColor(Color.white);
+        g.drawString(text, size / 2 - textWidth / 2,
+            size / 2 - fontMetrics.getHeight() / 2 + fontMetrics.getAscent());
+
+        return image;
     }
 
     /**
@@ -551,7 +615,7 @@ public class SystrayServiceJdicImpl
                     OsDependentActivator.bundleContext.removeServiceListener(
                             this);
 
-                    if (!initialized)
+                    if (!initialized && systray != null)
                         initSystray();
                 }
             }

@@ -17,6 +17,8 @@
  */
 package net.java.sip.communicator.service.systray;
 
+import java.util.*;
+
 import net.java.sip.communicator.service.systray.event.*;
 
 /**
@@ -27,6 +29,9 @@ import net.java.sip.communicator.service.systray.event.*;
  */
 public interface SystrayService
 {
+    public static final String PNMAE_TRAY_MODE =
+        "net.java.sip.communicator.osdependent.systemtray.MODE";
+
     /**
      * Message type corresponding to an error message.
      */
@@ -78,11 +83,6 @@ public interface SystrayService
     public static final int SC_IMG_EXTENDED_AWAY_TYPE = 6;
 
     /**
-     * Image type corresponding to the envelope icon
-     */
-    public static final int ENVELOPE_IMG_TYPE = 1;
-
-    /**
      * Shows the given <tt>PopupMessage</tt>
      *
      * @param popupMessage the message to show
@@ -129,4 +129,31 @@ public interface SystrayService
      * Selects the best available popup message handler
      */
     public void selectBestPopupMessageHandler();
+
+    /**
+     * Checks if the systray icon has been initialized.
+     * @return True if the systray is initialized, false otherwise.
+     */
+    public boolean checkInitialized();
+
+    /**
+     * Set the number that should be shown as an overlay on the try icon.
+     * @param count The number of pending notifications.
+     */
+    public void setNotificationCount(int count);
+
+    /**
+     * Gets a map of systray modes and resource-keys that describe them.
+     * @return key: mode for config property, value: resource key
+     */
+    public Map<String, String> getSystrayModes();
+
+    /**
+     * Gets the systray mode that was chosen at startup, either by default or as
+     * an override selected by the user.
+     * 
+     * @return The selected mode or {@code disabled} if the user selected mode
+     *         is not available.
+     */
+    public String getActiveSystrayMode();
 }

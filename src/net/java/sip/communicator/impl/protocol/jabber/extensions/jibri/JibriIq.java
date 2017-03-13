@@ -198,8 +198,11 @@ public class JibriIq
             StringBuilder xml, String attrName, String attr)
     {
         if (!StringUtils.isNullOrEmpty(attr))
+        {
+            attr = org.jivesoftware.smack.util.StringUtils.escapeForXML(attr);
             xml.append(attrName).append("='")
                 .append(attr).append("' ");
+        }
     }
 
     /**
@@ -337,6 +340,12 @@ public class JibriIq
          * Starting the recording process.
          */
         PENDING("pending"),
+
+        /**
+         * The recorder has failed and the service is retrying on another
+         * instance.
+         */
+        RETRYING("retrying"),
 
         /**
          * An error occurred any point during startup, recording or shutdown.

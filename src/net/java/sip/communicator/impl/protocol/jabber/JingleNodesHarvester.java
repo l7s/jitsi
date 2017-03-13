@@ -36,7 +36,7 @@ import org.xmpp.jnodes.smack.*;
  * @author Sebastien Vincent
  */
 public class JingleNodesHarvester
-    extends CandidateHarvester
+    extends AbstractCandidateHarvester
 {
     /**
      * The <tt>Logger</tt> used by the <tt>JingleNodesHarvester</tt> class and
@@ -125,7 +125,7 @@ public class JingleNodesHarvester
             }
         }
 
-        if (ciq != null && ciq.getRemoteport() > 0)
+        if (ciq != null)
         {
             ip = ciq.getHost();
             port = ciq.getRemoteport();
@@ -134,6 +134,22 @@ public class JingleNodesHarvester
             {
                 logger.info("JN relay: " + ip + " remote port:" + port +
                         " local port: " + ciq.getLocalport());
+            }
+
+            if (ip == null || ciq.getRemoteport() == 0)
+            {
+                logger.warn("JN relay ignored because ip was null or port 0");
+                return candidates;
+            }
+
+            // Drop the scope or interface name if the relay sends it
+            // along in its IPv6 address. The scope/ifname is only valid on the
+            // host that owns the IP and we don't need it here.
+            int scopeIndex = ip.indexOf('%');
+            if (scopeIndex > 0)
+            {
+                logger.warn("Dropping scope from assumed IPv6 address " + ip);
+                ip = ip.substring(0, scopeIndex);
             }
 
             /* RTP */
@@ -160,6 +176,7 @@ public class JingleNodesHarvester
                 candidates.add(local);
             }
         }
+
         return candidates;
     }
 
