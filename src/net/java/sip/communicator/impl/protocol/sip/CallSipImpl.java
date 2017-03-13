@@ -61,15 +61,27 @@ public class CallSipImpl
      * Name of extra INVITE header which specifies name of MUC room that is
      * hosting the Jitsi Meet conference.
      */
-    public static final String JITSI_MEET_ROOM_HEADER
-            = "Jitsi-Conference-Room";
+    public String JITSI_MEET_ROOM_HEADER = "Jitsi-Conference-Room";
+
+    /**
+     * Property name of extra INVITE header which specifies name of MUC room
+     * that is hosting the Jitsi Meet conference.
+     */
+    private static final String JITSI_MEET_ROOM_HEADER_PROPERTY
+        = "JITSI_MEET_ROOM_HEADER_NAME";
+
+    /**
+     * Property name of extra INVITE header which specifies password required
+     * to enter MUC room that is hosting the Jitsi Meet conference.
+     */
+    public String JITSI_MEET_ROOM_PASS_HEADER = "Jitsi-Conference-Room-Pass";
 
     /**
      * Name of extra INVITE header which specifies password required to enter
      * MUC room that is hosting the Jitsi Meet conference.
      */
-    public static final String JITSI_MEET_ROOM_PASS_HEADER
-            = "Jitsi-Conference-Room-Pass";
+    private static final String JITSI_MEET_ROOM_PASS_HEADER_PROPERTY
+        = "JITSI_MEET_ROOM_PASS_HEADER_NAME";
 
     /**
      * Custom header included in initial desktop sharing call creation.
@@ -96,6 +108,26 @@ public class CallSipImpl
     public static final String EXTRA_HEADER_VALUE = "EXTRA_HEADER_VALUE";
 
     /**
+     * Maximum number of retransmissions that will be sent.
+     */
+    private static final int MAX_RETRANSMISSIONS = 3;
+
+    /**
+     * The name of the property under which the user may specify the number of
+     * milliseconds for the initial interval for retransmissions of response
+     * 180.
+     */
+    private static final String RETRANSMITS_RINGING_INTERVAL
+            = "net.java.sip.communicator.impl.protocol.sip"
+            + ".RETRANSMITS_RINGING_INTERVAL";
+
+    /**
+     * The default amount of time (in milliseconds) for the initial interval for
+     *  retransmissions of response 180.
+     */
+    private static final int DEFAULT_RETRANSMITS_RINGING_INTERVAL = 500;
+
+    /**
      * When starting call we may have quality preferences we must use
      * for the call.
      */
@@ -107,25 +139,6 @@ public class CallSipImpl
      */
     private final SipMessageFactory messageFactory;
 
-    /**
-     * The name of the property under which the user may specify the number of
-     * milliseconds for the initial interval for retransmissions of response
-     * 180.
-     */
-    private static final String RETRANSMITS_RINGING_INTERVAL
-        = "net.java.sip.communicator.impl.protocol.sip"
-                + ".RETRANSMITS_RINGING_INTERVAL";
-
-    /**
-    * The default amount of time (in milliseconds) for the initial interval for
-    *  retransmissions of response 180.
-    */
-    private static final int DEFAULT_RETRANSMITS_RINGING_INTERVAL = 500;
-
-    /**
-     * Maximum number of retransmissions that will be sent.
-     */
-    private static final int MAX_RETRANSMISSIONS = 3;
 
     /**
     * The amount of time (in milliseconds) for the initial interval for
@@ -157,6 +170,13 @@ public class CallSipImpl
                         retransmitsRingingInterval);
         }
         this.retransmitsRingingInterval = retransmitsRingingInterval;
+
+        AccountID account = parentOpSet.getProtocolProvider().getAccountID();
+        // Specify custom header names
+        JITSI_MEET_ROOM_HEADER = account.getAccountPropertyString(
+            JITSI_MEET_ROOM_HEADER_PROPERTY, JITSI_MEET_ROOM_HEADER);
+        JITSI_MEET_ROOM_PASS_HEADER = account.getAccountPropertyString(
+            JITSI_MEET_ROOM_PASS_HEADER_PROPERTY, JITSI_MEET_ROOM_PASS_HEADER);
 
         //let's add ourselves to the calls repo. we are doing it ourselves just
         //to make sure that no one ever forgets.
@@ -405,24 +425,21 @@ public class CallSipImpl
             logger.trace("Looking for peer with dialog: " + dialog
                 + "among " + getCallPeerCount() + " calls");
         }
-        while (callPeers.hasNext())
+        for (CallPeerSipImpl callPeer : getCallPeerList())
         {
-            CallPeerSipImpl cp = callPeers.next();
-
-            if (cp.getDialog() == dialog)
+            if (callPeer.getDialog() == dialog)
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("Returning cp=" + cp);
-                return cp;
+                    logger.trace("Returning cp=" + callPeer);
+                return callPeer;
             }
             else
             {
                 if (logger.isTraceEnabled())
-                    logger.trace("Ignoring cp=" + cp + " because cp.dialog="
-                            + cp.getDialog() + " while dialog=" + dialog);
+                    logger.trace("Ignoring cp=" + callPeer + " because cp.dialog="
+                            + callPeer.getDialog() + " while dialog=" + dialog);
             }
         }
-
         return null;
     }
 
@@ -467,7 +484,7 @@ public class CallSipImpl
         // Transport preference
         String forceTransport = null;
         javax.sip.address.URI calleeURI = calleeAddress.getURI();
-        if(calleeURI.getScheme().toLowerCase().equals("sips"))
+        if("sips".equals(calleeURI.getScheme().toLowerCase()))
         {
             // MUST use TLS
             forceTransport = "TLS";
@@ -571,7 +588,7 @@ public class CallSipImpl
         String alternativeIMPPAddress = null;
         if (infoHeader != null
             && infoHeader.getParameter("purpose") != null
-            && infoHeader.getParameter("purpose").equals("impp"))
+            && "impp".equals(infoHeader.getParameter("purpose")))
         {
             alternativeIMPPAddress = infoHeader.getInfo().toString();
         }
@@ -603,7 +620,7 @@ public class CallSipImpl
         {
             if (logger.isTraceEnabled())
                 logger.trace("will send ringing response: ");
-            if(peer.getState().equals(CallPeerState.INCOMING_CALL))
+            if( CallPeerState.INCOMING_CALL.equals(peer.getState()) )
             {
                 response = messageFactory.createResponse(Response.RINGING, invite);
 
@@ -698,10 +715,10 @@ public class CallSipImpl
      */
     public void reInvite() throws OperationFailedException
     {
-        Iterator<CallPeerSipImpl> peers = getCallPeers();
-
-        while (peers.hasNext())
-            peers.next().sendReInvite();
+        for(CallPeerSipImpl peer : getCallPeerList())
+        {
+            peer.sendReInvite();
+        }
     }
 
     /**
@@ -792,8 +809,8 @@ public class CallSipImpl
         {
             try
             {
-                if(!peer.getState().equals(
-                    CallPeerState.INCOMING_CALL))
+                if( !CallPeerState.INCOMING_CALL.equals(
+                        peer.getState()) )
                 {
                     timer.cancel();
                 }

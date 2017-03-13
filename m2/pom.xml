@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.jitsi</groupId>
     <artifactId>jitsi-universe</artifactId>
-    <version>1.0-20160511.125516-17</version>
+    <version>1.0-20161228.135522-20</version>
   </parent>
 
   <artifactId>jitsi</artifactId>
@@ -52,7 +52,12 @@
       <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>libjitsi</artifactId>
-        <version>1.0-20160411.220648-140</version>
+        <version>1.0-20170207.194207-242</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>ice4j</artifactId>
+        <version>2.0-20170111.193659-7</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

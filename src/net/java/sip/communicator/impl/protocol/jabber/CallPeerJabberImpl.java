@@ -1588,16 +1588,10 @@ public class CallPeerJabberImpl
         {
         case AUDIO:
             return audioSenders;
-        case DATA:
-            /*
-             * FIXME DATA has been introduced as a MediaType but explicit
-             * support for DATA content has not been added yet.
-             */
-            return SendersEnum.none;
         case VIDEO:
             return videoSenders;
         default:
-            throw new IllegalArgumentException("mediaType");
+            return SendersEnum.none;
         }
     }
 
@@ -1610,14 +1604,17 @@ public class CallPeerJabberImpl
      */
     public void setSenders(MediaType mediaType, SendersEnum senders)
     {
-        if (mediaType == null)
-            return;
-        else if (MediaType.AUDIO.equals(mediaType))
-            this.audioSenders = senders;
-        else if (MediaType.VIDEO.equals(mediaType))
-            this.videoSenders = senders;
-        else
-            throw new IllegalArgumentException("mediaType");
+        switch(mediaType)
+        {
+            case AUDIO:
+                this.audioSenders = senders;
+                break;
+            case VIDEO:
+                this.videoSenders = senders;
+                break;
+            default:
+                throw new IllegalArgumentException("mediaType");
+        }
     }
 
     /**

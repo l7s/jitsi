@@ -609,7 +609,7 @@ public class ChatRoomJabberImpl
                 this.provider.getConnection().addPacketListener(
                     presenceListener,
                     new AndFilter(
-                        new FromMatchesFilter(multiUserChat.getRoom()),
+                        FromMatchesFilter.create(multiUserChat.getRoom()),
                         new PacketTypeFilter(
                             org.jivesoftware.smack.packet.Presence.class)));
                 if(password == null)
@@ -868,7 +868,7 @@ public class ChatRoomJabberImpl
 
         clearCachedConferenceDescriptionList();
 
-        XMPPConnection connection = this.provider.getConnection();
+        Connection connection = this.provider.getConnection();
         try
         {
             // if we are already disconnected
@@ -1890,6 +1890,23 @@ public class ChatRoomJabberImpl
         {
             setPacketExtension(
                 lastPresenceSent, extension, extension.getNamespace());
+
+            provider.getConnection().sendPacket(lastPresenceSent);
+        }
+    }
+
+    /**
+     * Removes given <tt>PacketExtension</tt> from the MUC presence and
+     * publishes it immediately.
+     * @param extension the <tt>PacketExtension</tt> to be removed from the MUC
+     *                  presence.
+     */
+    public void removePresenceExtension(PacketExtension extension)
+    {
+        if (lastPresenceSent != null)
+        {
+            setPacketExtension(
+                lastPresenceSent, null, extension.getNamespace());
 
             provider.getConnection().sendPacket(lastPresenceSent);
         }

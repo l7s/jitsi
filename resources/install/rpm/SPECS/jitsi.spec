@@ -1,28 +1,31 @@
 Name:     jitsi
-Version:  2.5
-Release:  5267
+Version:  2.9
+Release:  5537
 Summary:  Jitsi - Open Source Video Calls and Chat
 Packager: Damian Minkov <damencho@jitsi.org>
 
 Group:     Applications/Internet
-License:   GNU Lesser General Public License
-URL:       https://www.jitsi.org
-Source0:   http://download.jitsi.org/jitsi/nightly/src/%{name}-src-%{version}-%{release}.zip
+License:   Apache License 2.0
+URL:       https://jitsi.org
+Source0:   https://download.jitsi.org/jitsi/nightly/src/%{name}-src-%{version}-%{release}.zip
 BuildRoot: %{_topdir}/buildroot
 
 AutoReqProv:   no
-BuildRequires: java-devel >= 0:1.6
+BuildRequires: java-devel >= 1:1.7
 BuildRequires: ant
 BuildRequires: ant-nodeps
 BuildRequires: gzip
-BuildRequires:  git-core
+BuildRequires: git
 
-Requires: java >= 0:1.6
+Requires: java >= 1:1.7
+Requires: libappindicator
+Requires: speex
+Requires: speexdsp
+Requires: libXScrnSaver
 
 %description
-Jitsi (formerly SIP Communicator) is an audio/video and chat communicator
-that supports protocols such as SIP, XMPP/Jabber, AIM/ICQ, Windows Live,
-Yahoo! and many other useful features.
+Jitsi is an audio/video and chat communicator that supports protocols
+such as SIP, XMPP/Jabber, AIM/ICQ, IRC and many other useful features.
 
 %define debug_package %{nil}
 
@@ -113,6 +116,7 @@ sed -i -e "s/\/usr\/lib\/jni/\$LIBPATH\/native/" $RPM_BUILD_ROOT/usr/bin/jitsi
 sed -i -e "s/\/usr\/share\/java\/jdic\.jar/\$LIBPATH\/jdic_stub\.jar:\$LIBPATH\/jdic-all\.jar/" $RPM_BUILD_ROOT/usr/bin/jitsi
 sed -i -e "s/\/usr\/share\/java\/org\.apache\.felix\.framework\.jar/\$LIBPATH\/felix\.jar/" $RPM_BUILD_ROOT/usr/bin/jitsi
 sed -i -e "s/\/usr\/share\/java\/org\.apache\.felix\.main\.jar://" $RPM_BUILD_ROOT/usr/bin/jitsi
+sed -i -e "s/\/usr\/share\/java\/dnsjava\.jar://" $RPM_BUILD_ROOT/usr/bin/jitsi
 sed -i -e "s/\/launchutils.jar//" $RPM_BUILD_ROOT/usr/bin/jitsi
 
 %clean

@@ -279,6 +279,10 @@ public class ProtocolProviderServiceSipImpl
             {
                 return true;
             }
+            else if (address.toString().equals(address.getURI().getScheme() + ":" + contactId))
+            {
+                return true;
+            }
             else
             {
                 result.add(SipActivator.getResources().getI18NString(
@@ -1588,16 +1592,16 @@ public class ProtocolProviderServiceSipImpl
             Set<ProtocolProviderServiceSipImpl> instances
                 = new HashSet<ProtocolProviderServiceSipImpl>();
             BundleContext context = SipActivator.getBundleContext();
-            ServiceReference[] references = context.getServiceReferences(
-                    ProtocolProviderService.class.getName(),
-                    null
-                    );
-            for(ServiceReference reference : references)
+            Collection<ServiceReference<ProtocolProviderService>> references =
+                context.getServiceReferences(ProtocolProviderService.class,
+                    null);
+            for(ServiceReference<ProtocolProviderService> ref : references)
             {
-                Object service = context.getService(reference);
+                ProtocolProviderService service = context.getService(ref);
                 if(service instanceof ProtocolProviderServiceSipImpl)
                     instances.add((ProtocolProviderServiceSipImpl) service);
             }
+
             return instances;
         }
         catch(InvalidSyntaxException ex)
@@ -2467,6 +2471,8 @@ public class ProtocolProviderServiceSipImpl
             uriStr = uriStr.substring("callto:".length());
         else if(uriStr.toLowerCase().startsWith("sips:"))
             uriStr = uriStr.substring("sips:".length());
+        else if(uriStr.toLowerCase().startsWith("sip:"))
+            uriStr = uriStr.substring("sip:".length());
 
         String user = uriStr;
         String remainder = "";
@@ -2773,6 +2779,11 @@ public class ProtocolProviderServiceSipImpl
      */
     protected void notifyConnectionFailed()
     {
+        if (sipRegistrarConnection.isRegistrarless())
+        {
+            return;
+        }
+
         if(getRegistrationState().equals(RegistrationState.REGISTERED)
             && sipRegistrarConnection != null)
             sipRegistrarConnection.setRegistrationState(

@@ -87,6 +87,16 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
     public static final String VIDEO_REMOTE_SSRC = "VIDEO_REMOTE_SSRC";
 
     /**
+     * The initial content of a hole punch packet. It has some fields pre-set.
+     * Like rtp verion, sequence number and timestamp.
+     */
+    private static final byte[] HOLE_PUNCH_PACKET =
+    {
+        (byte)0x80, 0x00, 0x02, (byte)0x9E, 0x00, 0x09,
+        (byte)0xD0, (byte)0x80, 0x00, 0x00, 0x00, (byte)0x00,
+    };
+
+    /**
      * List of advertised encryption methods. Indicated before establishing the
      * call.
      */
@@ -374,7 +384,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
             if (call == null)
                 return;
 
-            for (MediaType mediaType : MediaType.values())
+            for (MediaType mediaType : new MediaType[] {MediaType.AUDIO, MediaType.VIDEO} )
             {
                 MediaStream stream = getStream(mediaType);
 
@@ -622,10 +632,8 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
             return audioDirectionUserPreference;
         case VIDEO:
             return videoDirectionUserPreference;
-        case DATA:
-            return MediaDirection.INACTIVE;
         default:
-            throw new IllegalArgumentException("mediaType");
+            return MediaDirection.INACTIVE;
         }
     }
 
@@ -689,7 +697,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
 
         return
             (transportManager == null)
-                ? null
+                ? 0
                 : transportManager.getHarvestingTime(harvesterName);
     }
 
@@ -942,7 +950,9 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
     /**
      * Returns the number of harvesting for this agent.
      *
-     * @return The number of harvesting for this agent.
+     * @return The number of harvesting for this agent. 0 if this harvester
+     * does not exists, if the ICE agent is null, or
+     * if the agent has never harvested with this harvester.
      */
     public int getNbHarvesting()
     {
@@ -950,7 +960,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
 
         return
             (transportManager == null)
-                ? null
+                ? 0
                 : transportManager.getNbHarvesting();
     }
 
@@ -961,7 +971,8 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
      * @param harvesterName The class name if the harvester.
      *
      * @return The number of harvesting time for the harvester given in
-     * parameter.
+     * parameter. 0 if this harvester does not exists, if the ICE agent is null, or if the
+     * agent has never harvested with this harvester.
      */
     public int getNbHarvesting(String harvesterName)
     {
@@ -969,7 +980,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
 
         return
             (transportManager == null)
-                ? null
+                ? 0
                 : transportManager.getNbHarvesting(harvesterName);
     }
 
@@ -1036,13 +1047,6 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
         {
         case AUDIO:
             return audioStream;
-        case DATA:
-            /*
-             * DATA is a valid MediaType value and CallPeerMediaHandler does not
-             * utilize it at this time so no IllegalArgumentException is thrown
-             * and null is returned (as documented).
-             */
-            return null;
         case VIDEO:
             return videoStream;
         default:
@@ -1054,7 +1058,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
      * Returns the total harvesting time (in ms) for all harvesters.
      *
      * @return The total harvesting time (in ms) for all the harvesters. 0 if
-     * the ICE agent is null, or if the agent has nevers harvested.
+     * the ICE agent is null, or if the agent has never harvested.
      */
     public long getTotalHarvestingTime()
     {
@@ -1062,7 +1066,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
 
         return
             (transportManager == null)
-                ? null
+                ? 0
                 : transportManager.getTotalHarvestingTime();
     }
 
@@ -1581,11 +1585,21 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
      * to open port on NAT or RTP proxy if any. In order to be really efficient,
      * this method should be called after we send our offer or answer.
      *
-     * @param target <tt>MediaStreamTarget</tt>
+     * @param stream <tt>MediaStream</tt> non-null stream
+     * @param mediaType <tt>MediaType</tt>
      */
-    protected void sendHolePunchPacket(MediaStreamTarget target)
+    protected void sendHolePunchPacket(MediaStream stream, MediaType mediaType)
     {
-        getTransportManager().sendHolePunchPacket(target, MediaType.VIDEO);
+        // send as a hole punch packet a constructed rtp packet
+        // has the correct payload type and ssrc
+        RawPacket packet = new RawPacket(
+            HOLE_PUNCH_PACKET, 0, RawPacket.FIXED_HEADER_SIZE);
+        packet.setPayloadType(
+            dynamicPayloadTypes.getPayloadType(stream.getFormat()));
+        packet.setSSRC((int)stream.getLocalSourceID());
+
+        getTransportManager().sendHolePunchPacket(
+            stream.getTarget(), mediaType, packet);
     }
 
     /**
@@ -1942,6 +1956,8 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
                     stream.getTarget(),
                     MediaType.AUDIO);
             stream.start();
+
+            sendHolePunchPacket(stream, MediaType.AUDIO);
         }
 
         stream = getStream(MediaType.VIDEO);
@@ -1970,7 +1986,7 @@ public abstract class CallPeerMediaHandler<T extends MediaAwareCallPeer<?,?,?>>
                  * send the hole-punch packet anyway to let the remote video
                  * reach this local peer.
                  */
-                sendHolePunchPacket(stream.getTarget());
+                sendHolePunchPacket(stream, MediaType.VIDEO);
             }
         }
     }

@@ -74,7 +74,8 @@ public class UIServiceImpl
     implements UIService,
                ShutdownService,
                ServiceListener,
-               PropertyChangeListener
+               PropertyChangeListener,
+               UINotificationListener
 {
     /**
      * The <tt>Logger</tt> used by the <tt>UIServiceImpl</tt> class and its
@@ -140,6 +141,7 @@ public class UIServiceImpl
      */
     public UIServiceImpl()
     {
+        UINotificationManager.addNotificationListener(this);
     }
 
     /**
@@ -197,8 +199,12 @@ public class UIServiceImpl
             }
         }
 
-        if(ConfigurationUtils.isApplicationVisible())
+        if(ConfigurationUtils.isApplicationVisible()
+            || Boolean.getBoolean("disable-tray")
+            || ConfigurationUtils.isMinimizeInsteadOfHide())
+        {
             mainFrame.setFrameVisible(true);
+        }
 
         SwingUtilities.invokeLater(new RunLoginGui());
 
@@ -428,36 +434,16 @@ public class UIServiceImpl
     }
 
     /**
-     * Implements {@link UIService#setExitOnMainWindowClose}. Sets the boolean
-     * property which indicates whether the application should be exited when
-     * the main application window is closed.
-     *
-     * @param exitOnMainWindowClose <tt>true</tt> if closing the main
-     * application window should also be exiting the application; otherwise,
-     * <tt>false</tt>
+     * Called from the systray service when a tray has been initialized and
+     * hiding (instead of minimizing or exiting) is possible). If hiding is
+     * possible and the option to minimize is not selected, the application
+     * gets hidden on clicking 'X'.
+     * 
+     * @param true if a tray icon was loaded.
      */
-    public void setExitOnMainWindowClose(boolean exitOnMainWindowClose)
+    public void setMainWindowCanHide(boolean canHide)
     {
-            mainFrame.setDefaultCloseOperation(
-                    exitOnMainWindowClose
-                        ? JFrame.DISPOSE_ON_CLOSE
-                        : JFrame.HIDE_ON_CLOSE);
-    }
-
-    /**
-     * Implements {@link UIService#getExitOnMainWindowClose()}. Gets the boolean
-     * property which indicates whether the application should be exited when
-     * the main application window is closed.
-     *
-     * @return determines whether the UI impl would exit the application when
-     * the main application window is closed.
-     */
-    public boolean getExitOnMainWindowClose()
-    {
-        return
-            (mainFrame != null)
-                && (mainFrame.getDefaultCloseOperation()
-                        == JFrame.DISPOSE_ON_CLOSE);
+        mainFrame.updateCloseAction(canHide);
     }
 
     /**
@@ -1641,5 +1627,42 @@ public class UIServiceImpl
     {
         ChatRoomAutoOpenConfigDialog.showChatRoomAutoOpenConfigDialog(
             pps, chatRoomId);
+    }
+
+    /**
+     * Counts the number of unread notifications and forwards the sum to the
+     * systray service.
+     */
+    @Override
+    public void notificationReceived(UINotification notification)
+    {
+        forwardNotificationCount();
+    }
+
+    /**
+     * Counts the number of unread notifications and forwards the sum to the
+     * systray service.
+     */
+    @Override
+    public void notificationCleared(UINotification notification)
+    {
+        forwardNotificationCount();
+    }
+
+    private void forwardNotificationCount()
+    {
+        int count = 0;
+        for (UINotificationGroup g : UINotificationManager
+            .getNotificationGroups())
+        {
+            Iterator<UINotification> it =
+                UINotificationManager.getUnreadNotifications(g);
+            while (it.hasNext())
+            {
+                count += it.next().getUnreadObjects();
+            }
+        }
+
+        GuiActivator.getSystrayService().setNotificationCount(count);
     }
 }

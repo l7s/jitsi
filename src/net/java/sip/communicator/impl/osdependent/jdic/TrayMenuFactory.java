@@ -26,6 +26,7 @@ import javax.swing.event.*;
 import net.java.sip.communicator.impl.osdependent.*;
 import net.java.sip.communicator.service.gui.*;
 
+import org.apache.commons.lang3.tuple.*;
 import org.jitsi.util.*;
 
 /**
@@ -139,16 +140,16 @@ public final class TrayMenuFactory
      *
      * @param tray the system tray for which we're creating a menu
      * @param swing indicates if we should create a Swing or an AWT menu
-     * @return a tray menu for the given system tray
+     * @return a tray menu for the given system tray (first) and the default
+     *         menu item (second)
      */
-    public static Object createTrayMenu(SystrayServiceJdicImpl tray,
-                                        boolean swing)
+    public static Pair<Object, Object> createTrayMenu(
+        SystrayServiceJdicImpl tray,
+        boolean swing,
+        boolean accountMenuSupported
+        )
     {
-        // Enable swing for java 1.6 except for the mac version
-        if (!swing && !OSUtils.IS_MAC)
-            swing = true;
-
-        Object trayMenu = swing ? new JPopupMenu() : new PopupMenu();
+        final Object trayMenu = swing ? new JPopupMenu() : new PopupMenu();
         ActionListener listener = new ActionListener()
         {
             public void actionPerformed(ActionEvent event)
@@ -184,9 +185,11 @@ public final class TrayMenuFactory
                 + "CHAT_PRESENCE_DISABLED",
                 false);
 
-        if (!chatPresenceDisabled.booleanValue())
+        if (!chatPresenceDisabled.booleanValue() && accountMenuSupported)
         {
-            add(trayMenu, new StatusSubMenu(swing).getMenu());
+            add(
+                trayMenu,
+                new StatusSubMenu(swing, accountMenuSupported).getMenu());
             addSeparator(trayMenu);
         }
 
@@ -201,9 +204,11 @@ public final class TrayMenuFactory
             showHideIconId = "service.gui.icons.SEARCH_ICON_16x16";
         }
         else
+        {
             showHideName = "service.gui.SHOW";
             showHideTextId = "service.gui.SHOW";
             showHideIconId = "service.gui.icons.SEARCH_ICON_16x16";
+        }
 
         final Object showHideMenuItem = createTrayMenuItem( showHideName,
                                                             showHideTextId,
@@ -245,7 +250,7 @@ public final class TrayMenuFactory
                 }
             });
 
-        return trayMenu;
+        return Pair.of(trayMenu, showHideMenuItem);
     }
 
     /**

@@ -131,6 +131,42 @@
         <mkdir dir="${generic.app.dir}"/>
     </target>
 
+    <target name="strip-multi-platform-jar">
+        <condition property="win64">
+            <equals arg1="${platform}" arg2="windows-64" />
+        </condition>
+        <condition property="win32">
+            <equals arg1="${platform}" arg2="windows-32" />
+        </condition>
+        <condition property="linux64">
+            <equals arg1="${platform}" arg2="linux-64" />
+        </condition>
+        <condition property="linux32">
+            <equals arg1="${platform}" arg2="linux-32" />
+        </condition>
+        <condition property="macos">
+            <equals arg1="${platform}" arg2="osx" />
+        </condition>
+        <zip destfile="${jar}.tmp">
+            <zipfileset src="${jar}">
+                <exclude name="**/darwin/*.jnilib" unless="${macos}"/>
+                <exclude name="**/linux-x86/*.so" unless="${linux32}"/>
+                <exclude name="**/linux-x86-64/*.so" unless="${linux64}"/>
+                <exclude name="**/win32-x86/*.dll" unless="${win32}"/>
+                <exclude name="**/win32-x86-64/*.dll" unless="${win64}"/>
+
+                <exclude name="**/freebsd-x86/*.so"/>
+                <exclude name="**/freebsd-x86-64/*.so"/>
+                <exclude name="**/linux-arm/*.so"/>
+                <exclude name="**/openbsd-x86/*.so"/>
+                <exclude name="**/openbsd-x86-64/*.so"/>
+                <exclude name="**/sunos-*/*.so"/>
+                <exclude name="**/w32ce-arm/*.dll"/>
+            </zipfileset>
+        </zip>
+        <move file="${jar}.tmp" tofile="${jar}"/>
+    </target>
+
     <target name="build-installation-generic"
             depends="clean-install-generic,define-izpack-task,version,load-properties">
 
@@ -539,6 +575,22 @@
                 <exclude name="*slick.jar" />
             </fileset>
         </copy>
+        <antcall target="strip-multi-platform-jar">
+            <param name="jar" value="${light.dir}/sc-bundles/libjitsi.jar"/>
+            <param name="platform" value="windows-${windows.arch}" />
+        </antcall>
+        <antcall target="strip-multi-platform-jar">
+            <param name="jar" value="${light.dir}/sc-bundles/jitsi-gpl-dependencies.jar"/>
+            <param name="platform" value="windows-${windows.arch}" />
+        </antcall>
+        <antcall target="strip-multi-platform-jar">
+            <param name="jar" value="${light.dir}/sc-bundles/jitsi-lgpl-dependencies.jar"/>
+            <param name="platform" value="windows-${windows.arch}" />
+        </antcall>
+        <antcall target="strip-multi-platform-jar">
+            <param name="jar" value="${light.dir}/sc-bundles/jna.jar"/>
+            <param name="platform" value="windows-${windows.arch}" />
+        </antcall>
 
         <!--
             Include a private Java Runtime Environment if it has been specified.
@@ -1154,6 +1206,22 @@
                 <include name="**/*.jar"/>
             </fileset>
       </copy>
+      <antcall target="strip-multi-platform-jar">
+          <param name="jar" value="${bundles.dest}/libjitsi.jar"/>
+          <param name="platform" value="osx" />
+      </antcall>
+      <antcall target="strip-multi-platform-jar">
+          <param name="jar" value="${bundles.dest}/jitsi-gpl-dependencies.jar"/>
+          <param name="platform" value="osx" />
+      </antcall>
+      <antcall target="strip-multi-platform-jar">
+          <param name="jar" value="${bundles.dest}/jitsi-lgpl-dependencies.jar"/>
+          <param name="platform" value="osx" />
+      </antcall>
+      <antcall target="strip-multi-platform-jar">
+          <param name="jar" value="${bundles.dest}/jna.jar"/>
+          <param name="platform" value="osx" />
+      </antcall>
 
       <!-- Delete the old .app if it exists -->
       <delete dir="${macosx.app.dir}/${application.name}.app"
@@ -1293,6 +1361,8 @@
             <key>CFBundleURLSchemes</key>
             <array>
                 <string>sip</string>
+                <string>tel</string>
+                <string>callto</string>
             </array>
         </dict>
         <dict>
@@ -1703,7 +1773,7 @@
             <!-- the designated param value is taken after executing the command
             on already installed and signed application
             $ codesign -d -r- /Applications/Jitsi.app -->
-            <arg value="=designated => identifier &quot;org.${package.name}&quot; and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = &quot;BE8738ZVRM&quot;"/>
+            <arg value="=designated => identifier &quot;org.${package.name}&quot; and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = &quot;9J46G85C89&quot;"/>
             <arg value="${macosx.app.dir}/${application.name}.app"/>
         </exec>
 
@@ -2276,9 +2346,6 @@
               todir="${debianize.dir}"
               overwrite="true"/>
 
-        <!-- use postinst and postrm files only if used from deb target -->
-        <antcall target="-deb-post-files-update"/>
-
         <copy todir="${debianize.dir}/source">
             <fileset dir="${inst.resrc}/debian/source"/>
         </copy>
@@ -2414,7 +2481,7 @@
             and libjdic.so to deb and i386 package fail to build -->
         <replace file="${debianize.dir}/rules"
                  token="get-orig-source:"
-                 value="override_dh_shlibdeps:&#010;&#009;dh_shlibdeps -Xlibjunbound.so -Xlibsysactivitynotifications.so&#010;&#010;get-orig-source:"/>
+                 value="override_dh_shlibdeps:&#010;&#009;dh_shlibdeps -Xlibsysactivitynotifications.so&#010;&#010;get-orig-source:"/>
 
         <!-- removes the rule override_dh_auto_clean -->
         <replace file="${debianize.dir}/rules"
@@ -2481,16 +2548,6 @@
                  token="/usr/lib/jni"
                  value="$SCDIR/lib/native"/>
     </target>
-    <!-- use postinst and postrm files only if used from deb target -->
-    <target name="-deb-post-files-update"
-                unless="debianize.src.pkg">
-        <copy file="${inst.resrc}/debian/postinst"
-              tofile="${debianize.dir}/postinst"
-              overwrite="true"/>
-        <copy file="${inst.resrc}/debian/postrm"
-              tofile="${debianize.dir}/postrm"
-              overwrite="true"/>
-    </target>
 
     <!-- Prepare to deploy the Debian package - This needs dpkg utilities -->
     <target name="deb-rel" depends="deb,dpkg-scan-warning"
@@ -2556,7 +2613,6 @@
                 <exclude name="**/ssh/**"/>
                 <exclude name="**/sshaccregwizz/**"/>
                 <exclude name="**/profiler4j/**"/>
-                <exclude name="**/windows/**"/>
                 <exclude name="**/windows32/**"/>
                 <exclude name="**/windows64/**"/>
                 <exclude name="**/native/addrbook/macosx/**"/>
@@ -2709,10 +2765,6 @@
         <unzip src="${sc.basedir}/../libsrc/jmyspell-core-src.zip"
                dest="${debian.src.dir}/lib/src/jmyspell"/>
 
-        <!-- jfontchooser -->
-        <unzip src="${sc.basedir}/../libsrc/jfontchooser-src.zip"
-                       dest="${debian.src.dir}/lib/src/jfontchooser"/>
-
         <!-- gdata
         <unzip src="${sc.basedir}/../libsrc/gdata-src.java-1.43.0.zip"
                dest="${debian.src.dir}/lib/src">
@@ -2773,8 +2825,6 @@
         <delete dir="${debian.src.dir}/lib/src/otr4j/bin"
                 failonerror="false"/>
         <delete dir="${debian.src.dir}/lib/src/jmyspell/classes"
-                failonerror="false"/>
-        <delete dir="${debian.src.dir}/lib/src/jfontchooser/classes"
                 failonerror="false"/>
         <delete dir="${debian.src.dir}/lib/src/OrangeExtensions/classes"
                 failonerror="false"/>
@@ -2847,7 +2897,7 @@
 
         <symlink resource="/usr/share/java/weupnp.jar"
              overwrite="true"
-             link="${debian.src.dir}/lib/installer-exclude/weupnp-0.1.2-SNAPSHOT.jar"/>
+             link="${debian.src.dir}/lib/installer-exclude/weupnp-0.1.4.jar"/>
 
         <!-- swingworker -->
         <ant dir="${debian.src.dir}/lib/src/swingworker"
@@ -2991,15 +3041,6 @@
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude/json-simple-1.1.1.jar"/>
 
-        <!-- jymsg -->
-        <ant dir="${debian.src.dir}/lib/src/jymsg"
-             inheritAll="false"
-             target="jars">
-        </ant>
-        <symlink resource="../src/jymsg/classes/ymsg_network_v0_67.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/installer-exclude"/>
-
         <!-- dhcp4j -->
         <mkdir dir="${debian.src.dir}/lib/src/dhcp4java/classes"/>
         <javac debug="true"
@@ -3078,23 +3119,6 @@
         </jar>
         <symlink resource="../src/jmyspell/jmyspell-core.jar" overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude"/>
-
-        <!-- jfontchooser -->
-        <mkdir dir="${debian.src.dir}/lib/src/jfontchooser/classes"/>
-        <javac debug="true"
-            deprecation="true" destdir="${debian.src.dir}/lib/src/jfontchooser/classes"
-            nowarn="false"
-            source="1.5" target="1.5" fork="true">
-                <src path="${debian.src.dir}/lib/src/jfontchooser/src"/>
-                <include name="**/*.java" />
-        </javac>
-        <jar compress="true"
-             destfile="${debian.src.dir}/lib/src/jfontchooser/jfontchooser-1.0.5.jar">
-            <zipfileset dir="${debian.src.dir}/lib/src/jfontchooser/classes"/>
-        </jar>
-        <symlink resource="../src/jfontchooser/jfontchooser-1.0.5.jar"
-                 overwrite="true"
-                 link="${debian.src.dir}/lib/installer-exclude"/>
 
         <!-- libcommons-codec-java -->
         <symlink resource="/usr/share/java/commons-codec.jar"
@@ -3234,6 +3258,10 @@
         <symlink resource="/usr/share/libjitsi/lib/ice4j.jar"
              overwrite="true"
              link="${debian.src.dir}/lib/installer-exclude"/>
+        <!-- jitsi-gpl-dependencies -->
+        <symlink resource="/usr/share/libjitsi/lib/jitsi-gpl-dependencies.jar"
+             overwrite="true"
+             link="${debian.src.dir}/lib/installer-exclude/"/>
         <!-- jitsi-lgpl-dependencies -->
         <symlink resource="/usr/share/libjitsi/lib/jitsi-lgpl-dependencies.jar"
              overwrite="true"
@@ -3307,7 +3335,6 @@
         <antcall target="globalshortcut"/>
         <antcall target="hid"/>
         <antcall target="sysactivity"/>
-        <antcall target="unbound"/>
         <antcall target="hwaddressretriever"/>
 
     </target>
@@ -3755,6 +3782,8 @@
                  link="${debian.bundles.common.dest}/libjitsi.jar/"/>
         <symlink resource="/usr/share/libjitsi/libjitsi.jar"
                  link="${debian.bundles.common.dest}/libjitsi.jar/"/>
+        <symlink resource="/usr/share/libjitsi/lib/jitsi-gpl-dependencies.jar"
+                 link="${debian.bundles.common.dest}/libjitsi.jar/"/>
         <symlink resource="/usr/share/libjitsi/lib/jitsi-lgpl-dependencies.jar"
                  link="${debian.bundles.common.dest}/libjitsi.jar/"/>
         <symlink resource="/usr/share/libjitsi/lib/fmj.jar"
@@ -3781,7 +3810,7 @@
             destfile="${debian.bundles.common.dest}/libjitsi.jar/META-INF/MANIFEST.MF"
             append="true"
             eol="crlf"
-            fixlastline="true">Bundle-ClassPath: .,libjitsi-impl.jar,fmj.jar,jitsi-lgpl-dependencies.jar,libjitsi.jar,bcpkix.jar&#013;&#010;&#013;&#010;</concat>
+            fixlastline="true">Bundle-ClassPath: .,libjitsi-impl.jar,fmj.jar,jitsi-gpl-dependencies.jar,jitsi-lgpl-dependencies.jar,libjitsi.jar,bcpkix.jar&#013;&#010;&#013;&#010;</concat>
         <replace file="${debian.bundles.dest}/../lib/felix.client.run.properties"
                  token="reference:file:sc-bundles/libjitsi.jar">
             <replacevalue>reference:file:/usr/share/jitsi-common/libjitsi.jar</replacevalue>

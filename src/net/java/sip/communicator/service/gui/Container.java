@@ -260,4 +260,10 @@ public class Container
         else
             return false;
     }
+
+    @Override
+    public int hashCode()
+    {
+        return containerName.hashCode();
+    }
 }

@@ -815,6 +815,17 @@ public class OperationSetBasicInstantMessagingJabberImpl
                         ForwardedPacketExtension.class);
                 if(extensions.isEmpty())
                     return;
+
+                // according to xep-0280 all carbons should come from
+                // our bare jid
+                if (!msg.getFrom().equals(
+                        StringUtils.parseBareAddress(
+                            jabberProvider.getOurJID())))
+                {
+                    logger.info("Received a carbon copy with wrong from!");
+                    return;
+                }
+
                 ForwardedPacketExtension forwardedExt = extensions.get(0);
                 msg = forwardedExt.getMessage();
                 if(msg == null || msg.getBody() == null)
@@ -1109,7 +1120,7 @@ public class OperationSetBasicInstantMessagingJabberImpl
                 NewMailNotificationIQ.NAMESPACE,
                 new NewMailNotificationProvider());
 
-        XMPPConnection connection = jabberProvider.getConnection();
+        Connection connection = jabberProvider.getConnection();
 
         connection.addPacketListener(
                 new MailboxIQListener(), new PacketTypeFilter(MailboxIQ.class));

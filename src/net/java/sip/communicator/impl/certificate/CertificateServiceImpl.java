@@ -211,49 +211,6 @@ public class CertificateServiceImpl
             System.getProperties().remove("javax.net.ssl.trustStorePassword");
     }
 
-    /**
-     * Appends an index number to the alias of each entry in the KeyStore.
-     * 
-     * The Windows TrustStore might contain multiple entries with the same
-     * "Friendly Name", which is directly used as the "Alias" for the KeyStore.
-     * As all operations of the KeyStore operate with these non-unique names,
-     * PKIX path building could fail and in the end lead to certificate warnings
-     * for perfectly valid certificates.
-     * 
-     * @throws Exception when the aliases could not be renamed.
-     */
-    private static int keyStoreAppendIndex(KeyStore ks) throws Exception
-    {
-        Field keyStoreSpiField = ks.getClass().getDeclaredField("keyStoreSpi");
-        keyStoreSpiField.setAccessible(true);
-        KeyStoreSpi keyStoreSpi = (KeyStoreSpi) keyStoreSpiField.get(ks);
-
-        if ("sun.security.mscapi.KeyStore$ROOT".equals(keyStoreSpi.getClass()
-            .getName()))
-        {
-            Field entriesField =
-                keyStoreSpi.getClass().getEnclosingClass()
-                    .getDeclaredField("entries");
-            entriesField.setAccessible(true);
-            Collection<?> entries =
-                (Collection<?>) entriesField.get(keyStoreSpi);
-
-            int i = 0;
-            for (Object entry : entries)
-            {
-                Field aliasField = entry.getClass().getDeclaredField("alias");
-                aliasField.setAccessible(true);
-                String alias = (String) aliasField.get(entry);
-                aliasField.set(entry,
-                    alias.concat("_").concat(Integer.toString(i++)));
-            }
-
-            return i;
-        }
-
-        return -1;
-    }
-
     // ------------------------------------------------------------------------
     // Client authentication configuration
     // ------------------------------------------------------------------------
@@ -678,10 +635,6 @@ public class CertificateServiceImpl
             {
                 ks = KeyStore.getInstance(tsType);
                 ks.load(null, null);
-                int numEntries = keyStoreAppendIndex(ks);
-                logger.info(
-                    "Using Windows-ROOT. Aliases sucessfully renamed on "
-                        + numEntries + " root certificates.");
             }
             catch (Exception e)
             {
@@ -784,8 +737,7 @@ public class CertificateServiceImpl
                         propNames.add(propName);
 
                         message =
-                            R.getI18NString("service.gui."
-                                + "CERT_DIALOG_DESCRIPTION_TXT_NOHOST",
+                            R.getI18NString("service.gui.CERT_DIALOG_DESCRIPTION_TXT_NOHOST",
                                 new String[] {
                                     appName
                                 }
@@ -809,8 +761,7 @@ public class CertificateServiceImpl
                         {
                             message =
                                 R.getI18NString(
-                                    "service.gui."
-                                    + "CERT_DIALOG_DESCRIPTION_TXT",
+                                    "service.gui.CERT_DIALOG_DESCRIPTION_TXT",
                                     new String[] {
                                         appName,
                                         identitiesToTest.toString()
@@ -821,8 +772,7 @@ public class CertificateServiceImpl
                         {
                             message =
                                 R.getI18NString(
-                                    "service.gui."
-                                    + "CERT_DIALOG_PEER_DESCRIPTION_TXT",
+                                    "service.gui.CERT_DIALOG_PEER_DESCRIPTION_TXT",
                                     new String[] {
                                         appName,
                                         identitiesToTest.toString()

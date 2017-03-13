@@ -42,6 +42,7 @@ import net.java.sip.communicator.service.certificate.*;
 import net.java.sip.communicator.service.dns.*;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.event.*;
+import net.java.sip.communicator.service.protocol.jabber.*;
 import net.java.sip.communicator.service.protocol.jabberconstants.*;
 import net.java.sip.communicator.util.*;
 import net.java.sip.communicator.util.Logger;
@@ -220,7 +221,7 @@ public class ProtocolProviderServiceJabberImpl
     /**
      * Used to connect to a XMPP server.
      */
-    private XMPPConnection connection;
+    private Connection connection;
 
     /**
      * The socket address of the XMPP server.
@@ -240,7 +241,7 @@ public class ProtocolProviderServiceJabberImpl
     /**
      * The identifier of the account that this provider represents.
      */
-    private AccountID accountID = null;
+    private JabberAccountID accountID = null;
 
     /**
      * Used when we need to re-register
@@ -607,7 +608,7 @@ public class ProtocolProviderServiceJabberImpl
      */
     public boolean isSignalingTransportSecure()
     {
-        return connection != null && connection.isUsingTLS();
+        return connection.isSecureConnection();
     }
 
     /**
@@ -622,7 +623,7 @@ public class ProtocolProviderServiceJabberImpl
         if(connection != null && connection.isConnected())
         {
             // Transport using a secure connection.
-            if(connection.isUsingTLS())
+            if(isSignalingTransportSecure())
             {
                 return TransportProtocol.TLS;
             }
@@ -1121,11 +1122,24 @@ public class ProtocolProviderServiceJabberImpl
             JabberLoginStrategy loginStrategy)
         throws XMPPException
     {
-        ConnectionConfiguration confConn = new ConnectionConfiguration(
-                address.getAddress().getHostAddress(),
-                address.getPort(),
-                serviceName, proxy
-        );
+        // BOSH or TCP ?
+        ConnectionConfiguration confConn;
+        String boshURL = accountID.getBoshUrl();
+        boolean isBosh = !org.jitsi.util.StringUtils.isNullOrEmpty(boshURL);
+
+        if (isBosh)
+        {
+            confConn = new BOSHConfiguration(serviceName);
+            ((BOSHConfiguration)confConn).setBoshUrl(boshURL);
+        }
+        else
+        {
+            confConn
+                = new ConnectionConfiguration(
+                        address.getAddress().getHostAddress(),
+                        address.getPort(),
+                        serviceName, proxy);
+        }
 
         // if we have OperationSetPersistentPresence skip sending initial
         // presence while login is executed, the OperationSet will take care
@@ -1153,7 +1167,11 @@ public class ProtocolProviderServiceJabberImpl
             disconnectAndCleanConnection();
         }
 
-        connection = new XMPPConnection(confConn);
+        connection
+            = isBosh
+                ? new XMPPBOSHConnection((BOSHConfiguration)confConn)
+                : new XMPPConnection(confConn);
+
         this.address = address;
 
         try
@@ -1203,13 +1221,16 @@ public class ProtocolProviderServiceJabberImpl
             throw new XMPPException("Error creating custom trust manager", e);
         }
 
-        if(debugger == null)
+        // FIXME rework debugger to work with Connection if possible
+        if(debugger == null && connection instanceof XMPPConnection)
+        {
             debugger = new SmackPacketDebugger();
 
-        // sets the debugger
-        debugger.setConnection(connection);
-        connection.addPacketListener(debugger, null);
-        connection.addPacketInterceptor(debugger, null);
+            // sets the debugger
+            debugger.setConnection((XMPPConnection) connection);
+            connection.addPacketListener(debugger, null);
+            connection.addPacketInterceptor(debugger, null);
+        }
 
         connection.connect();
 
@@ -1256,9 +1277,10 @@ public class ProtocolProviderServiceJabberImpl
         }
         else
         {
-            if (connection.getSocket() instanceof SSLSocket)
+            final SSLSocket sslSocket = getSSLSocket();
+
+            if (sslSocket != null)
             {
-                final SSLSocket sslSocket = (SSLSocket) connection.getSocket();
                 StringBuilder buff = new StringBuilder();
                 buff.append("Chosen TLS protocol and algorithm:\n")
                         .append("Protocol: ").append(sslSocket.getSession()
@@ -1547,7 +1569,7 @@ public class ProtocolProviderServiceJabberImpl
      * @see net.java.sip.communicator.service.protocol.AccountID
      */
     protected void initialize(String screenname,
-                              AccountID accountID)
+                              JabberAccountID accountID)
     {
         synchronized(initializationLock)
         {
@@ -2127,11 +2149,11 @@ public class ProtocolProviderServiceJabberImpl
     }
 
     /**
-     * Returns the <tt>XMPPConnection</tt>opened by this provider
-     * @return a reference to the <tt>XMPPConnection</tt> last opened by this
+     * Returns the <tt>Connection</tt>opened by this provider
+     * @return a reference to the <tt>Connection</tt> last opened by this
      * provider.
      */
-    public XMPPConnection getConnection()
+    public Connection getConnection()
     {
         return connection;
     }
@@ -2488,7 +2510,7 @@ public class ProtocolProviderServiceJabberImpl
      */
     public String getFullJid(String bareJid)
     {
-        XMPPConnection connection = getConnection();
+        Connection connection = getConnection();
 
         // when we are not connected there is no full jid
         if (connection != null && connection.isConnected())
@@ -2692,12 +2714,21 @@ public class ProtocolProviderServiceJabberImpl
      */
     public void startJingleNodesDiscovery()
     {
+        if (!(connection instanceof XMPPConnection))
+        {
+            logger.warn(
+                "Jingle node discovery currently will work only with " +
+                    "TCP XMPP connection");
+            return;
+        }
+
         // Jingle Nodes Service Initialization
+        final XMPPConnection xmppConnection = (XMPPConnection) connection;
         final JabberAccountIDImpl accID = (JabberAccountIDImpl)getAccountID();
-        final SmackServiceNode service = new SmackServiceNode(connection,
-                60000);
+        final SmackServiceNode service
+            = new SmackServiceNode(xmppConnection, 60000);
         // make sure SmackServiceNode will clean up when connection is closed
-        connection.addConnectionListener(service);
+        xmppConnection.addConnectionListener(service);
 
         for(JingleNodeDescriptor desc : accID.getJingleNodes())
         {
@@ -2713,7 +2744,7 @@ public class ProtocolProviderServiceJabberImpl
 
         new Thread(new JingleNodesServiceDiscovery(
                             service,
-                            connection,
+                            xmppConnection,
                             accID,
                             jingleNodesSyncRoot))
                 .start();
@@ -2841,7 +2872,7 @@ public class ProtocolProviderServiceJabberImpl
      */
     private void setTrafficClass()
     {
-        Socket s = connection.getSocket();
+        Socket s = getSocket();
 
         if(s != null)
         {
@@ -2876,7 +2907,7 @@ public class ProtocolProviderServiceJabberImpl
      */
     public String getJitsiVideobridge()
     {
-        XMPPConnection connection = getConnection();
+        Connection connection = getConnection();
 
         if (connection != null)
         {
@@ -2967,21 +2998,23 @@ public class ProtocolProviderServiceJabberImpl
     }
 
     /**
+     * Obtains XMPP connection's socket.
+     * @return <tt>Socket</tt> instance used by the underlying XMPP connection
+     * or <tt>null</tt> if "non socket" type of transport is currently used.
+     */
+    private Socket getSocket()
+    {
+        return connection != null ? connection.getSocket() : null;
+    }
+
+    /**
      * Return the SSL socket (if TLS used).
      * @return The SSL socket or null if not used
      */
-    public SSLSocket getSSLSocket()
+    SSLSocket getSSLSocket()
     {
-        final SSLSocket result;
-        final Socket socket = connection.getSocket();
-        if (socket instanceof SSLSocket)
-        {
-            result = (SSLSocket) socket;
-        }
-        else
-        {
-            result = null;
-        }
-        return result;
+        final Socket socket = getSocket();
+
+        return (socket instanceof SSLSocket) ? (SSLSocket) socket : null;
     }
 }

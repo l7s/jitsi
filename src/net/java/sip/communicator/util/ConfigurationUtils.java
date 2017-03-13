@@ -92,6 +92,11 @@ public class ConfigurationUtils
     private static boolean isQuitWarningShown = true;
 
     /**
+     * Indicates if the main frame should be minimized instead of hidden.
+     */
+    private static boolean minimizeInsteadOfHide = false;
+
+    /**
      * Indicates if typing notifications should be sent.
      */
     private static boolean isSendTypingNotifications;
@@ -433,17 +438,9 @@ public class ConfigurationUtils
             autoPopupNewMessage = true;
 
         // Load the "sendMessageCommand" property.
-        String messageCommandProperty
-            = "service.gui.SEND_MESSAGE_COMMAND";
-        String messageCommand = configService.getString(messageCommandProperty);
-
-        if(messageCommand == null)
-            messageCommand
-                = UtilActivator.getResources()
-                    .getSettingsString(messageCommandProperty);
-
-        if(messageCommand == null || messageCommand.length() == 0)
-            sendMessageCommand = messageCommand;
+        String messageCommandProperty = "service.gui.SEND_MESSAGE_COMMAND";
+        sendMessageCommand = UtilActivator.getResources()
+            .getSettingsString(messageCommandProperty);
 
         // Load the showCallPanel property.
         String callPanelShown = configService.getString(
@@ -478,6 +475,10 @@ public class ConfigurationUtils
             isQuitWarningShown
                 = Boolean.parseBoolean(quitWarningShown);
         }
+
+        minimizeInsteadOfHide = configService.getBoolean(
+            "net.java.sip.communicator.impl.gui.minimizeInsteadOfHide",
+            isPinnedToTaskBar());
 
         // Load the "sendTypingNotifications" property.
         String isSendTypingNotifProperty =
@@ -964,6 +965,37 @@ public class ConfigurationUtils
         );
     }
 
+    private static boolean isPinnedToTaskBar()
+    {
+        if (!OSUtils.IS_WINDOWS)
+        {
+            return false;
+        }
+
+        File taskbar = new File(System.getenv("appdata"),
+            "Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar");
+        File[] pins = taskbar.listFiles(new FileFilter()
+        {
+            @Override
+            public boolean accept(File f)
+            {
+                return f.getName().endsWith(".lnk");
+            }
+        });
+
+        String title = UtilActivator.getResources()
+            .getSettingsString("service.gui.APPLICATION_NAME");
+        for (File pin : pins)
+        {
+            if (pin.getName().contains(title))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Checks whether font support is disabled, checking in default
      * settings for the default value.
@@ -1052,6 +1084,30 @@ public class ConfigurationUtils
     public static boolean isApplicationVisible()
     {
         return isApplicationVisible;
+    }
+
+    /**
+     * Gets whether the application should be minimized and not hidden when
+     * clicking close on the main frame.
+     * @return <tt>true</tt> when the main frame should be minimized,
+     *         <tt>false</tt> otherwise
+     */
+    public static boolean isMinimizeInsteadOfHide()
+    {
+        return minimizeInsteadOfHide;
+    }
+
+    /**
+     * Sets whether the application should be minimized and not hidden when
+     * clicking close on the main frame.
+     * @param value <tt>true</tt> when the main frame should be minimized,
+     *            <tt>false</tt> otherwise
+     */
+    public static void setIsMinimizeInsteadOfHide(boolean value)
+    {
+        minimizeInsteadOfHide = value;
+        configService.setProperty(
+            "net.java.sip.communicator.impl.gui.minimizeInsteadOfHide", value);
     }
 
     /**

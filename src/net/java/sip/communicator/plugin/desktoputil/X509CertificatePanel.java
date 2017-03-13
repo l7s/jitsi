@@ -288,11 +288,11 @@ public class X509CertificatePanel
         addTitle(sb, R.getI18NString("service.gui.CERT_INFO_FINGERPRINTS"));
         try
         {
+            String sha256String = getThumbprint(certificate, "SHA-256");
             String sha1String = getThumbprint(certificate, "SHA1");
-            String md5String = getThumbprint(certificate, "MD5");
 
-            addField(sb, "SHA1:", sha1String);
-            addField(sb, "MD5:", md5String);
+            addField(sb, "SHA256:", sha256String, 48);
+            addField(sb, "SHA1:", sha1String, 72);
         }
         catch (CertificateException e)
         {
@@ -319,13 +319,15 @@ public class X509CertificatePanel
         {
             RSAPublicKey key = (RSAPublicKey)certificate.getPublicKey();
 
-            addField(sb, R.getI18NString("service.gui.CERT_INFO_PUB_KEY"),
-                R.getI18NString(
-                    "service.gui.CERT_INFO_KEY_BYTES_PRINT",
+            addField(sb,
+                R.getI18NString("service.gui.CERT_INFO_PUB_KEY"),
+                R.getI18NString("service.gui.CERT_INFO_KEY_BITS_PRINT",
                     new String[]{
-                        String.valueOf(key.getModulus().toByteArray().length-1),
-                        key.getModulus().toString(16)
-                    }));
+                        String.valueOf(
+                            (key.getModulus().toByteArray().length-1)*8)
+                    }),
+                getHex(key.getModulus().toByteArray()),
+                48);
 
             addField(sb, R.getI18NString("service.gui.CERT_INFO_EXP"), 
                     key.getPublicExponent().toString());
@@ -346,11 +348,12 @@ public class X509CertificatePanel
 
         addField(sb, R.getI18NString("service.gui.CERT_INFO_SIGN"),
             R.getI18NString(
-                    "service.gui.CERT_INFO_KEY_BYTES_PRINT",
+                    "service.gui.CERT_INFO_KEY_BITS_PRINT",
                     new String[]{
-                        String.valueOf(certificate.getSignature().length),
-                        getHex(certificate.getSignature())
-                    }));
+                        String.valueOf(certificate.getSignature().length*8),
+                    }),
+                getHex(certificate.getSignature()),
+                48);
 
         sb.append("</table>\n");
     }
@@ -376,12 +379,63 @@ public class X509CertificatePanel
      */
     private void addField(StringBuilder sb, String field, String value)
     {
-        sb.append("<tr>")
-                .append("<td style='margin-left: 5pt; margin-right: 25pt;")
-                .append(" white-space: nowrap'>")
-                .append(field).append("</td>")
-                .append("<td>").append(value).append("</td>")
-                .append("</tr>\n");
+        addField(sb, field, value, null, 0);
+    }
+
+    /**
+     * Add a field.
+     * @param sb StringBuilder to append to
+     * @param field name of the certificate field
+     * @param value to print
+     * @param wrap force-wrap after number of characters
+     */
+    private void addField(StringBuilder sb, String field, String value,
+        int wrap)
+    {
+        addField(sb, field, value, null, wrap);
+    }
+
+    /**
+     * Add a field.
+     * @param sb StringBuilder to append to
+     * @param field name of the certificate field
+     * @param value to print (not wrapped)
+     * @param otherValue second line of value to print (wrapped)
+     * @param wrap force-wrap after number of characters
+     */
+    private void addField(StringBuilder sb, String field, String value,
+        String otherValue, int wrap)
+    {
+        sb.append("<tr><td style='margin-left: 5pt; margin-right: 25pt;")
+            .append("white-space: nowrap' valign='top'>")
+            .append(field).append("</td><td><span");
+
+        if (otherValue != null)
+        {
+            sb.append('>').append(value).append("</span><br/><span");
+            value = otherValue;
+        }
+
+        if (wrap > 0)
+        {
+            sb.append(" style='font-family:monospace'>");
+            for (int i = 0; i < value.length(); i++)
+            {
+                if (i % wrap == 0 && i > 0)
+                {
+                    sb.append("<br/>");
+                }
+
+                sb.append(value.charAt(i));
+            }
+        }
+        else
+        {
+            sb.append(">");
+            sb.append(value);
+        }
+
+        sb.append("</span></td></tr>");
     }
 
     /**
@@ -399,13 +453,13 @@ public class X509CertificatePanel
         try
         {
             for (byte b : raw)
-                f.format("%02x", b);
+                f.format("%02X:", b);
         }
         finally
         {
             f.close();
         }
-        return hex.toString();
+        return hex.substring(0, hex.length() - 1);
     }
 
     /**
@@ -429,19 +483,21 @@ public class X509CertificatePanel
         {
             throw new CertificateException(e);
         }
+
         byte[] encodedCert = cert.getEncoded();
         StringBuilder sb = new StringBuilder(encodedCert.length * 2);
         Formatter f = new Formatter(sb);
         try
         {
             for (byte b : digest.digest(encodedCert))
-                f.format("%02x", b);
+                f.format("%02X:", b);
         }
         finally
         {
             f.close();
         }
-        return sb.toString();
+
+        return sb.substring(0, sb.length() - 1);
     }
 
     /**

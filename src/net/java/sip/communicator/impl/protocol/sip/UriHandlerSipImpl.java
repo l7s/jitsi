@@ -351,7 +351,11 @@ public class UriHandlerSipImpl
                     // Even if not registered after the timeout, try the call
                     // anyway and the error popup will appear to ask the
                     // user if they want to register
-                    handleUri(uri, provider);
+                    if(provider.getRegistrationState()
+                        != RegistrationState.REGISTERED)
+                    {
+                        handleUri(uri, provider);
+                    }
                 }
             }, initialRegistrationTimeout);
         }
@@ -401,9 +405,34 @@ public class UriHandlerSipImpl
         OperationSetBasicTelephony<?> telephonyOpSet
             = provider.getOperationSet(OperationSetBasicTelephony.class);
 
+        OperationSetVideoTelephony videoTelephonyOpSet
+            = provider.getOperationSet(OperationSetVideoTelephony.class);
+
+        boolean videoCall = false;
+        if(videoTelephonyOpSet != null
+            && uri.contains("?"))
+        {
+            String params = uri.substring(uri.indexOf('?') + 1);
+            uri = uri.substring(0, uri.indexOf('?'));
+
+            StringTokenizer paramTokens = new StringTokenizer(params, "&");
+            while(paramTokens.hasMoreTokens())
+            {
+                String tok = paramTokens.nextToken();
+                String[] keyValue = tok.split("\\=");
+                if (keyValue.length == 2
+                    && keyValue[0].equalsIgnoreCase("video")
+                    && keyValue[1].equalsIgnoreCase("true"))
+                    videoCall = true;
+            }
+        }
+
         try
         {
-            telephonyOpSet.createCall(uri);
+            if(videoCall)
+                videoTelephonyOpSet.createVideoCall(uri);
+            else
+                telephonyOpSet.createCall(uri);
         }
         catch (OperationFailedException exc)
         {
